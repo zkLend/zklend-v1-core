@@ -1,0 +1,27 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+name: Linting
+
+jobs:
+  lint:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+      - name: Install prettier
+        run: |
+          yarn global add prettier
+      - name: Install black
+        run: |
+          pip install git+https://github.com/psf/black
+      - name: Check Python format
+        run: |
+          black --check "./tests"
+      - name: Check Yaml format
+        run: |
+          prettier --check "**/*.{yaml,yml}"
