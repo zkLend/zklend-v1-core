@@ -7,10 +7,16 @@ from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 
 PREFIX_TRANSACTION = int.from_bytes(
-    list(b'StarkNet Transaction'), byteorder='big', signed=False)
+    list(b"StarkNet Transaction"), byteorder="big", signed=False
+)
 
-ACCOUNT_CONTRACT_FILE = str(Path(
-    __file__).parent.parent.parent / "src" / "openzeppelin"/"account"/"Account.cairo")
+ACCOUNT_CONTRACT_FILE = str(
+    Path(__file__).parent.parent.parent
+    / "src"
+    / "openzeppelin"
+    / "account"
+    / "Account.cairo"
+)
 
 
 class Call:
@@ -45,8 +51,9 @@ class Account:
 
         execute_calldata.append(len(calls))
         for call in calls:
-            raw_call_array.append((call.to, call.selector, len(
-                concated_calldata), len(call.calldata)))
+            raw_call_array.append(
+                (call.to, call.selector, len(concated_calldata), len(call.calldata))
+            )
             execute_calldata.append(call.to)
             execute_calldata.append(call.selector)
             execute_calldata.append(len(concated_calldata))
@@ -58,29 +65,48 @@ class Account:
             execute_calldata.append(item)
         execute_calldata.append(nonce)
 
-        message_hash = compute_hash_on_elements([
-            PREFIX_TRANSACTION,
-            self.address,
-            compute_hash_on_elements(
-                list(map(lambda item: compute_hash_on_elements([
-                    item.to, item.selector, compute_hash_on_elements(item.calldata)]), calls))
-            ),
-            nonce,
-            0,  # max_fee
-            0  # version
-        ])
+        message_hash = compute_hash_on_elements(
+            [
+                PREFIX_TRANSACTION,
+                self.address,
+                compute_hash_on_elements(
+                    list(
+                        map(
+                            lambda item: compute_hash_on_elements(
+                                [
+                                    item.to,
+                                    item.selector,
+                                    compute_hash_on_elements(item.calldata),
+                                ]
+                            ),
+                            calls,
+                        )
+                    )
+                ),
+                nonce,
+                0,  # max_fee
+                0,  # version
+            ]
+        )
         sig_r, sig_s = sign(message_hash, self.__private_key)
 
-        await self.__account_contract.__execute__(raw_call_array, concated_calldata, nonce).invoke(max_fee=0, signature=[sig_r, sig_s])
+        await self.__account_contract.__execute__(
+            raw_call_array, concated_calldata, nonce
+        ).invoke(max_fee=0, signature=[sig_r, sig_s])
 
-    @ property
+    @property
     def address(self) -> int:
         return self.__account_contract.contract_address
 
 
-async def deploy_account(starknet: Starknet, private_key: Optional[int] = None) -> Account:
+async def deploy_account(
+    starknet: Starknet, private_key: Optional[int] = None
+) -> Account:
     if private_key is None:
         private_key = 11223344556677889900
 
-    account_contract = await starknet.deploy(source=ACCOUNT_CONTRACT_FILE, constructor_calldata=[private_to_stark_key(private_key)])
+    account_contract = await starknet.deploy(
+        source=ACCOUNT_CONTRACT_FILE,
+        constructor_calldata=[private_to_stark_key(private_key)],
+    )
     return Account(account_contract, private_key)
