@@ -1,0 +1,24 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+name: Tests
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Install cairo-lang
+        run: |
+          pip install cairo-lang
+      - name: Run tests
+        run: |
+          cd ./src
+          pwd
+          pytest ../tests/*_test.py
