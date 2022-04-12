@@ -1,14 +1,14 @@
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from utils.helpers import string_to_felt
+
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import private_to_stark_key, sign
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 
-PREFIX_TRANSACTION = int.from_bytes(
-    list(b"StarkNet Transaction"), byteorder="big", signed=False
-)
+PREFIX_TRANSACTION = string_to_felt("StarkNet Transaction")
 
 ACCOUNT_CONTRACT_FILE = str(
     Path(__file__).parent.parent.parent
