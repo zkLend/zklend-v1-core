@@ -19,9 +19,15 @@ jobs:
       - name: Install black
         run: |
           pip install git+https://github.com/psf/black
+      - name: Install cairo-lang
+        run: |
+          pip install cairo-lang
       - name: Check Python format
         run: |
           black --check "./tests"
       - name: Check Yaml format
         run: |
           prettier --check "**/*.{yaml,yml}"
+      - name: Check Cairo format
+        run: |
+          cairo-format -c ./src/zklend/*.cairo
