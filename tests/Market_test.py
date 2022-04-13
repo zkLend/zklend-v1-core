@@ -1,6 +1,8 @@
 import pytest
+import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
+from utils.assertions import assert_reverted_with
 from utils.contracts import PATH_ERC20, PATH_ERC20_MINTABLE, PATH_MARKET
 from utils.helpers import string_to_felt
 
@@ -32,7 +34,7 @@ class Setup:
         self.mock_z_token = mock_z_token
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 
@@ -125,9 +127,8 @@ async def test_token_transferred_on_deposit(setup: Setup):
 @pytest.mark.asyncio
 async def test_deposit_transfer_failed(setup: Setup):
     # transferFrom fails due to insufficient allowance
-    # TODO: wrap error assertion into helper
-    try:
-        await setup.alice.execute(
+    await assert_reverted_with(
+        setup.alice.execute(
             [
                 Call(
                     setup.market.contract_address,
@@ -139,10 +140,6 @@ async def test_deposit_transfer_failed(setup: Setup):
                     ],
                 )
             ]
-        )
-        assert False
-    except StarkException as err:
-        assert (
-            f"\nError message: ERC20: transfer amount exceeds allowance\n"
-            in err.message
-        )
+        ),
+        "ERC20: transfer amount exceeds allowance",
+    )
