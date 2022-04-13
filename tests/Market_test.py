@@ -1,7 +1,7 @@
 import pytest
 
 from utils.account import Call, deploy_account
-from utils.contracts import PATH_ERC20, PATH_MARKET
+from utils.contracts import PATH_ERC20, PATH_ERC20_MINTABLE, PATH_MARKET
 from utils.helpers import string_to_felt
 
 from starkware.starknet.public.abi import get_selector_from_name
@@ -26,6 +26,31 @@ async def test_token_transferred_on_deposit():
             0,  # initial_supply_high
             alice.address,  # recipient
         ],
+    )
+    mock_z_token = await starknet.deploy(
+        source=PATH_ERC20_MINTABLE,
+        constructor_calldata=[
+            string_to_felt("zkLend Interest-Bearing TST"),  # name
+            string_to_felt("zTST"),  # symbol
+            18,  # decimals
+            10**18,  # initial_supply_low
+            0,  # initial_supply_high
+            1,  # recipient
+            market.contract_address,  # owner
+        ],
+    )
+
+    await alice.execute(
+        [
+            Call(
+                market.contract_address,
+                get_selector_from_name("add_reserve"),
+                [
+                    token.contract_address,  # token
+                    mock_z_token.contract_address,  # z_token
+                ],
+            )
+        ]
     )
 
     await alice.execute(
@@ -80,6 +105,31 @@ async def test_deposit_transfer_failed():
             0,  # initial_supply_high
             alice.address,  # recipient
         ],
+    )
+    mock_z_token = await starknet.deploy(
+        source=PATH_ERC20_MINTABLE,
+        constructor_calldata=[
+            string_to_felt("zkLend Interest-Bearing TST"),  # name
+            string_to_felt("zTST"),  # symbol
+            18,  # decimals
+            10**18,  # initial_supply_low
+            0,  # initial_supply_high
+            1,  # recipient
+            market.contract_address,  # owner
+        ],
+    )
+
+    await alice.execute(
+        [
+            Call(
+                market.contract_address,
+                get_selector_from_name("add_reserve"),
+                [
+                    token.contract_address,  # token
+                    mock_z_token.contract_address,  # z_token
+                ],
+            )
+        ]
     )
 
     # transferFrom fails due to insufficient allowance
