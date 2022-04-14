@@ -40,7 +40,9 @@ async def setup() -> Setup:
 
     alice = await deploy_account(starknet)
 
-    market = await starknet.deploy(source=PATH_MARKET)
+    market = await starknet.deploy(
+        source=PATH_MARKET, constructor_calldata=[alice.address]  # owner
+    )
     token = await starknet.deploy(
         source=PATH_ERC20,
         constructor_calldata=[

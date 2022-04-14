@@ -9,6 +9,7 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address, get_contract_address
 
+from openzeppelin.access.ownable import Ownable_initializer, Ownable_only_owner
 from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
 from openzeppelin.utils.constants import TRUE
 
@@ -27,6 +28,16 @@ end
 
 @storage_var
 func reserves(token : felt) -> (res : ReserveData):
+end
+
+#
+# Constructor
+#
+
+@constructor
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(owner : felt):
+    Ownable_initializer(owner)
+    return ()
 end
 
 #
@@ -66,18 +77,19 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     return ()
 end
 
-# TODO: make function permissioned
 @external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt, z_token : felt
 ):
+    Ownable_only_owner()
+
     #
     # Checks
     #
     with_attr error_message("Market: zero token"):
         assert_not_zero(token)
     end
-    with_attr error_message("Market: zero z_token "):
+    with_attr error_message("Market: zero z_token"):
         assert_not_zero(z_token)
     end
 
