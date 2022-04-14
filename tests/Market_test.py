@@ -5,11 +5,11 @@ from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_reverted_with
 from utils.contracts import PATH_ERC20, PATH_ERC20_MINTABLE, PATH_MARKET
 from utils.helpers import string_to_felt
+from utils.uint256 import Uint256
 
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starkware_utils.error_handling import StarkException
 
 
 class Setup:
@@ -47,8 +47,7 @@ async def setup() -> Setup:
             string_to_felt("Test Token"),  # name
             string_to_felt("TST"),  # symbol
             18,  # decimals
-            10 ** (6 + 18),  # initial_supply_low
-            0,  # initial_supply_high
+            *Uint256.from_int(10 ** (6 + 18)),  # initial_supply
             alice.address,  # recipient
         ],
     )
@@ -58,8 +57,7 @@ async def setup() -> Setup:
             string_to_felt("zkLend Interest-Bearing TST"),  # name
             string_to_felt("zTST"),  # symbol
             18,  # decimals
-            10**18,  # initial_supply_low
-            0,  # initial_supply_high
+            *Uint256.from_int(10**18),  # initial_supply
             1,  # recipient
             market.contract_address,  # owner
         ],
@@ -96,8 +94,7 @@ async def test_token_transferred_on_deposit(setup: Setup):
                 get_selector_from_name("approve"),
                 [
                     setup.market.contract_address,  # spender
-                    10**18,  # amount_low
-                    0,  # amount_high
+                    *Uint256.from_int(10**18),  # amount
                 ],
             )
         ]
@@ -109,19 +106,18 @@ async def test_token_transferred_on_deposit(setup: Setup):
                 get_selector_from_name("deposit"),
                 [
                     setup.token.contract_address,  # token : felt
-                    10**18,  # amount_low
-                    0,  # amount_high
+                    *Uint256.from_int(10**18),  # amount
                 ],
             )
         ]
     )
 
     assert (await setup.token.balanceOf(setup.alice.address).call()).result.balance == (
-        (999_999 * 10**18, 0)
+        Uint256.from_int(999_999 * 10**18)
     )
     assert (
         await setup.token.balanceOf(setup.market.contract_address).call()
-    ).result.balance == ((10**18, 0))
+    ).result.balance == (Uint256.from_int(10**18))
 
 
 @pytest.mark.asyncio
@@ -135,8 +131,7 @@ async def test_deposit_transfer_failed(setup: Setup):
                     get_selector_from_name("deposit"),
                     [
                         setup.token.contract_address,  # token : felt
-                        10**18,  # amount_low
-                        0,  # amount_high
+                        *Uint256.from_int(10**18),  # amount
                     ],
                 )
             ]
