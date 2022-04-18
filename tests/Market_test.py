@@ -3,7 +3,7 @@ import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_reverted_with
-from utils.contracts import PATH_ERC20, PATH_ERC20_MINTABLE, PATH_MARKET
+from utils.contracts import PATH_ERC20, PATH_MARKET, PATH_ZTOKEN
 from utils.helpers import string_to_felt
 from utils.uint256 import Uint256
 
@@ -17,7 +17,7 @@ class Setup:
     alice: Account
     market: StarknetContract
     token: StarknetContract
-    mock_z_token: StarknetContract
+    z_token: StarknetContract
 
     def __init__(
         self,
@@ -25,13 +25,13 @@ class Setup:
         alice: Account,
         market: StarknetContract,
         token: StarknetContract,
-        mock_z_token: StarknetContract,
+        z_token: StarknetContract,
     ):
         self.starknet = starknet
         self.alice = alice
         self.market = market
         self.token = token
-        self.mock_z_token = mock_z_token
+        self.z_token = z_token
 
 
 @pytest_asyncio.fixture
@@ -53,15 +53,13 @@ async def setup() -> Setup:
             alice.address,  # recipient
         ],
     )
-    mock_z_token = await starknet.deploy(
-        source=PATH_ERC20_MINTABLE,
+    z_token = await starknet.deploy(
+        source=PATH_ZTOKEN,
         constructor_calldata=[
-            string_to_felt("zkLend Interest-Bearing TST"),  # name
-            string_to_felt("zTST"),  # symbol
-            18,  # decimals
-            *Uint256.from_int(10**18),  # initial_supply
-            1,  # recipient
-            market.contract_address,  # owner
+            market.contract_address,  # _market
+            string_to_felt("zkLend Interest-Bearing TST"),  # _name
+            string_to_felt("zTST"),  # _symbol
+            18,  # _decimals
         ],
     )
 
@@ -72,7 +70,7 @@ async def setup() -> Setup:
                 get_selector_from_name("add_reserve"),
                 [
                     token.contract_address,  # token
-                    mock_z_token.contract_address,  # z_token
+                    z_token.contract_address,  # z_token
                 ],
             )
         ]
@@ -83,7 +81,7 @@ async def setup() -> Setup:
         alice,
         market,
         token,
-        mock_z_token,
+        z_token,
     )
 
 
