@@ -3,7 +3,7 @@ import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_reverted_with
-from utils.contracts import PATH_ERC20, PATH_MARKET, PATH_ZTOKEN
+from utils.contracts import CAIRO_PATH, PATH_ERC20, PATH_MARKET, PATH_ZTOKEN
 from utils.helpers import string_to_felt
 from utils.uint256 import Uint256
 
@@ -41,7 +41,11 @@ async def setup() -> Setup:
     alice = await deploy_account(starknet)
 
     market = await starknet.deploy(
-        source=PATH_MARKET, constructor_calldata=[alice.address]  # owner
+        source=PATH_MARKET,
+        constructor_calldata=[
+            alice.address,  # owner
+        ],
+        cairo_path=[CAIRO_PATH],
     )
     token = await starknet.deploy(
         source=PATH_ERC20,
@@ -52,6 +56,7 @@ async def setup() -> Setup:
             *Uint256.from_int(10 ** (6 + 18)),  # initial_supply
             alice.address,  # recipient
         ],
+        cairo_path=[CAIRO_PATH],
     )
     z_token = await starknet.deploy(
         source=PATH_ZTOKEN,
@@ -61,6 +66,7 @@ async def setup() -> Setup:
             string_to_felt("zTST"),  # _symbol
             18,  # _decimals
         ],
+        cairo_path=[CAIRO_PATH],
     )
 
     await alice.execute(

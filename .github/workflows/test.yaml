@@ -19,6 +19,4 @@ jobs:
           pip install cairo-lang
       - name: Run tests
         run: |
-          cd ./src
-          pwd
-          pytest ../tests/*_test.py
+          pytest ./tests/*_test.py

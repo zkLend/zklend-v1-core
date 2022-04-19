@@ -1,7 +1,10 @@
 from pathlib import Path
 
-SRC_ROOT = Path(__file__).parent.parent.parent / "src"
+REPO_ROOT = Path(__file__).parent.parent.parent
+SRC_ROOT = REPO_ROOT / "src"
 CONTRACT_ROOT = SRC_ROOT / "zklend"
+
+CAIRO_PATH = str(SRC_ROOT)
 
 PATH_MARKET = str(CONTRACT_ROOT / "Market.cairo")
 PATH_ZTOKEN = str(CONTRACT_ROOT / "ZToken.cairo")

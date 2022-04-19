@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from utils.contracts import CAIRO_PATH
 from utils.helpers import string_to_felt
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
@@ -108,5 +109,6 @@ async def deploy_account(
     account_contract = await starknet.deploy(
         source=ACCOUNT_CONTRACT_FILE,
         constructor_calldata=[private_to_stark_key(private_key)],
+        cairo_path=[CAIRO_PATH],
     )
     return Account(account_contract, private_key)
