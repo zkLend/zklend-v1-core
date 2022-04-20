@@ -112,7 +112,7 @@ async def test_token_transferred_on_deposit(setup: Setup):
                 get_selector_from_name("deposit"),
                 [
                     setup.token.contract_address,  # token : felt
-                    *Uint256.from_int(10**18),  # amount
+                    10**18,  # amount
                 ],
             )
         ]
@@ -137,7 +137,7 @@ async def test_deposit_transfer_failed(setup: Setup):
                     get_selector_from_name("deposit"),
                     [
                         setup.token.contract_address,  # token : felt
-                        *Uint256.from_int(10**18),  # amount
+                        10**18,  # amount
                     ],
                 )
             ]

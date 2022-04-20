@@ -3,6 +3,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
@@ -34,10 +35,12 @@ end
 
 @external
 func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    to : felt, amount : Uint256
+    to : felt, amount : felt
 ):
     only_market()
-    ERC20_mint(to, amount)
+
+    let (amount_high, amount_low) = split_felt(amount)
+    ERC20_mint(to, Uint256(low=amount_low, high=amount_high))
     return ()
 end
 
