@@ -2,6 +2,8 @@
 
 %lang starknet
 
+from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
+
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import Uint256
@@ -39,8 +41,8 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 ):
     only_market()
 
-    let (amount_high, amount_low) = split_felt(amount)
-    ERC20_mint(to, Uint256(low=amount_low, high=amount_high))
+    let (amount_u256) = SafeCast_felt_to_uint256(amount)
+    ERC20_mint(to, amount_u256)
     return ()
 end
 

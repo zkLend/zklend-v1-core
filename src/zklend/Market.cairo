@@ -3,6 +3,7 @@
 %lang starknet
 
 from zklend.interfaces.IZToken import IZToken
+from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero, split_felt
@@ -65,12 +66,9 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     # Takes token from user
 
-    let (amount_high, amount_low) = split_felt(amount)
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
     let (transfer_success) = IERC20.transferFrom(
-        contract_address=token,
-        sender=caller,
-        recipient=this_address,
-        amount=Uint256(low=amount_low, high=amount_high),
+        contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
     )
     with_attr error_message("Market: transferFrom failed"):
         assert_not_zero(transfer_success)
