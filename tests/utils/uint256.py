@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 class Uint256:
     low: int
     high: int
@@ -17,6 +20,9 @@ class Uint256:
 
     def to_int(self) -> int:
         return self.high << 128 | self.low
+
+    def to_tuple(self) -> Tuple[int, int]:
+        return (self.low, self.high)
 
     @staticmethod
     def from_int(value):

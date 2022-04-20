@@ -40,3 +40,13 @@ async def test_felt_to_uint256(setup: Setup):
         assert (await setup.safe_cast.felt_to_uint256(num).call()).result.res == (
             Uint256.from_int(num)
         )
+
+
+@pytest.mark.asyncio
+async def test_uint256_to_felt(setup: Setup):
+    for num in [2**128 - 1, 2**128, 2**128 + 1, 2**123 + 17 * 2**64]:
+        assert (
+            await setup.safe_cast.uint256_to_felt(
+                Uint256.from_int(num).to_tuple()
+            ).call()
+        ).result.res == (num)
