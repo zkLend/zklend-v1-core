@@ -29,9 +29,12 @@ func SafeCast_uint256_to_felt_unchecked{range_check_ptr}(value : Uint256) -> (re
         const MAX_HIGH = (-1) / 2 ** 128
         with_attr error_message("SafeCast: uint256 value out of range"):
             assert_le(value.high, MAX_HIGH)
+            if value.high == MAX_HIGH:
+                assert value.low = 0
+            end
         end
 
-        # No need to check `low` since it's already assumed to be valid
+        # No need to check `low` upper bound since it's already assumed to be valid
         return (res=value.high * 2 ** 128 + value.low)
     end
 end
