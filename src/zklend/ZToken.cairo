@@ -5,8 +5,6 @@
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.math import split_felt
-from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
 from openzeppelin.token.erc20.library import ERC20_initializer, ERC20_mint
