@@ -19,6 +19,9 @@ jobs:
       - name: Install black
         run: |
           pip install git+https://github.com/psf/black
+      - name: Install pyright
+        run: |
+          pip install pyright
       - name: Install cairo-lang
         run: |
           pip install cairo-lang
@@ -31,3 +34,6 @@ jobs:
       - name: Check Cairo format
         run: |
           cairo-format -c ./src/zklend/*.cairo ./src/zklend/**/*.cairo
+      - name: Run Python lints
+        run: |
+          pyright "./tests"
