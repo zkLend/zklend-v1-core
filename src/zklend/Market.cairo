@@ -21,6 +21,7 @@ from openzeppelin.utils.constants import TRUE
 struct ReserveData:
     member enabled : felt
     member z_token_address : felt
+    member accumulator : felt
 end
 
 #
@@ -39,6 +40,23 @@ end
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(owner : felt):
     Ownable_initializer(owner)
     return ()
+end
+
+#
+# Getters
+#
+
+@view
+func get_reserve_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (res : felt):
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # TODO: account for accumulator changes since last update
+    return (res=reserve.accumulator)
 end
 
 #
@@ -104,7 +122,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     #
     # Effects
     #
-    let new_reserve = ReserveData(enabled=TRUE, z_token_address=z_token)
+    let new_reserve = ReserveData(enabled=TRUE, z_token_address=z_token, accumulator=10 ** 27)
     reserves.write(token, new_reserve)
 
     return ()

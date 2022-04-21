@@ -2,9 +2,12 @@
 
 %lang starknet
 
+from zklend.interfaces.IMarket import IMarket
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
+from zklend.libraries.SafeMath import SafeMath_div, SafeMath_mul
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.math import assert_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 
 from openzeppelin.token.erc20.library import ERC20_initializer, ERC20_mint
@@ -17,14 +20,25 @@ from openzeppelin.token.erc20.library import ERC20_initializer, ERC20_mint
 func market() -> (res : felt):
 end
 
+@storage_var
+func underlying() -> (res : felt):
+end
+
 #
 # Constructor
 #
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    _market : felt, _name : felt, _symbol : felt, _decimals : felt
+    _market : felt, _underlying : felt, _name : felt, _symbol : felt, _decimals : felt
 ):
+    with_attr error_message("ZToken: zero address"):
+        assert_not_zero(_market)
+        assert_not_zero(_underlying)
+    end
+
     market.write(_market)
+    underlying.write(_underlying)
+
     ERC20_initializer(_name, _symbol, _decimals)
     return ()
 end
@@ -37,10 +51,22 @@ end
 func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     to : felt, amount : felt
 ):
+    alloc_locals
+
     only_market()
 
-    let (amount_u256) = SafeCast_felt_to_uint256(amount)
-    ERC20_mint(to, amount_u256)
+    let (market_addr) = market.read()
+    let (underlying_addr) = underlying.read()
+    let (local accumulator) = IMarket.get_reserve_accumulator(
+        contract_address=market_addr, token=underlying_addr
+    )
+
+    # TODO: wrap this into a library
+    let (temp) = SafeMath_mul(amount, 10 ** 27)
+    let (scaled_amount) = SafeMath_div(temp, accumulator)
+
+    let (scaled_amount_u256) = SafeCast_felt_to_uint256(scaled_amount)
+    ERC20_mint(to, scaled_amount_u256)
     return ()
 end
 

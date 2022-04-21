@@ -61,6 +61,7 @@ async def setup() -> Setup:
         source=PATH_ZTOKEN,
         constructor_calldata=[
             market.contract_address,  # _market
+            token.contract_address,  # _underlying
             string_to_felt("zkLend Interest-Bearing TST"),  # _name
             string_to_felt("zTST"),  # _symbol
             18,  # _decimals
