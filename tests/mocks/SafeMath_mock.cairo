@@ -2,7 +2,7 @@
 
 %lang starknet
 
-from zklend.libraries.SafeMath import SafeMath_add, SafeMath_sub
+from zklend.libraries.SafeMath import SafeMath_add, SafeMath_mul, SafeMath_sub
 
 @view
 func add{range_check_ptr}(a : felt, b : felt) -> (res : felt):
@@ -15,5 +15,12 @@ end
 func sub{range_check_ptr}(a : felt, b : felt) -> (res : felt):
     with_attr error_message("sub failed"):
         return SafeMath_sub(a, b)
+    end
+end
+
+@view
+func mul{range_check_ptr}(a : felt, b : felt) -> (res : felt):
+    with_attr error_message("mul failed"):
+        return SafeMath_mul(a, b)
     end
 end

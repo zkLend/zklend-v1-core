@@ -63,7 +63,7 @@ async def test_sub(setup: Setup):
 
 
 @pytest.mark.asyncio
-async def test_sub_overflow(setup: Setup):
+async def test_sub_underflow(setup: Setup):
     for (a, b) in [
         (0, 1),
         (2**128, 2**250),
@@ -71,3 +71,28 @@ async def test_sub_overflow(setup: Setup):
         await assert_reverted_with(
             setup.safe_math.sub(a, b).call(), "SafeMath: subtraction underflow"
         )
+
+
+@pytest.mark.asyncio
+async def test_mul(setup: Setup):
+    for (a, b, product) in [
+        (2, 3, 6),
+        (2**128, 2**10, 2**138),
+    ]:
+        assert (await setup.safe_math.mul(a, b).call()).result.res == (product)
+
+
+@pytest.mark.asyncio
+async def test_mul_felt_overflow(setup: Setup):
+    await assert_reverted_with(
+        setup.safe_math.mul(2**250 + 17 * 2**191, 3).call(),
+        "SafeMath: multiplication overflow",
+    )
+
+
+@pytest.mark.asyncio
+async def test_mul_uint256_overflow(setup: Setup):
+    await assert_reverted_with(
+        setup.safe_math.mul(2**250, 2**5).call(),
+        "SafeCast: uint256 value out of range",
+    )
