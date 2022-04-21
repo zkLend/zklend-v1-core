@@ -96,3 +96,21 @@ async def test_mul_uint256_overflow(setup: Setup):
         setup.safe_math.mul(2**250, 2**5).call(),
         "SafeCast: uint256 value out of range",
     )
+
+
+@pytest.mark.asyncio
+async def test_div(setup: Setup):
+    for (a, b, quotient) in [
+        (6, 3, 2),
+        (2**138, 2**10, 2**128),
+        (100, 3, 33),
+    ]:
+        assert (await setup.safe_math.div(a, b).call()).result.res == (quotient)
+
+
+@pytest.mark.asyncio
+async def test_div_division_by_zero(setup: Setup):
+    await assert_reverted_with(
+        setup.safe_math.div(999, 0).call(),
+        "SafeMath: division by zero",
+    )
