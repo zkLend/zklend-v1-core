@@ -11,3 +11,10 @@ func SafeMath_add{range_check_ptr}(a : felt, b : felt) -> (res : felt):
     end
     return (res=sum)
 end
+
+func SafeMath_sub{range_check_ptr}(a : felt, b : felt) -> (res : felt):
+    with_attr error_message("SafeMath: subtraction underflow"):
+        assert_le_felt(b, a)
+    end
+    return (res=a - b)
+end

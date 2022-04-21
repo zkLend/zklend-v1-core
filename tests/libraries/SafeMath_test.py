@@ -51,3 +51,23 @@ async def test_add_overflow(setup: Setup):
         await assert_reverted_with(
             setup.safe_math.add(a, b).call(), "SafeMath: addition overflow"
         )
+
+
+@pytest.mark.asyncio
+async def test_sub(setup: Setup):
+    for (a, b, sum) in [
+        (1, 2, 3),
+        (2**251 + 17 * 2**192 - 1, 1, 2**251 + 17 * 2**192),
+    ]:
+        assert (await setup.safe_math.sub(sum, b).call()).result.res == (a)
+
+
+@pytest.mark.asyncio
+async def test_sub_overflow(setup: Setup):
+    for (a, b) in [
+        (0, 1),
+        (2**128, 2**250),
+    ]:
+        await assert_reverted_with(
+            setup.safe_math.sub(a, b).call(), "SafeMath: subtraction underflow"
+        )
