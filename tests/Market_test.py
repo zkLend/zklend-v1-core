@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_reverted_with
@@ -34,7 +33,7 @@ class Setup:
         self.z_token = z_token
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 

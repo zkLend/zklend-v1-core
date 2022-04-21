@@ -23,7 +23,7 @@ ACCOUNT_CONTRACT_FILE = str(
 class Call:
     to: int
     selector: int
-    calldata: int
+    calldata: List[int]
 
     def __init__(self, to: int, selector: int, calldata: List[int]):
         self.to = to
@@ -46,7 +46,7 @@ class Account:
     async def execute(self, calls: List[Call]):
         nonce = (await self.__account_contract.get_nonce().call()).result[0]
 
-        raw_call_array: List[Tuple[int]] = []
+        raw_call_array: List[Tuple[int, int, int, int]] = []
         concated_calldata: List[int] = []
         execute_calldata: List[int] = []
 

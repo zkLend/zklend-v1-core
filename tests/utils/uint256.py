@@ -1,6 +1,14 @@
 from typing import Tuple
 
 
+class ValueOutOfRangeException(Exception):
+    value: int
+
+    def __init__(self, value: int):
+        self.value = value
+        super().__init__(f"value out of range: {value}")
+
+
 class Uint256:
     low: int
     high: int
@@ -27,7 +35,7 @@ class Uint256:
     @staticmethod
     def from_int(value):
         if value < 0 or value > (1 << 256):
-            raise f"value out of range: {value}"
+            raise ValueOutOfRangeException(value)
         return Uint256(value & ((1 << 128) - 1), value >> 128)
 
 
