@@ -14,9 +14,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Install cairo-lang
-        run: |
-          pip install cairo-lang
       - name: Run tests
         run: |
-          pytest ./tests/*_test.py ./tests/**/*_test.py
+          ./scripts/run_tests_with_docker.sh
