@@ -5,6 +5,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 import pytest
 
+from utils.assertions import assert_reverted_with
 from utils.contracts import CAIRO_PATH, PATH_MOCK_SAFE_DECIMAL_MATH
 
 from starkware.starknet.testing.contract import StarknetContract
@@ -30,6 +31,22 @@ async def setup() -> Setup:
     )
 
     return Setup(starknet, safe_decimal_math)
+
+
+@pytest.mark.asyncio
+async def test_mul(setup: Setup):
+    for (a, b, product) in [
+        (10, 2 * 10**27, 20),
+    ]:
+        assert (await setup.safe_decimal_math.mul(a, b).call()).result.res == (product)
+
+
+@pytest.mark.asyncio
+async def test_mul_overflow(setup: Setup):
+    await assert_reverted_with(
+        setup.safe_decimal_math.mul(2**250, 2 * 10**27).call(),
+        "SafeMath: multiplication overflow",
+    )
 
 
 @pytest.mark.asyncio
