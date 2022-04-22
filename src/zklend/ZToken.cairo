@@ -4,6 +4,7 @@
 
 from zklend.interfaces.IMarket import IMarket
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
+from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div
 from zklend.libraries.SafeMath import SafeMath_div, SafeMath_mul
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
@@ -61,11 +62,8 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         contract_address=market_addr, token=underlying_addr
     )
 
-    # TODO: wrap this into a library
-    let (temp) = SafeMath_mul(amount, 10 ** 27)
-    let (scaled_amount) = SafeMath_div(temp, accumulator)
-
-    let (scaled_amount_u256) = SafeCast_felt_to_uint256(scaled_amount)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    let (scaled_amount_u256) = SafeCast_felt_to_uint256(scaled_down_amount)
     ERC20_mint(to, scaled_amount_u256)
     return ()
 end

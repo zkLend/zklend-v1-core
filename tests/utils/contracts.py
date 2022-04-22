@@ -16,3 +16,4 @@ PATH_ERC20_MINTABLE = str(
 
 PATH_MOCK_SAFE_CAST = str(TESTS_ROOT / "mocks" / "SafeCast_mock.cairo")
 PATH_MOCK_SAFE_MATH = str(TESTS_ROOT / "mocks" / "SafeMath_mock.cairo")
+PATH_MOCK_SAFE_DECIMAL_MATH = str(TESTS_ROOT / "mocks" / "SafeDecimalMath_mock.cairo")
