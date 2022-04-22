@@ -125,6 +125,13 @@ async def test_token_transferred_on_deposit(setup: Setup):
         await setup.token.balanceOf(setup.market.contract_address).call()
     ).result.balance == (Uint256.from_int(10**18))
 
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(10**18))
+    assert (await setup.z_token.totalSupply().call()).result.total_supply == (
+        Uint256.from_int(10**18)
+    )
+
 
 @pytest.mark.asyncio
 async def test_deposit_transfer_failed(setup: Setup):
