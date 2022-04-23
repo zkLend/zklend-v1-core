@@ -5,7 +5,7 @@
 from zklend.interfaces.IMarket import IMarket
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
 from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div, SafeDecimalMath_mul
-from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul
+from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
@@ -120,6 +120,35 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
     Transfer.emit(0, to, amount_u256)
+
+    return ()
+end
+
+@external
+func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    user : felt, amount : felt
+):
+    alloc_locals
+
+    only_market()
+
+    let (accumulator) = get_accumulator()
+
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    with_attr error_message("ZToken: invalid burn amount"):
+        assert_not_zero(scaled_down_amount)
+    end
+
+    let (raw_balance_before) = raw_balances.read(user)
+    let (raw_balance_after) = SafeMath_sub(raw_balance_before, scaled_down_amount)
+    raw_balances.write(user, raw_balance_after)
+
+    let (raw_supply_before) = raw_total_supply.read()
+    let (raw_supply_after) = SafeMath_sub(raw_supply_before, scaled_down_amount)
+    raw_total_supply.write(raw_supply_after)
+
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    Transfer.emit(user, 0, amount_u256)
 
     return ()
 end

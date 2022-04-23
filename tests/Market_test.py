@@ -111,7 +111,7 @@ async def test_token_transferred_on_deposit(setup: Setup):
                 setup.market.contract_address,
                 get_selector_from_name("deposit"),
                 [
-                    setup.token.contract_address,  # token : felt
+                    setup.token.contract_address,  # token
                     10**18,  # amount
                 ],
             )
@@ -143,7 +143,7 @@ async def test_deposit_transfer_failed(setup: Setup):
                     setup.market.contract_address,
                     get_selector_from_name("deposit"),
                     [
-                        setup.token.contract_address,  # token : felt
+                        setup.token.contract_address,  # token
                         10**18,  # amount
                     ],
                 )
@@ -151,3 +151,56 @@ async def test_deposit_transfer_failed(setup: Setup):
         ),
         "ERC20: transfer amount exceeds allowance",
     )
+
+
+@pytest.mark.asyncio
+async def test_token_burnt_on_withdrawal(setup: Setup):
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(100 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token.contract_address,  # token
+                    100 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Alice: 999,900 TST, 100 zTST
+    assert (await setup.token.balanceOf(setup.alice.address).call()).result.balance == (
+        Uint256.from_int(999_900 * 10**18)
+    )
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(100 * 10**18))
+
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("withdraw"),
+                [
+                    setup.token.contract_address,  # token : felt
+                    25 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Alice: 999,925 TST, 75 zTST
+    assert (await setup.token.balanceOf(setup.alice.address).call()).result.balance == (
+        Uint256.from_int(999_925 * 10**18)
+    )
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(75 * 10**18))

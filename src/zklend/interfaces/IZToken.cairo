@@ -6,4 +6,7 @@
 namespace IZToken:
     func mint(to : felt, amount : felt):
     end
+
+    func burn(user : felt, amount : felt):
+    end
 end

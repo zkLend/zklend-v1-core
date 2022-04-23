@@ -108,6 +108,8 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     # Interactions
     #
 
+    # TODO: update reserve data
+
     # Takes token from user
 
     let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
@@ -120,6 +122,42 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     # Mints ZToken to user. No need to check return value as ZToken throws on failure
     IZToken.mint(contract_address=reserve.z_token_address, to=caller, amount=amount)
+
+    return ()
+end
+
+@external
+func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt, amount : felt
+):
+    let (caller) = get_caller_address()
+    let (this_address) = get_contract_address()
+
+    #
+    # Checks
+    #
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    #
+    # Interactions
+    #
+
+    # TODO: update reserve data
+
+    # Burns token of user
+    IZToken.burn(contract_address=reserve.z_token_address, user=caller, amount=amount)
+
+    # Gives underlying tokens to user
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (transfer_success) = IERC20.transfer(
+        contract_address=token, recipient=caller, amount=amount_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
 
     return ()
 end
