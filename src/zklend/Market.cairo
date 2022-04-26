@@ -42,6 +42,14 @@ end
 func reserves(token : felt) -> (res : ReserveData):
 end
 
+@storage_var
+func reserve_count() -> (count : felt):
+end
+
+@storage_var
+func reserve_indices(token : felt) -> (index : felt):
+end
+
 #
 # Constructor
 #
@@ -183,6 +191,8 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert existing_reserve.z_token_address = 0
     end
 
+    # TODO: limit reserve count
+
     #
     # Effects
     #
@@ -194,6 +204,10 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         current_lending_rate=0,
     )
     reserves.write(token, new_reserve)
+
+    let (current_reserve_count) = reserve_count.read()
+    reserve_count.write(current_reserve_count + 1)
+    reserve_indices.write(token, current_reserve_count)
 
     return ()
 end
