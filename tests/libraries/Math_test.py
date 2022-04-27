@@ -33,6 +33,18 @@ async def setup() -> Setup:
 
 
 @pytest.mark.asyncio
+async def test_shl(setup: Setup):
+    for (a, b, res) in [
+        (0, 100, 0),
+        (2, 1, 2 << 1),
+        (2**50 + 2**40 + 1, 45, (2**50 + 2**40 + 1) << 45),
+        (2**251, 0, 0),
+        (2**50 + 2**40 + 1, 210, 2**250 + 2**210),
+    ]:
+        assert (await setup.math.shl(a, b).call()).result.res == (res)
+
+
+@pytest.mark.asyncio
 async def test_shr(setup: Setup):
     for (a, b, res) in [
         (0, 100, 0),
