@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">zklend-core-v1</h1>
+  <h1 align="center">zklend-v1-core</h1>
 </p>
 
 **Core smart contracts of zkLend v1**
