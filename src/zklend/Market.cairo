@@ -8,7 +8,7 @@ from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
 from zklend.libraries.SafeDecimalMath import SCALE
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
-from starkware.cairo.common.bitwise import bitwise_or
+from starkware.cairo.common.bitwise import bitwise_or, bitwise_xor
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
@@ -244,11 +244,14 @@ func set_collateral_usage{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt, reserve_index : felt, use : felt):
     let (reserve_slot) = Math_shl(1, reserve_index)
-
     let (existing_usage) = collateral_usages.read(user)
-    let (new_usage) = bitwise_or(existing_usage, reserve_slot)
+
+    if use == TRUE:
+        let (new_usage) = bitwise_or(existing_usage, reserve_slot)
+    else:
+        let (new_usage) = bitwise_xor(existing_usage, reserve_slot)
+    end
 
     collateral_usages.write(user, new_usage)
-
     return ()
 end
