@@ -4,7 +4,7 @@
 
 @contract_interface
 namespace IZToken:
-    func mint(to : felt, amount : felt):
+    func mint(to : felt, amount : felt) -> (zero_balance_before : felt):
     end
 
     func burn(user : felt, amount : felt):

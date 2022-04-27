@@ -3,11 +3,13 @@
 %lang starknet
 
 from zklend.interfaces.IZToken import IZToken
+from zklend.libraries.Math import Math_shl
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
 from zklend.libraries.SafeDecimalMath import SCALE
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.bitwise import bitwise_or
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import (
@@ -48,6 +50,10 @@ end
 
 @storage_var
 func reserve_indices(token : felt) -> (index : felt):
+end
+
+@storage_var
+func collateral_usages(user : felt) -> (map : felt):
 end
 
 #
@@ -93,14 +99,22 @@ func get_reserve_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
     end
 end
 
+@view
+func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    user : felt
+) -> (usage : felt):
+    let (map) = collateral_usages.read(user)
+    return (usage=map)
+end
+
 #
 # External
 #
 
 @external
-func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, amount : felt
-):
+func deposit{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
 
@@ -111,6 +125,8 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     with_attr error_message("Market: reserve not enabled"):
         assert_not_zero(reserve.enabled)
     end
+
+    let (reserve_index) = reserve_indices.read(token)
 
     #
     # Interactions
@@ -128,8 +144,16 @@ func deposit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         assert_not_zero(transfer_success)
     end
 
-    # Mints ZToken to user. No need to check return value as ZToken throws on failure
-    IZToken.mint(contract_address=reserve.z_token_address, to=caller, amount=amount)
+    # Mints ZToken to user
+    let (is_first_deposit) = IZToken.mint(
+        contract_address=reserve.z_token_address, to=caller, amount=amount
+    )
+    if is_first_deposit == TRUE:
+        # Use deposit as collateral by default
+        # TODO: add option to disable auto collateral usage
+        set_collateral_usage(caller, reserve_index, TRUE)
+        return ()
+    end
 
     return ()
 end
@@ -208,6 +232,23 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     let (current_reserve_count) = reserve_count.read()
     reserve_count.write(current_reserve_count + 1)
     reserve_indices.write(token, current_reserve_count)
+
+    return ()
+end
+
+#
+# Internal
+#
+
+func set_collateral_usage{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, reserve_index : felt, use : felt):
+    let (reserve_slot) = Math_shl(1, reserve_index)
+
+    let (existing_usage) = collateral_usages.read(user)
+    let (new_usage) = bitwise_or(existing_usage, reserve_slot)
+
+    collateral_usages.write(user, new_usage)
 
     return ()
 end

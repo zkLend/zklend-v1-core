@@ -132,6 +132,11 @@ async def test_token_transferred_on_deposit(setup: Setup):
         Uint256.from_int(10**18)
     )
 
+    # Token is set as collateral by default
+    assert (
+        await setup.market.get_collateral_usage(setup.alice.address).call()
+    ).result.usage & (1 << 0) == 1
+
 
 @pytest.mark.asyncio
 async def test_deposit_transfer_failed(setup: Setup):
