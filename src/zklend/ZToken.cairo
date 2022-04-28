@@ -77,15 +77,24 @@ end
 func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     account : felt
 ) -> (balance : Uint256):
+    let (scaled_up_balance) = felt_balance_of(account)
+    let (scaled_up_balance_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_balance)
+
+    return (balance=scaled_up_balance_u256)
+end
+
+@view
+func felt_balance_of{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    account : felt
+) -> (balance : felt):
     alloc_locals
 
     let (accumulator) = get_accumulator()
 
     let (balance) = raw_balances.read(account)
     let (scaled_up_balance) = SafeDecimalMath_mul(balance, accumulator)
-    let (scaled_up_balance_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_balance)
 
-    return (balance=scaled_up_balance_u256)
+    return (balance=scaled_up_balance)
 end
 
 #

@@ -2,15 +2,16 @@
 
 %lang starknet
 
+from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
 from zklend.libraries.Math import Math_shl
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
-from zklend.libraries.SafeDecimalMath import SCALE
+from zklend.libraries.SafeDecimalMath import SafeDecimalMath_mul_decimals, SCALE
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
-from starkware.cairo.common.bitwise import bitwise_or, bitwise_xor
+from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import (
     get_block_timestamp,
@@ -20,7 +21,7 @@ from starkware.starknet.common.syscalls import (
 
 from openzeppelin.access.ownable import Ownable_initializer, Ownable_only_owner
 from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
-from openzeppelin.utils.constants import TRUE
+from openzeppelin.utils.constants import FALSE, TRUE
 
 const SECONDS_PER_YEAR = 31536000
 
@@ -28,8 +29,10 @@ const SECONDS_PER_YEAR = 31536000
 # Structs
 #
 
+# TODO: compress small fields into bitmap
 struct ReserveData:
     member enabled : felt
+    member decimals : felt
     member z_token_address : felt
     member last_update_timestamp : felt
     member accumulator : felt
@@ -41,11 +44,19 @@ end
 #
 
 @storage_var
+func oracle() -> (oracle : felt):
+end
+
+@storage_var
 func reserves(token : felt) -> (res : ReserveData):
 end
 
 @storage_var
 func reserve_count() -> (count : felt):
+end
+
+@storage_var
+func reserve_tokens(index : felt) -> (token : felt):
 end
 
 @storage_var
@@ -61,8 +72,14 @@ end
 #
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(owner : felt):
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    owner : felt, _oracle : felt
+):
+    # TODO: check for zero addresses
+
     Ownable_initializer(owner)
+    oracle.write(_oracle)
+
     return ()
 end
 
@@ -195,6 +212,57 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
 end
 
 @external
+func borrow{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
+    alloc_locals
+
+    let (caller) = get_caller_address()
+
+    #
+    # Checks
+    #
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # Fetches price from oracle
+    let (oracle_addr) = oracle.read()
+    let (loan_token_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
+
+    let (loan_usd_value) = SafeDecimalMath_mul_decimals(loan_token_price, amount, reserve.decimals)
+    let (total_collateral_value) = calculate_user_collateral_value(caller)
+
+    # TODO: take collateral factor and borrow factor into account
+    with_attr error_message("Market: insufficient collateral"):
+        assert_le_felt(loan_usd_value, total_collateral_value)
+    end
+
+    #
+    # Effects
+    #
+
+    # TODO: update reserve data
+
+    # TODO: update debt data
+
+    #
+    # Interactions
+    #
+
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (transfer_success) = IERC20.transfer(
+        contract_address=token, recipient=caller, amount=amount_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
+
+    return ()
+end
+
+@external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt, z_token : felt
 ):
@@ -215,6 +283,10 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert existing_reserve.z_token_address = 0
     end
 
+    # TODO: check `z_token` has the same `decimals`
+    # TODO: check `decimals` range
+    let (decimals) = IERC20.decimals(contract_address=token)
+
     # TODO: limit reserve count
 
     #
@@ -222,6 +294,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     #
     let new_reserve = ReserveData(
         enabled=TRUE,
+        decimals=decimals,
         z_token_address=z_token,
         last_update_timestamp=0,
         accumulator=SCALE,
@@ -231,6 +304,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 
     let (current_reserve_count) = reserve_count.read()
     reserve_count.write(current_reserve_count + 1)
+    reserve_tokens.write(current_reserve_count, token)
     reserve_indices.write(token, current_reserve_count)
 
     return ()
@@ -254,4 +328,70 @@ func set_collateral_usage{
 
     collateral_usages.write(user, new_usage)
     return ()
+end
+
+func calculate_user_collateral_value{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (value : felt):
+    # TODO: also calculate and account for debt
+
+    let (reserve_cnt) = reserve_count.read()
+    if reserve_cnt == 0:
+        return (value=0)
+    else:
+        let (collateral_usage) = collateral_usages.read(user)
+
+        let (total_collateral_value) = calculate_user_collateral_value_loop(
+            user, collateral_usage, reserve_cnt, 0
+        )
+
+        return (value=total_collateral_value)
+    end
+end
+
+# ASSUMPTION: `reserve_count` is not zero
+func calculate_user_collateral_value_loop{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, collateral_usage : felt, reserve_count : felt, reserve_index : felt) -> (
+    value : felt
+):
+    alloc_locals
+
+    if reserve_index == reserve_count:
+        return (value=0)
+    end
+
+    let (value_of_rest) = calculate_user_collateral_value_loop(
+        user, collateral_usage, reserve_count, reserve_index + 1
+    )
+    local value_of_rest = value_of_rest
+
+    let (reserve_slot) = Math_shl(1, reserve_index)
+    let (reserve_slot_and) = bitwise_and(collateral_usage, reserve_slot)
+
+    if reserve_slot_and == FALSE:
+        # Reserve not used as collateral
+        return (value=value_of_rest)
+    else:
+        let (reserve_token) = reserve_tokens.read(reserve_index)
+        let (reserve) = reserves.read(reserve_token)
+
+        # This value already reflects interests accured since last update
+        let (collateral_balance) = IZToken.felt_balance_of(
+            contract_address=reserve.z_token_address, account=user
+        )
+
+        # Fetches price from oracle
+        let (oracle_addr) = oracle.read()
+        let (collateral_price) = IPriceOracle.get_price(
+            contract_address=oracle_addr, token=reserve_token
+        )
+
+        # `collateral_value` is represented in 8-decimal USD value
+        let (collateral_value) = SafeDecimalMath_mul_decimals(
+            collateral_price, collateral_balance, reserve.decimals
+        )
+
+        return (value=value_of_rest + collateral_value)
+    end
 end

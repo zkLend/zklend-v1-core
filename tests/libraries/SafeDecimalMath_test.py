@@ -39,12 +39,19 @@ async def test_mul(setup: Setup):
         (10, 2 * 10**27, 20),
     ]:
         assert (await setup.safe_decimal_math.mul(a, b).call()).result.res == (product)
+        assert (
+            await setup.safe_decimal_math.mul_decimals(a, b, 27).call()
+        ).result.res == (product)
 
 
 @pytest.mark.asyncio
 async def test_mul_overflow(setup: Setup):
     await assert_reverted_with(
         setup.safe_decimal_math.mul(2**250, 2 * 10**27).call(),
+        "SafeMath: multiplication overflow",
+    )
+    await assert_reverted_with(
+        setup.safe_decimal_math.mul_decimals(2**250, 2 * 10**27, 27).call(),
         "SafeMath: multiplication overflow",
     )
 

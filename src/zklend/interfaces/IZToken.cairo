@@ -4,6 +4,9 @@
 
 @contract_interface
 namespace IZToken:
+    func felt_balance_of(account : felt) -> (balance : felt):
+    end
+
     func mint(to : felt, amount : felt) -> (zero_balance_before : felt):
     end
 
