@@ -117,8 +117,8 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
 
-    # TST_A: 50% collateral_factor
-    # TST_B: 75% collateral_factor
+    # TST_A: 50% collateral_factor, 80% borrow_factor
+    # TST_B: 75% collateral_factor, 90% borrow_factor
     await alice.execute(
         [
             Call(
@@ -128,6 +128,7 @@ async def setup() -> Setup:
                     token_a.contract_address,  # token
                     z_token_a.contract_address,  # z_token
                     5 * 10**26,  # collateral_factor
+                    8 * 10**26,  # borrow_factor
                 ],
             ),
             Call(
@@ -137,6 +138,7 @@ async def setup() -> Setup:
                     token_b.contract_address,  # token
                     z_token_b.contract_address,  # z_token
                     75 * 10**25,  # collateral_factor
+                    9 * 10**26,  # borrow_factor
                 ],
             ),
             Call(
@@ -339,7 +341,8 @@ async def test_borrow_token(setup: Setup):
     )
 
     # TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
-    # Maximum borrow: 25 TST_B
+    # For borrowing TST_B: 2,500 * 0.9 = 2,250 USD
+    # Maximum borrow: 22.5 TST_B
     await assert_reverted_with(
         setup.alice.execute(
             [
@@ -348,7 +351,7 @@ async def test_borrow_token(setup: Setup):
                     get_selector_from_name("borrow"),
                     [
                         setup.token_b.contract_address,  # token
-                        26 * 10**18,  # amount
+                        226 * 10**17,  # amount
                     ],
                 )
             ]
@@ -363,7 +366,7 @@ async def test_borrow_token(setup: Setup):
                 get_selector_from_name("borrow"),
                 [
                     setup.token_b.contract_address,  # token
-                    25 * 10**18,  # amount
+                    225 * 10**17,  # amount
                 ],
             )
         ]
@@ -371,4 +374,4 @@ async def test_borrow_token(setup: Setup):
 
     assert (
         await setup.token_b.balanceOf(setup.alice.address).call()
-    ).result.balance == (Uint256.from_int(25 * 10**18))
+    ).result.balance == (Uint256.from_int(225 * 10**17))

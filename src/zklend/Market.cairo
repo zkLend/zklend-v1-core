@@ -39,6 +39,7 @@ struct ReserveData:
     member decimals : felt
     member z_token_address : felt
     member collateral_factor : felt
+    member borrow_factor : felt
     member last_update_timestamp : felt
     member accumulator : felt
     member current_lending_rate : felt
@@ -238,10 +239,13 @@ func borrow{
 
     let (loan_usd_value) = SafeDecimalMath_mul_decimals(loan_token_price, amount, reserve.decimals)
     let (total_collateral_value) = calculate_user_collateral_value(caller)
+    let (discounted_collteral_value) = SafeDecimalMath_mul(
+        total_collateral_value, reserve.borrow_factor
+    )
 
     # TODO: take collateral factor and borrow factor into account
     with_attr error_message("Market: insufficient collateral"):
-        assert_le_felt(loan_usd_value, total_collateral_value)
+        assert_le_felt(loan_usd_value, discounted_collteral_value)
     end
 
     #
@@ -269,7 +273,7 @@ end
 
 @external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, z_token : felt, collateral_factor : felt
+    token : felt, z_token : felt, collateral_factor : felt, borrow_factor : felt
 ):
     Ownable_only_owner()
 
@@ -293,6 +297,11 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_le_felt(collateral_factor, SCALE)
     end
 
+    # Checks borrow_factor range
+    with_attr error_message("Market: borrow factor out of range"):
+        assert_le_felt(borrow_factor, SCALE)
+    end
+
     # TODO: check `z_token` has the same `decimals`
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
@@ -307,6 +316,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         decimals=decimals,
         z_token_address=z_token,
         collateral_factor=collateral_factor,
+        borrow_factor=borrow_factor,
         last_update_timestamp=0,
         accumulator=SCALE,
         current_lending_rate=0,
