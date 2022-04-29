@@ -6,7 +6,11 @@ from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
 from zklend.libraries.Math import Math_shl
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
-from zklend.libraries.SafeDecimalMath import SafeDecimalMath_mul_decimals, SCALE
+from zklend.libraries.SafeDecimalMath import (
+    SafeDecimalMath_mul,
+    SafeDecimalMath_mul_decimals,
+    SCALE,
+)
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
@@ -34,6 +38,7 @@ struct ReserveData:
     member enabled : felt
     member decimals : felt
     member z_token_address : felt
+    member collateral_factor : felt
     member last_update_timestamp : felt
     member accumulator : felt
     member current_lending_rate : felt
@@ -264,7 +269,7 @@ end
 
 @external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, z_token : felt
+    token : felt, z_token : felt, collateral_factor : felt
 ):
     Ownable_only_owner()
 
@@ -283,6 +288,11 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert existing_reserve.z_token_address = 0
     end
 
+    # Checks collateral_factor range
+    with_attr error_message("Market: collteral factor out of range"):
+        assert_le_felt(collateral_factor, SCALE)
+    end
+
     # TODO: check `z_token` has the same `decimals`
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
@@ -296,6 +306,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         enabled=TRUE,
         decimals=decimals,
         z_token_address=z_token,
+        collateral_factor=collateral_factor,
         last_update_timestamp=0,
         accumulator=SCALE,
         current_lending_rate=0,
@@ -392,6 +403,11 @@ func calculate_user_collateral_value_loop{
             collateral_price, collateral_balance, reserve.decimals
         )
 
-        return (value=value_of_rest + collateral_value)
+        # Discounts value by collteral factor
+        let (discounted_collteral_value) = SafeDecimalMath_mul(
+            collateral_value, reserve.collateral_factor
+        )
+
+        return (value=value_of_rest + discounted_collteral_value)
     end
 end

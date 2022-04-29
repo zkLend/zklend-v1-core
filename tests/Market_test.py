@@ -117,6 +117,8 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
 
+    # TST_A: 50% collateral_factor
+    # TST_B: 75% collateral_factor
     await alice.execute(
         [
             Call(
@@ -125,6 +127,7 @@ async def setup() -> Setup:
                 [
                     token_a.contract_address,  # token
                     z_token_a.contract_address,  # z_token
+                    5 * 10**26,  # collateral_factor
                 ],
             ),
             Call(
@@ -133,6 +136,7 @@ async def setup() -> Setup:
                 [
                     token_b.contract_address,  # token
                     z_token_b.contract_address,  # z_token
+                    75 * 10**25,  # collateral_factor
                 ],
             ),
             Call(
@@ -334,8 +338,8 @@ async def test_borrow_token(setup: Setup):
         ]
     )
 
-    # TST_A collteral: 100 TST_A = 5,000 USD
-    # Maximum borrow: 50 TST_B
+    # TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
+    # Maximum borrow: 25 TST_B
     await assert_reverted_with(
         setup.alice.execute(
             [
@@ -344,7 +348,7 @@ async def test_borrow_token(setup: Setup):
                     get_selector_from_name("borrow"),
                     [
                         setup.token_b.contract_address,  # token
-                        51 * 10**18,  # amount
+                        26 * 10**18,  # amount
                     ],
                 )
             ]
@@ -359,7 +363,7 @@ async def test_borrow_token(setup: Setup):
                 get_selector_from_name("borrow"),
                 [
                     setup.token_b.contract_address,  # token
-                    50 * 10**18,  # amount
+                    25 * 10**18,  # amount
                 ],
             )
         ]
@@ -367,4 +371,4 @@ async def test_borrow_token(setup: Setup):
 
     assert (
         await setup.token_b.balanceOf(setup.alice.address).call()
-    ).result.balance == (Uint256.from_int(50 * 10**18))
+    ).result.balance == (Uint256.from_int(25 * 10**18))
