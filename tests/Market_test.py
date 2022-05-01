@@ -4,6 +4,7 @@ from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_reverted_with
 from utils.contracts import (
     CAIRO_PATH,
+    PATH_DEFAULT_INTEREST_RATE_MODEL,
     PATH_ERC20,
     PATH_MARKET,
     PATH_MOCK_PRICE_ORACLE,
@@ -25,8 +26,10 @@ class Setup:
     market: StarknetContract
     token_a: StarknetContract
     z_token_a: StarknetContract
+    irm_a: StarknetContract
     token_b: StarknetContract
     z_token_b: StarknetContract
+    irm_b: StarknetContract
 
     def __init__(
         self,
@@ -37,8 +40,10 @@ class Setup:
         market: StarknetContract,
         token_a: StarknetContract,
         z_token_a: StarknetContract,
+        irm_a: StarknetContract,
         token_b: StarknetContract,
         z_token_b: StarknetContract,
+        irm_b: StarknetContract,
     ):
         self.starknet = starknet
         self.alice = alice
@@ -47,8 +52,10 @@ class Setup:
         self.market = market
         self.token_a = token_a
         self.z_token_a = z_token_a
+        self.irm_a = irm_a
         self.token_b = token_b
         self.z_token_b = z_token_b
+        self.irm_b = irm_b
 
 
 @pytest.fixture
@@ -93,6 +100,16 @@ async def setup() -> Setup:
         ],
         cairo_path=[CAIRO_PATH],
     )
+    irm_a = await starknet.deploy(
+        source=PATH_DEFAULT_INTEREST_RATE_MODEL,
+        constructor_calldata=[
+            1 * 10**26,  # slope_0: 0.1
+            5 * 10**26,  # slope_1: 0.5
+            1 * 10**25,  # y_intercept: 1%
+            6 * 10**26,  # optimal_rate: 60%
+        ],
+        cairo_path=[CAIRO_PATH],
+    )
 
     token_b = await starknet.deploy(
         source=PATH_ERC20,
@@ -116,6 +133,16 @@ async def setup() -> Setup:
         ],
         cairo_path=[CAIRO_PATH],
     )
+    irm_b = await starknet.deploy(
+        source=PATH_DEFAULT_INTEREST_RATE_MODEL,
+        constructor_calldata=[
+            2 * 10**26,  # slope_0: 0.2
+            3 * 10**26,  # slope_1: 0.3
+            0,  # y_intercept: 0%
+            7 * 10**26,  # optimal_rate: 70%
+        ],
+        cairo_path=[CAIRO_PATH],
+    )
 
     # TST_A: 50% collateral_factor, 80% borrow_factor
     # TST_B: 75% collateral_factor, 90% borrow_factor
@@ -127,6 +154,7 @@ async def setup() -> Setup:
                 [
                     token_a.contract_address,  # token
                     z_token_a.contract_address,  # z_token
+                    irm_a.contract_address,  # interest_rate_model
                     5 * 10**26,  # collateral_factor
                     8 * 10**26,  # borrow_factor
                 ],
@@ -137,6 +165,7 @@ async def setup() -> Setup:
                 [
                     token_b.contract_address,  # token
                     z_token_b.contract_address,  # z_token
+                    irm_b.contract_address,  # interest_rate_model
                     75 * 10**25,  # collateral_factor
                     9 * 10**26,  # borrow_factor
                 ],
@@ -170,8 +199,10 @@ async def setup() -> Setup:
         market,
         token_a,
         z_token_a,
+        irm_a,
         token_b,
         z_token_b,
+        irm_b,
     )
 
 

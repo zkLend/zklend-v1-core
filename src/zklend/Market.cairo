@@ -2,6 +2,7 @@
 
 %lang starknet
 
+from zklend.interfaces.IInterestRateModel import IInterestRateModel
 from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
 from zklend.libraries.Math import Math_shl
@@ -38,6 +39,7 @@ struct ReserveData:
     member enabled : felt
     member decimals : felt
     member z_token_address : felt
+    member interest_rate_model : felt
     member collateral_factor : felt
     member borrow_factor : felt
     member last_update_timestamp : felt
@@ -273,7 +275,11 @@ end
 
 @external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, z_token : felt, collateral_factor : felt, borrow_factor : felt
+    token : felt,
+    z_token : felt,
+    interest_rate_model : felt,
+    collateral_factor : felt,
+    borrow_factor : felt,
 ):
     Ownable_only_owner()
 
@@ -285,6 +291,9 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     end
     with_attr error_message("Market: zero z_token"):
         assert_not_zero(z_token)
+    end
+    with_attr error_message("Market: zero interest_rate_model"):
+        assert_not_zero(interest_rate_model)
     end
 
     let (existing_reserve) = reserves.read(token)
@@ -315,6 +324,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         enabled=TRUE,
         decimals=decimals,
         z_token_address=z_token,
+        interest_rate_model=interest_rate_model,
         collateral_factor=collateral_factor,
         borrow_factor=borrow_factor,
         last_update_timestamp=0,
