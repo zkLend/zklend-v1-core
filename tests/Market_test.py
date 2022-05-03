@@ -407,7 +407,13 @@ async def test_borrow_token(setup: Setup):
         await setup.token_b.balanceOf(setup.alice.address).call()
     ).result.balance == (Uint256.from_int(225 * 10**17))
 
-    # Borrowing rate: 0.00045
-    assert (
+    # Borrowing rate:
+    #   Utilization rate = 22.5 / 10,000 = 0.00225
+    #   Borrowing rate = 0 + 0.00225 * 0.2 = 0.00045 => 45 * 10 ** 22
+    # Lending rate:
+    #   Lending rate = 0.00045 * 0.00225 = 0.0000010125 => 10125 * 10 ** 17
+    reserve_data = (
         await setup.market.get_reserve_data(setup.token_b.contract_address).call()
-    ).result.data.current_borrowing_rate == 45 * 10**22
+    ).result.data
+    assert reserve_data.current_lending_rate == 10125 * 10**17
+    assert reserve_data.current_borrowing_rate == 45 * 10**22
