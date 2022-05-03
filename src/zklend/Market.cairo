@@ -128,7 +128,7 @@ func get_reserve_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
         let (temp_1) = SafeMath_mul(reserve.current_lending_rate, time_diff)
         let (temp_2) = SafeMath_div(temp_1, SECONDS_PER_YEAR)
         let (temp_3) = SafeMath_add(temp_2, SCALE)
-        let (latest_accumulator) = SafeMath_mul(temp_3, reserve.accumulator)
+        let (latest_accumulator) = SafeDecimalMath_mul(temp_3, reserve.accumulator)
 
         return (res=latest_accumulator)
     end
