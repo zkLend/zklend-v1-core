@@ -53,4 +53,4 @@ async def test_borrow_rates(setup: Setup):
     ]:
         assert (
             await setup.model.get_interest_rates(reserve_balance, total_debt).call()
-        ).result.borrow_rate == (borrow_rate)
+        ).result.borrowing_rate == (borrow_rate)

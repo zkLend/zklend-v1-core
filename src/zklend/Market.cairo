@@ -6,7 +6,7 @@ from zklend.interfaces.IInterestRateModel import IInterestRateModel
 from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
 from zklend.libraries.Math import Math_shl
-from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
+from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
 from zklend.libraries.SafeDecimalMath import (
     SafeDecimalMath_mul,
     SafeDecimalMath_mul_decimals,
@@ -45,6 +45,8 @@ struct ReserveData:
     member last_update_timestamp : felt
     member accumulator : felt
     member current_lending_rate : felt
+    member current_borrowing_rate : felt
+    member total_debt : felt
 end
 
 #
@@ -94,6 +96,14 @@ end
 #
 # Getters
 #
+
+@view
+func get_reserve_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (data : ReserveData):
+    let (reserve) = reserves.read(token)
+    return (data=reserve)
+end
 
 @view
 func get_reserve_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
@@ -226,6 +236,7 @@ func borrow{
     alloc_locals
 
     let (caller) = get_caller_address()
+    let (this_address) = get_contract_address()
 
     #
     # Checks
@@ -245,7 +256,6 @@ func borrow{
         total_collateral_value, reserve.borrow_factor
     )
 
-    # TODO: take collateral factor and borrow factor into account
     with_attr error_message("Market: insufficient collateral"):
         assert_le_felt(loan_usd_value, discounted_collteral_value)
     end
@@ -256,7 +266,37 @@ func borrow{
 
     # TODO: update reserve data
 
-    # TODO: update debt data
+    # TODO: update user debt data
+
+    # Updates interest rate
+    # TODO: check if there's a way to persist only one field (using syscall directly?)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount)
+    let (total_debt_after) = SafeMath_add(reserve.total_debt, amount)
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=total_debt_after,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        last_update_timestamp=reserve.last_update_timestamp,
+        accumulator=reserve.accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        total_debt=total_debt_after,
+        ),
+    )
 
     #
     # Interactions
@@ -330,6 +370,8 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         last_update_timestamp=0,
         accumulator=SCALE,
         current_lending_rate=0,
+        current_borrowing_rate=0,
+        total_debt=0,
     )
     reserves.write(token, new_reserve)
 

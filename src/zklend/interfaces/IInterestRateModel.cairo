@@ -5,7 +5,7 @@
 @contract_interface
 namespace IInterestRateModel:
     func get_interest_rates(reserve_balance : felt, total_debt : felt) -> (
-        supply_rate : felt, borrow_rate : felt
+        lending_rate : felt, borrowing_rate : felt
     ):
     end
 end
