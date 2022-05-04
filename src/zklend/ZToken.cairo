@@ -181,7 +181,7 @@ func get_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
 ):
     let (market_addr) = market.read()
     let (underlying_addr) = underlying.read()
-    let (accumulator) = IMarket.get_reserve_accumulator(
+    let (accumulator) = IMarket.get_lending_accumulator(
         contract_address=market_addr, token=underlying_addr
     )
     return (accumulator=accumulator)

@@ -4,6 +4,6 @@
 
 @contract_interface
 namespace IMarket:
-    func get_reserve_accumulator(token : felt) -> (res : felt):
+    func get_lending_accumulator(token : felt) -> (res : felt):
     end
 end
