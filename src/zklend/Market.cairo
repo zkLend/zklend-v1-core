@@ -371,6 +371,58 @@ func borrow{
 end
 
 @external
+func repay{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
+    alloc_locals
+
+    let (caller) = get_caller_address()
+    let (this_address) = get_contract_address()
+
+    #
+    # Checks
+    #
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # No need to check if user is overpaying, as `SafeMath_sub` below will fail anyways
+    # No need to check collateral value. Always allow repaying even if it's undercollateralized
+
+    #
+    # Effects
+    #
+
+    # TODO: update reserver data
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    # Updates user debt data
+    let (raw_user_debt_before) = raw_user_debts.read(caller, token)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, scaled_down_amount)
+    raw_user_debts.write(caller, token, raw_user_debt_after)
+
+    # TODO: update interest rate
+
+    #
+    # Interactions
+    #
+
+    # Takes token from user
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (transfer_success) = IERC20.transferFrom(
+        contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
+
+    return ()
+end
+
+@external
 func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt,
     z_token : felt,

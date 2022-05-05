@@ -519,3 +519,46 @@ async def test_debt_accumulation(setup_with_loan: Setup):
             setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
         ).call()
     ).result.debt == (225 * 10**17 + 32106164383)
+
+
+@pytest.mark.asyncio
+async def test_debt_repayment(setup_with_loan: Setup):
+    # Total debt is 22.500000032106164383 (based on `test_debt_accumulation`)
+    setup_with_loan.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup_with_loan.starknet.state.state.block_info.block_number,
+        100,
+    )
+
+    # Alice repays 1 TST_B
+    await setup_with_loan.alice.execute(
+        [
+            Call(
+                setup_with_loan.token_b.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup_with_loan.market.contract_address,  # spender
+                    *Uint256.from_int(1 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup_with_loan.market.contract_address,
+                get_selector_from_name("repay"),
+                [
+                    setup_with_loan.token_b.contract_address,  # token
+                    1 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Off by one due to rounding error
+    #   Expected: 21500000032106164383
+    #   Actual  : 21500000032106164384
+    assert (
+        await setup_with_loan.market.get_user_debt_for_token(
+            setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (21500000032106164384)
+    assert (
+        await setup_with_loan.token_b.balanceOf(setup_with_loan.alice.address).call()
+    ).result.balance == (Uint256.from_int(215 * 10**17))
