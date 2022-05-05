@@ -482,11 +482,85 @@ async def test_interest_accumulation(setup: Setup):
         100,
     )
 
-    # Interst after 100 seconds:
+    # Interest after 100 seconds:
     #   Interest = 0.0000010125 * 10000 * 100 / (365 * 86400) = 0.000000032106164383561643835
     #                                                         => 32106164383
     #   Total balance = 10000 * 10 ** 18 + 32106164383
-    left = (await setup.z_token_b.balanceOf(setup.bob.address).call()).result.balance
     assert (
         await setup.z_token_b.balanceOf(setup.bob.address).call()
     ).result.balance == (Uint256.from_int(10000 * 10**18 + 32106164383))
+
+
+@pytest.mark.asyncio
+async def test_debt_accumulation(setup: Setup):
+    # Same as `test_borrow_token`
+    await setup.bob.execute(
+        [
+            Call(
+                setup.token_b.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(10_000 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_b.contract_address,  # token
+                    10_000 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token_a.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(100 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("borrow"),
+                [
+                    setup.token_b.contract_address,  # token
+                    225 * 10**17,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # No interest accumulated yet
+    assert (
+        await setup.market.get_user_debt_for_token(
+            setup.alice.address, setup.token_b.contract_address
+        ).call()
+    ).result.debt == (225 * 10**17)
+
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        100,
+    )
+
+    # Interest after 100 seconds:
+    #   Interest = 0.00045 * 22.5 * 100 / (365 * 86400) = 0.000000032106164383
+    #                                                   => 32106164383
+    #   Total debt = 22.5 * 10 ** 18 + 32106164383
+    assert (
+        await setup.market.get_user_debt_for_token(
+            setup.alice.address, setup.token_b.contract_address
+        ).call()
+    ).result.debt == (225 * 10**17 + 32106164383)

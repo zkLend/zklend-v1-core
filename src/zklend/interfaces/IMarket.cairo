@@ -6,4 +6,7 @@
 namespace IMarket:
     func get_lending_accumulator(token : felt) -> (res : felt):
     end
+
+    func get_debt_accumulator(token : felt) -> (res : felt):
+    end
 end

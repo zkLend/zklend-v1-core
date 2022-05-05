@@ -8,6 +8,7 @@ from zklend.interfaces.IZToken import IZToken
 from zklend.libraries.Math import Math_shl
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
 from zklend.libraries.SafeDecimalMath import (
+    SafeDecimalMath_div,
     SafeDecimalMath_mul,
     SafeDecimalMath_mul_decimals,
     SCALE,
@@ -78,6 +79,10 @@ end
 func collateral_usages(user : felt) -> (map : felt):
 end
 
+@storage_var
+func raw_user_debts(user : felt, token : felt) -> (debt : felt):
+end
+
 #
 # Constructor
 #
@@ -106,6 +111,7 @@ func get_reserve_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
     return (data=reserve)
 end
 
+# TODO: refactor `get_lending_accumulator` and `get_debt_accumulator` to reduce duplicated code
 @view
 func get_lending_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt
@@ -133,6 +139,48 @@ func get_lending_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
 
         return (res=latest_accumulator)
     end
+end
+
+@view
+func get_debt_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (res : felt):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    let (block_timestamp) = get_block_timestamp()
+    if reserve.last_update_timestamp == block_timestamp:
+        # Accumulator already updated on the same block
+        return (res=reserve.debt_accumulator)
+    else:
+        # Apply simple interest
+        let (time_diff) = SafeMath_sub(block_timestamp, reserve.last_update_timestamp)
+
+        # (current_borrowing_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
+        let (temp_1) = SafeMath_mul(reserve.current_borrowing_rate, time_diff)
+        let (temp_2) = SafeMath_div(temp_1, SECONDS_PER_YEAR)
+        let (temp_3) = SafeMath_add(temp_2, SCALE)
+        let (latest_accumulator) = SafeDecimalMath_mul(temp_3, reserve.debt_accumulator)
+
+        return (res=latest_accumulator)
+    end
+end
+
+@view
+func get_user_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    user : felt, token : felt
+) -> (debt : felt):
+    alloc_locals
+
+    let (debt_accumulator) = get_debt_accumulator(token)
+    let (raw_debt) = raw_user_debts.read(user, token)
+
+    let (scaled_up_debt) = SafeDecimalMath_mul(raw_debt, debt_accumulator)
+    return (debt=scaled_up_debt)
 end
 
 @view
@@ -265,9 +313,16 @@ func borrow{
     # Effects
     #
 
-    # TODO: update reserve data
+    # Updates reserve data
+    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
 
-    # TODO: update user debt data
+    # Updates user debt data
+    let (raw_user_debt_before) = raw_user_debts.read(caller, token)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+    let (raw_user_debt_after) = SafeMath_add(raw_user_debt_before, scaled_down_amount)
+    raw_user_debts.write(caller, token, raw_user_debt_after)
 
     # Updates interest rate
     # TODO: check if there's a way to persist only one field (using syscall directly?)
@@ -292,8 +347,8 @@ func borrow{
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
         last_update_timestamp=reserve.last_update_timestamp,
-        lending_accumulator=reserve.lending_accumulator,
-        debt_accumulator=reserve.debt_accumulator,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         total_debt=total_debt_after,
