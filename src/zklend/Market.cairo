@@ -48,7 +48,7 @@ struct ReserveData:
     member debt_accumulator : felt
     member current_lending_rate : felt
     member current_borrowing_rate : felt
-    member total_debt : felt
+    member raw_total_debt : felt
 end
 
 #
@@ -168,6 +168,22 @@ func get_debt_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
 
         return (res=latest_accumulator)
     end
+end
+
+@view
+func get_total_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (debt : felt):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    let (debt_accumulator) = get_debt_accumulator(token)
+    let (scaled_up_debt) = SafeDecimalMath_mul(reserve.raw_total_debt, debt_accumulator)
+    return (debt=scaled_up_debt)
 end
 
 @view
@@ -317,10 +333,11 @@ func borrow{
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+    let (raw_total_debt_after) = SafeMath_add(reserve.raw_total_debt, scaled_down_amount)
 
     # Updates user debt data
     let (raw_user_debt_before) = raw_user_debts.read(caller, token)
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
     let (raw_user_debt_after) = SafeMath_add(raw_user_debt_before, scaled_down_amount)
     raw_user_debts.write(caller, token, raw_user_debt_after)
 
@@ -331,11 +348,13 @@ func borrow{
     )
     let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
     let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount)
-    let (total_debt_after) = SafeMath_add(reserve.total_debt, amount)
+    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
+        raw_total_debt_after, updated_debt_accumulator
+    )
     let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
         contract_address=reserve.interest_rate_model,
         reserve_balance=reserve_balance_after,
-        total_debt=total_debt_after,
+        total_debt=scaled_up_total_debt_after,
     )
     reserves.write(
         token,
@@ -351,7 +370,7 @@ func borrow{
         debt_accumulator=updated_debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
-        total_debt=total_debt_after,
+        raw_total_debt=raw_total_debt_after,
         ),
     )
 
@@ -481,7 +500,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         debt_accumulator=SCALE,
         current_lending_rate=0,
         current_borrowing_rate=0,
-        total_debt=0,
+        raw_total_debt=0,
     )
     reserves.write(token, new_reserve)
 

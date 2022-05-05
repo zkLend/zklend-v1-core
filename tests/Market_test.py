@@ -519,6 +519,11 @@ async def test_debt_accumulation(setup_with_loan: Setup):
             setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
         ).call()
     ).result.debt == (225 * 10**17 + 32106164383)
+    assert (
+        await setup_with_loan.market.get_total_debt_for_token(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (225 * 10**17 + 32106164383)
 
 
 @pytest.mark.asyncio
