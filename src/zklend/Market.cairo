@@ -302,6 +302,7 @@ func borrow{
 
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
+    let (block_timestamp) = get_block_timestamp()
 
     #
     # Checks
@@ -365,7 +366,7 @@ func borrow{
         interest_rate_model=reserve.interest_rate_model,
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
-        last_update_timestamp=reserve.last_update_timestamp,
+        last_update_timestamp=block_timestamp,
         lending_accumulator=updated_lending_accumulator,
         debt_accumulator=updated_debt_accumulator,
         current_lending_rate=new_lending_rate,
@@ -397,6 +398,7 @@ func repay{
 
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
+    let (block_timestamp) = get_block_timestamp()
 
     #
     # Checks
@@ -414,16 +416,50 @@ func repay{
     # Effects
     #
 
-    # TODO: update reserver data
+    # Updates reserve data
+    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, scaled_down_amount)
 
     # Updates user debt data
     let (raw_user_debt_before) = raw_user_debts.read(caller, token)
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
     let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, scaled_down_amount)
     raw_user_debts.write(caller, token, raw_user_debt_after)
 
-    # TODO: update interest rate
+    # Updates interest rate
+    # TODO: check if there's a way to persist only one field (using syscall directly?)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
+    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
+        raw_total_debt_after, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=scaled_up_total_debt_after,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        last_update_timestamp=block_timestamp,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=raw_total_debt_after,
+        ),
+    )
 
     #
     # Interactions

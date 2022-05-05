@@ -565,5 +565,10 @@ async def test_debt_repayment(setup_with_loan: Setup):
         ).call()
     ).result.debt == (21500000032106164384)
     assert (
+        await setup_with_loan.market.get_total_debt_for_token(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (21500000032106164384)
+    assert (
         await setup_with_loan.token_b.balanceOf(setup_with_loan.alice.address).call()
     ).result.balance == (Uint256.from_int(215 * 10**17))
