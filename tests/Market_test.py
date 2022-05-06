@@ -572,3 +572,25 @@ async def test_debt_repayment(setup_with_loan: Setup):
     assert (
         await setup_with_loan.token_b.balanceOf(setup_with_loan.alice.address).call()
     ).result.balance == (Uint256.from_int(215 * 10**17))
+    assert (
+        await setup_with_loan.token_b.balanceOf(
+            setup_with_loan.market.contract_address
+        ).call()
+    ).result.balance == (Uint256.from_int(99785 * 10**17))
+
+    # Interest rates after repayment
+    #   Borrowing rate:
+    #     Utilization rate = 21.500000032106164384 / 10,000.000000032106164384
+    #                      = 0.002150000003203713613047154
+    #     Borrowing rate = 0 + 0.002150000003203713613047154 * 0.2
+    #                    = 0.000430000000640742722609430
+    #   Lending rate:
+    #     Lending rate = 0.000430000000640742722609430 * 0.002150000003203713613047154
+    #                  = 0.000000924500002755193709273
+    reserve_data = (
+        await setup_with_loan.market.get_reserve_data(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.data
+    assert reserve_data.current_lending_rate == 924500002755193709273
+    assert reserve_data.current_borrowing_rate == 430000000640742722609430
