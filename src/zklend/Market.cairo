@@ -391,9 +391,9 @@ func borrow{
 end
 
 @external
-func repay{
-    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
-}(token : felt, amount : felt):
+func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt, amount : felt
+):
     alloc_locals
 
     let (caller) = get_caller_address()
