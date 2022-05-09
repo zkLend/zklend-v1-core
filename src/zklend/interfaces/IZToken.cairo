@@ -12,4 +12,7 @@ namespace IZToken:
 
     func burn(user : felt, amount : felt):
     end
+
+    func move(from_account : felt, to_account : felt, amount : felt):
+    end
 end

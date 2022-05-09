@@ -35,3 +35,14 @@ func SafeDecimalMath_mul_decimals{range_check_ptr}(a : felt, b : felt, b_decimal
     let (result) = SafeMath_div(scaled_product, scale)
     return (res=result)
 end
+
+func SafeDecimalMath_div_decimals{range_check_ptr}(a : felt, b : felt, b_decimals : felt) -> (
+    res : felt
+):
+    # TODO: check `b_decimals` range
+
+    let (scale) = pow(10, b_decimals)
+    let (scaled_a) = SafeMath_mul(a, scale)
+    let (result) = SafeMath_div(scaled_a, b)
+    return (res=result)
+end

@@ -9,6 +9,7 @@ from zklend.libraries.Math import Math_shl
 from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
 from zklend.libraries.SafeDecimalMath import (
     SafeDecimalMath_div,
+    SafeDecimalMath_div_decimals,
     SafeDecimalMath_mul,
     SafeDecimalMath_mul_decimals,
     SCALE,
@@ -18,6 +19,7 @@ from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, 
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
+from starkware.cairo.common.math_cmp import is_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import (
     get_block_timestamp,
@@ -313,6 +315,7 @@ func borrow{
     end
 
     # Fetches price from oracle
+    # TODO: account for existing debt
     let (oracle_addr) = oracle.read()
     let (loan_token_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
 
@@ -394,85 +397,61 @@ end
 func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt, amount : felt
 ):
+    let (caller) = get_caller_address()
+
+    repay_debt(caller, caller, token, amount)
+
+    return ()
+end
+
+# With the current design, liquidators are responsible for calculating the maximum amount allowed.
+# We simply check collteralization factor is below one after liquidation.
+# TODO: calculate max amount on-chain because compute is cheap on StarkNet.
+@external
+func liquidate{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, debt_token : felt, amount : felt, collateral_token : felt):
     alloc_locals
 
     let (caller) = get_caller_address()
-    let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
 
-    #
-    # Checks
-    #
-
-    let (reserve) = reserves.read(token)
+    let (debt_reserve) = reserves.read(debt_token)
+    let (collateral_reserve) = reserves.read(collateral_token)
     with_attr error_message("Market: reserve not enabled"):
-        assert_not_zero(reserve.enabled)
+        assert_not_zero(debt_reserve.enabled)
+        assert_not_zero(collateral_reserve.enabled)
     end
 
-    # No need to check if user is overpaying, as `SafeMath_sub` below will fail anyways
-    # No need to check collateral value. Always allow repaying even if it's undercollateralized
+    # Liquidator repays debt for user
+    repay_debt(caller, user, debt_token, amount)
 
-    #
-    # Effects
-    #
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
-    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, scaled_down_amount)
-
-    # Updates user debt data
-    let (raw_user_debt_before) = raw_user_debts.read(caller, token)
-    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, scaled_down_amount)
-    raw_user_debts.write(caller, token, raw_user_debt_after)
-
-    # Updates interest rate
-    # TODO: check if there's a way to persist only one field (using syscall directly?)
-    let (reserve_balance_before_u256) = IERC20.balanceOf(
-        contract_address=token, account=this_address
-    )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
-    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
-        raw_total_debt_after, updated_debt_accumulator
-    )
-    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-        contract_address=reserve.interest_rate_model,
-        reserve_balance=reserve_balance_after,
-        total_debt=scaled_up_total_debt_after,
-    )
-    reserves.write(
-        token,
-        ReserveData(
-        enabled=reserve.enabled,
-        decimals=reserve.decimals,
-        z_token_address=reserve.z_token_address,
-        interest_rate_model=reserve.interest_rate_model,
-        collateral_factor=reserve.collateral_factor,
-        borrow_factor=reserve.borrow_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
-        current_lending_rate=new_lending_rate,
-        current_borrowing_rate=new_borrowing_rate,
-        raw_total_debt=raw_total_debt_after,
-        ),
-    )
-
-    #
-    # Interactions
-    #
-
-    # Takes token from user
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
-    let (transfer_success) = IERC20.transferFrom(
-        contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
-    )
-    with_attr error_message("Market: transfer failed"):
-        assert_not_zero(transfer_success)
+    # Can only take from assets being used as collateral
+    let (is_collateral) = is_used_as_collateral(user, 0)
+    with_attr error_message("Market: cannot withdraw non-collateral token"):
+        assert is_collateral = TRUE
     end
+
+    # Liquidator withdraws collateral from user
+    # TODO: account for liquidation bonus
+    let (oracle_addr) = oracle.read()
+    let (debt_token_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=debt_token)
+    let (collateral_token_price) = IPriceOracle.get_price(
+        contract_address=oracle_addr, token=collateral_token
+    )
+    let (debt_value_repaid) = SafeDecimalMath_mul_decimals(
+        debt_token_price, amount, debt_reserve.decimals
+    )
+    let (equivalent_collateral_amount) = SafeDecimalMath_div_decimals(
+        debt_value_repaid, collateral_token_price, collateral_reserve.decimals
+    )
+    IZToken.move(
+        contract_address=collateral_reserve.z_token_address,
+        from_account=user,
+        to_account=caller,
+        amount=amount,
+    )
+
+    # TODO: check user collateralization factor after liquidation
 
     return ()
 end
@@ -568,6 +547,18 @@ func set_collateral_usage{
     return ()
 end
 
+func is_used_as_collateral{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, reserve_index : felt) -> (is_used : felt):
+    let (reserve_slot) = Math_shl(1, reserve_index)
+    let (existing_usage) = collateral_usages.read(user)
+
+    let (and) = bitwise_and(existing_usage, reserve_slot)
+    let (is_used) = is_not_zero(and)
+
+    return (is_used=is_used)
+end
+
 func calculate_user_collateral_value{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt) -> (value : felt):
@@ -637,4 +628,93 @@ func calculate_user_collateral_value_loop{
 
         return (value=value_of_rest + discounted_collteral_value)
     end
+end
+
+func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    repayer : felt, beneficiary : felt, token : felt, amount : felt
+):
+    alloc_locals
+
+    let (this_address) = get_contract_address()
+    let (block_timestamp) = get_block_timestamp()
+
+    #
+    # Checks
+    #
+
+    with_attr error_message("Market: zero amount"):
+        assert_not_zero(amount)
+    end
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # No need to check if user is overpaying, as `SafeMath_sub` below will fail anyways
+    # No need to check collateral value. Always allow repaying even if it's undercollateralized
+
+    #
+    # Effects
+    #
+
+    # Updates reserve data
+    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, scaled_down_amount)
+
+    # Updates user debt data
+    let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
+    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, scaled_down_amount)
+    raw_user_debts.write(beneficiary, token, raw_user_debt_after)
+
+    # Updates interest rate
+    # TODO: check if there's a way to persist only one field (using syscall directly?)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
+    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
+        raw_total_debt_after, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=scaled_up_total_debt_after,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        last_update_timestamp=block_timestamp,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=raw_total_debt_after,
+        ),
+    )
+
+    #
+    # Interactions
+    #
+
+    # Takes token from user
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (transfer_success) = IERC20.transferFrom(
+        contract_address=token, sender=repayer, recipient=this_address, amount=amount_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
+
+    return ()
 end
