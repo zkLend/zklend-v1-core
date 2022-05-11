@@ -19,7 +19,7 @@ from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, 
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
-from starkware.cairo.common.math_cmp import is_not_zero
+from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import (
     get_block_timestamp,
@@ -431,10 +431,13 @@ func liquidate{
         contract_address=collateral_reserve.z_token_address,
         from_account=user,
         to_account=caller,
-        amount=amount,
+        amount=equivalent_collateral_amount,
     )
 
-    # TODO: check user collateralization factor after liquidation
+    # Checks user collateralization factor after liquidation
+    with_attr error_message("Market: invalid liquidation"):
+        assert_undercollateralized(user)
+    end
 
     return ()
 end
@@ -542,12 +545,22 @@ func is_used_as_collateral{
     return (is_used=is_used)
 end
 
+func assert_undercollateralized{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt):
+    alloc_locals
+
+    let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
+    let (is_not_undercollateralized) = is_le_felt(collateral_required, collateral_value)
+    assert is_not_undercollateralized = FALSE
+    return ()
+end
+
 func assert_not_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt):
     let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
     assert_le_felt(collateral_required, collateral_value)
-
     return ()
 end
 

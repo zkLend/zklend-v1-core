@@ -217,7 +217,7 @@ async def setup_with_loan(setup: Setup) -> Setup:
                 get_selector_from_name("approve"),
                 [
                     setup.market.contract_address,  # spender
-                    *Uint256.from_int(10_000 * 10**18),  # amount
+                    *Uint256.from_int(1_000_000 * 10**18),  # amount
                 ],
             ),
             Call(
@@ -611,3 +611,103 @@ async def test_debt_repayment(setup_with_loan: Setup):
     ).result.data
     assert reserve_data.current_lending_rate == 924500002755193709273
     assert reserve_data.current_borrowing_rate == 430000000640742722609430
+
+
+@pytest.mark.asyncio
+async def test_liquidation(setup_with_loan: Setup):
+    # Alice status now:
+    #   Collateral value:
+    #     100 TST_A
+    #       = 100 * 50 * 0.5
+    #       = 2500 USD
+    #   Collateral required:
+    #     22.5 TST_B
+    #       = 22.5 * 100 / 0.9
+    #       = 2500 USD
+
+    # Cannot liquidate now as Alice is not undercollateralized
+    await assert_reverted_with(
+        setup_with_loan.bob.execute(
+            [
+                Call(
+                    setup_with_loan.market.contract_address,
+                    get_selector_from_name("liquidate"),
+                    [
+                        setup_with_loan.alice.address,  # user
+                        setup_with_loan.token_b.contract_address,  # debt_token
+                        1 * 10**18,  # amount
+                        setup_with_loan.token_a.contract_address,  # collateral_token
+                    ],
+                ),
+            ]
+        ),
+        "Market: invalid liquidation",
+    )
+
+    # Change TST_A price to 40 USD
+    #   Collateral value:
+    #     100 TST_A
+    #       = 100 * 40 * 0.5
+    #       = 2000 USD
+    #   Collateral required: 2500 USD
+    await setup_with_loan.alice.execute(
+        [
+            Call(
+                setup_with_loan.oracle.contract_address,
+                get_selector_from_name("set_price"),
+                [
+                    setup_with_loan.token_a.contract_address,  # token
+                    40_00000000,  # price
+                    100,  # update_time
+                ],
+            ),
+        ]
+    )
+
+    # Repay maximum x TST_B:
+    #   Collateral withdrawn:
+    #     x * 100 / 40 TST_A
+    #   Collateral value after:
+    #     (100 - x * 100 / 40) TST_A
+    #       = (100 - x * 100 / 40) * 40 * 0.5
+    #   Collateral required:
+    #     (22.5 - x) TST_B
+    #       = (22.5 - x) * 100 / 0.9
+    #   Collateral value after = Collateral required
+    #     Solve for x
+    #       x = 8.181818181818181818
+
+    # Liquidating 8.2 TST_B is not allowed as it exceeds maximum
+    await assert_reverted_with(
+        setup_with_loan.bob.execute(
+            [
+                Call(
+                    setup_with_loan.market.contract_address,
+                    get_selector_from_name("liquidate"),
+                    [
+                        setup_with_loan.alice.address,  # user
+                        setup_with_loan.token_b.contract_address,  # debt_token
+                        82 * 10**17,  # amount
+                        setup_with_loan.token_a.contract_address,  # collateral_token
+                    ],
+                ),
+            ]
+        ),
+        "Market: invalid liquidation",
+    )
+
+    # Liquidating 8.1 TST_B works
+    await setup_with_loan.bob.execute(
+        [
+            Call(
+                setup_with_loan.market.contract_address,
+                get_selector_from_name("liquidate"),
+                [
+                    setup_with_loan.alice.address,  # user
+                    setup_with_loan.token_b.contract_address,  # debt_token
+                    81 * 10**17,  # amount
+                    setup_with_loan.token_a.contract_address,  # collateral_token
+                ],
+            ),
+        ]
+    )
