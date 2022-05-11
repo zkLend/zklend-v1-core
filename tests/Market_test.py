@@ -474,6 +474,23 @@ async def test_borrow_token(setup: Setup):
     assert reserve_data.current_lending_rate == 10125 * 10**17
     assert reserve_data.current_borrowing_rate == 45 * 10**22
 
+    # Cannot borrow anymore
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("borrow"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        225 * 10**17,  # amount
+                    ],
+                )
+            ]
+        ),
+        "Market: insufficient collateral",
+    )
+
 
 @pytest.mark.asyncio
 async def test_interest_accumulation(setup_with_loan: Setup):

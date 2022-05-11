@@ -306,32 +306,10 @@ func borrow{
     let (this_address) = get_contract_address()
     let (block_timestamp) = get_block_timestamp()
 
-    #
-    # Checks
-    #
     let (reserve) = reserves.read(token)
     with_attr error_message("Market: reserve not enabled"):
         assert_not_zero(reserve.enabled)
     end
-
-    # Fetches price from oracle
-    # TODO: account for existing debt
-    let (oracle_addr) = oracle.read()
-    let (loan_token_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
-
-    let (loan_usd_value) = SafeDecimalMath_mul_decimals(loan_token_price, amount, reserve.decimals)
-    let (total_collateral_value) = calculate_user_collateral_value(caller)
-    let (discounted_collteral_value) = SafeDecimalMath_mul(
-        total_collateral_value, reserve.borrow_factor
-    )
-
-    with_attr error_message("Market: insufficient collateral"):
-        assert_le_felt(loan_usd_value, discounted_collteral_value)
-    end
-
-    #
-    # Effects
-    #
 
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
@@ -377,6 +355,11 @@ func borrow{
         raw_total_debt=raw_total_debt_after,
         ),
     )
+
+    # It's easier to post-check collateralization factor
+    with_attr error_message("Market: insufficient collateral"):
+        assert_not_undercollateralized(caller)
+    end
 
     #
     # Interactions
@@ -559,75 +542,153 @@ func is_used_as_collateral{
     return (is_used=is_used)
 end
 
-func calculate_user_collateral_value{
+func assert_not_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
-}(user : felt) -> (value : felt):
-    # TODO: also calculate and account for debt
+}(user : felt):
+    let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
+    assert_le_felt(collateral_required, collateral_value)
 
+    return ()
+end
+
+func calculate_user_collateral_data{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (collateral_value : felt, collateral_required : felt):
     let (reserve_cnt) = reserve_count.read()
     if reserve_cnt == 0:
-        return (value=0)
+        return (collateral_value=0, collateral_required=0)
     else:
         let (collateral_usage) = collateral_usages.read(user)
 
-        let (total_collateral_value) = calculate_user_collateral_value_loop(
+        let (collateral_value, collateral_required) = calculate_user_collateral_data_loop(
             user, collateral_usage, reserve_cnt, 0
         )
 
-        return (value=total_collateral_value)
+        return (collateral_value=collateral_value, collateral_required=collateral_required)
     end
 end
 
 # ASSUMPTION: `reserve_count` is not zero
-func calculate_user_collateral_value_loop{
+func calculate_user_collateral_data_loop{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt, collateral_usage : felt, reserve_count : felt, reserve_index : felt) -> (
-    value : felt
+    collateral_value : felt, collateral_required : felt
 ):
     alloc_locals
 
     if reserve_index == reserve_count:
-        return (value=0)
+        return (collateral_value=0, collateral_required=0)
     end
 
-    let (value_of_rest) = calculate_user_collateral_value_loop(
+    let (
+        collateral_value_of_rest, collateral_required_of_rest
+    ) = calculate_user_collateral_data_loop(
         user, collateral_usage, reserve_count, reserve_index + 1
     )
-    local value_of_rest = value_of_rest
+    local collateral_value_of_rest = collateral_value_of_rest
+    local collateral_required_of_rest = collateral_required_of_rest
 
     let (reserve_slot) = Math_shl(1, reserve_index)
     let (reserve_slot_and) = bitwise_and(collateral_usage, reserve_slot)
 
+    let (reserve_token) = reserve_tokens.read(reserve_index)
+
+    let (current_collteral_required) = get_collateral_usd_value_required_for_token(
+        user, reserve_token
+    )
+    let (total_collateral_required) = SafeMath_add(
+        current_collteral_required, collateral_required_of_rest
+    )
+
     if reserve_slot_and == FALSE:
         # Reserve not used as collateral
-        return (value=value_of_rest)
+        return (
+            collateral_value=collateral_value_of_rest, collateral_required=total_collateral_required
+        )
     else:
-        let (reserve_token) = reserve_tokens.read(reserve_index)
-        let (reserve) = reserves.read(reserve_token)
-
-        # This value already reflects interests accured since last update
-        let (collateral_balance) = IZToken.felt_balance_of(
-            contract_address=reserve.z_token_address, account=user
+        let (discounted_collteral_value) = get_user_collateral_usd_value_for_token(
+            user, reserve_token
+        )
+        let (total_collateral_value) = SafeMath_add(
+            discounted_collteral_value, collateral_value_of_rest
         )
 
-        # Fetches price from oracle
-        let (oracle_addr) = oracle.read()
-        let (collateral_price) = IPriceOracle.get_price(
-            contract_address=oracle_addr, token=reserve_token
+        return (
+            collateral_value=total_collateral_value, collateral_required=total_collateral_required
         )
-
-        # `collateral_value` is represented in 8-decimal USD value
-        let (collateral_value) = SafeDecimalMath_mul_decimals(
-            collateral_price, collateral_balance, reserve.decimals
-        )
-
-        # Discounts value by collteral factor
-        let (discounted_collteral_value) = SafeDecimalMath_mul(
-            collateral_value, reserve.collateral_factor
-        )
-
-        return (value=value_of_rest + discounted_collteral_value)
     end
+end
+
+# ASSUMPTION: `token` is a valid reserve
+func get_collateral_usd_value_required_for_token{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+}(user : felt, token : felt) -> (value : felt):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+
+    let (debt_value) = get_user_debt_usd_value_for_token(user, token)
+    let (collateral_required) = SafeDecimalMath_div(debt_value, reserve.borrow_factor)
+
+    return (value=collateral_required)
+end
+
+# ASSUMPTION: `token` is a valid reserve
+func get_user_debt_usd_value_for_token{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+}(user : felt, token : felt) -> (value : felt):
+    alloc_locals
+
+    let (raw_debt_balance) = raw_user_debts.read(user, token)
+    if raw_debt_balance == 0:
+        return (value=0)
+    end
+
+    let (debt_accumulator) = get_debt_accumulator(token)
+    let (scaled_up_debt_balance) = SafeDecimalMath_mul(raw_debt_balance, debt_accumulator)
+
+    # Fetches price from oracle
+    let (oracle_addr) = oracle.read()
+    let (debt_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
+
+    let (reserve) = reserves.read(token)
+
+    let (debt_value) = SafeDecimalMath_mul_decimals(
+        debt_price, scaled_up_debt_balance, reserve.decimals
+    )
+
+    return (value=debt_value)
+end
+
+# ASSUMPTION: `token` is a valid reserve
+# ASSUMPTION: `token` is used by `user` as collateral
+func get_user_collateral_usd_value_for_token{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+}(user : felt, token : felt) -> (value : felt):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+
+    # This value already reflects interests accured since last update
+    let (collateral_balance) = IZToken.felt_balance_of(
+        contract_address=reserve.z_token_address, account=user
+    )
+
+    # Fetches price from oracle
+    let (oracle_addr) = oracle.read()
+    let (collateral_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
+
+    # `collateral_value` is represented in 8-decimal USD value
+    let (collateral_value) = SafeDecimalMath_mul_decimals(
+        collateral_price, collateral_balance, reserve.decimals
+    )
+
+    # Discounts value by collteral factor
+    let (discounted_collteral_value) = SafeDecimalMath_mul(
+        collateral_value, reserve.collateral_factor
+    )
+
+    return (value=discounted_collteral_value)
 end
 
 func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
