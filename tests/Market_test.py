@@ -413,7 +413,7 @@ async def test_borrow_token(setup: Setup):
                 get_selector_from_name("approve"),
                 [
                     setup.market.contract_address,  # spender
-                    *Uint256.from_int(100 * 10**18),  # amount
+                    *Uint256.from_int(1_000 * 10**18),  # amount
                 ],
             ),
             Call(
@@ -474,7 +474,7 @@ async def test_borrow_token(setup: Setup):
     assert reserve_data.current_lending_rate == 10125 * 10**17
     assert reserve_data.current_borrowing_rate == 45 * 10**22
 
-    # Cannot borrow anymore
+    # Cannot borrow anymore with existing collateral
     await assert_reverted_with(
         setup.alice.execute(
             [
@@ -490,6 +490,43 @@ async def test_borrow_token(setup: Setup):
         ),
         "Market: insufficient collateral",
     )
+
+    # Alice borrows more with more collateral
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("borrow"),
+                [
+                    setup.token_b.contract_address,  # token
+                    225 * 10**17,  # amount
+                ],
+            ),
+        ]
+    )
+
+    assert (
+        await setup.token_b.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(45 * 10**18))
+
+    # Borrowing rate:
+    #   Utilization rate = 45 / 10,000 = 0.0045
+    #   Borrowing rate = 0 + 0.0045 * 0.2 = 0.0009 => 9 * 10 ** 23
+    # Lending rate:
+    #   Lending rate = 0.0009 * 0.0045 = 0.00000405 => 405 * 10 ** 19
+    reserve_data = (
+        await setup.market.get_reserve_data(setup.token_b.contract_address).call()
+    ).result.data
+    assert reserve_data.current_lending_rate == 405 * 10**19
+    assert reserve_data.current_borrowing_rate == 9 * 10**23
 
 
 @pytest.mark.asyncio
