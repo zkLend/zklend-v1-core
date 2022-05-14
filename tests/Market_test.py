@@ -711,3 +711,34 @@ async def test_liquidation(setup_with_loan: Setup):
             ),
         ]
     )
+
+    # Bob balances after:
+    #   TST_A (Z):
+    #     8.1 * 100 / 40 = 20.25 TST_A
+    #   TST_B:
+    #     1,000,000 - 10,000 - 8.1 = 989991.9 TST_B
+    assert (
+        await setup_with_loan.z_token_a.balanceOf(setup_with_loan.bob.address).call()
+    ).result.balance == (Uint256.from_int(2025 * 10**16))
+    assert (
+        await setup_with_loan.token_b.balanceOf(setup_with_loan.bob.address).call()
+    ).result.balance == (Uint256.from_int(9899919 * 10**17))
+
+    # Alice:
+    #   Debt:
+    #     22.5 - 8.1 = 14.4 TST_B
+    #   TST_A (Z):
+    #     100 - 20.25 = 79.75 TST_A
+    assert (
+        await setup_with_loan.market.get_user_debt_for_token(
+            setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (144 * 10**17)
+    assert (
+        await setup_with_loan.market.get_total_debt_for_token(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (144 * 10**17)
+    assert (
+        await setup_with_loan.z_token_a.balanceOf(setup_with_loan.alice.address).call()
+    ).result.balance == (Uint256.from_int(7975 * 10**16))
