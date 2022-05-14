@@ -217,8 +217,11 @@ end
 func deposit{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(token : felt, amount : felt):
+    alloc_locals
+
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
+    let (block_timestamp) = get_block_timestamp()
 
     #
     # Checks
@@ -234,7 +237,43 @@ func deposit{
     # Interactions
     #
 
-    # TODO: update reserve data
+    # Updates reserve data
+    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    # Updates interest rate
+    # TODO: check if there's a way to persist only one field (using syscall directly?)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
+    let (scaled_up_total_debt) = SafeDecimalMath_mul(
+        reserve.raw_total_debt, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=scaled_up_total_debt,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        last_update_timestamp=block_timestamp,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=reserve.raw_total_debt,
+        ),
+    )
 
     # Takes token from user
 
