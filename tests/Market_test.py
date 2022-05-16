@@ -560,6 +560,36 @@ async def test_rate_changes_on_deposit(setup_with_loan: Setup):
 
 
 @pytest.mark.asyncio
+async def test_rate_changes_on_withdrawal(setup_with_loan: Setup):
+    setup = setup_with_loan
+
+    # Bob withdraws 5,000 TST_B
+    await setup.bob.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("withdraw"),
+                [
+                    setup.token_b.contract_address,  # token
+                    5_000 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Borrowing rate:
+    #   Utilization rate = 22.5 / 5,000 = 0.0045
+    #   Borrowing rate = 0 + 0.0045 * 0.2 = 0.0009 => 9 * 10 ** 23
+    # Lending rate:
+    #   Lending rate = 0.0009 * 0.0045 = 0.00000405 => 405 * 10 ** 19
+    reserve_data = (
+        await setup.market.get_reserve_data(setup.token_b.contract_address).call()
+    ).result.data
+    assert reserve_data.current_lending_rate == 405 * 10**19
+    assert reserve_data.current_borrowing_rate == 9 * 10**23
+
+
+@pytest.mark.asyncio
 async def test_interest_accumulation(setup_with_loan: Setup):
     # No interest accumulated yet
     assert (
