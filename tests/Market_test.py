@@ -491,6 +491,23 @@ async def test_borrow_token(setup: Setup):
         "Market: insufficient collateral",
     )
 
+    # Cannot withdraw collateral
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("withdraw"),
+                    [
+                        setup.token_a.contract_address,  # token
+                        10 * 10**18,  # amount
+                    ],
+                )
+            ]
+        ),
+        "Market: insufficient collateral",
+    )
+
     # Alice borrows more with more collateral
     await setup.alice.execute(
         [

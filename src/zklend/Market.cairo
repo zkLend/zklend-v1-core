@@ -300,9 +300,9 @@ func deposit{
 end
 
 @external
-func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, amount : felt
-):
+func withdraw{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
     alloc_locals
 
     let (caller) = get_caller_address()
@@ -371,6 +371,11 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     )
     with_attr error_message("Market: transfer failed"):
         assert_not_zero(transfer_success)
+    end
+
+    # It's easier to post-check collateralization factor
+    with_attr error_message("Market: insufficient collateral"):
+        assert_not_undercollateralized(caller)
     end
 
     return ()
