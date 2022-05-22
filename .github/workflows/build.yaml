@@ -1,0 +1,19 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+name: Build
+jobs:
+  test:
+    name: Compile contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Compile contracts
+        run: |
+          ./scripts/compile_with_docker.sh
