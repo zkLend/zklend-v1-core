@@ -658,6 +658,47 @@ async def test_debt_accumulation(setup_with_loan: Setup):
 
 
 @pytest.mark.asyncio
+async def test_no_debt_accumulation_without_loan(setup: Setup):
+    # Alice deposits token A
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token_a.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(1_000_000 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_a.contract_address,  # token
+                    10_000 * 10**18,  # amount
+                ],
+            ),
+        ]
+    )
+
+    # No interest accumulated yet
+    assert (
+        await setup.market.get_debt_accumulator(setup.token_a.contract_address).call()
+    ).result.res == (10**27)
+
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        100,
+    )
+
+    # Still no accumulation after 100 seconds
+
+    assert (
+        await setup.market.get_debt_accumulator(setup.token_a.contract_address).call()
+    ).result.res == (10**27)
+
+
+@pytest.mark.asyncio
 async def test_debt_repayment(setup_with_loan: Setup):
     # Total debt is 22.500000032106164383 (based on `test_debt_accumulation`)
     setup_with_loan.starknet.state.state.block_info = BlockInfo.create_for_testing(

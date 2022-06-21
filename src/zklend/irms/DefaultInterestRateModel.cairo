@@ -62,11 +62,13 @@ func get_interest_rates{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
     alloc_locals
 
     let (utilization_rate) = calculate_utilization_rate(reserve_balance, total_debt)
-    let (borrowing_rate) = calculate_borrow_rate(utilization_rate)
-
-    let (lending_rate) = SafeDecimalMath_mul(borrowing_rate, utilization_rate)
-
-    return (lending_rate=lending_rate, borrowing_rate=borrowing_rate)
+    if utilization_rate == 0:
+        return (lending_rate=0, borrowing_rate=0)
+    else:
+        let (borrowing_rate) = calculate_borrow_rate(utilization_rate)
+        let (lending_rate) = SafeDecimalMath_mul(borrowing_rate, utilization_rate)
+        return (lending_rate=lending_rate, borrowing_rate=borrowing_rate)
+    end
 end
 
 func calculate_utilization_rate{range_check_ptr}(reserve_balance : felt, total_debt : felt) -> (

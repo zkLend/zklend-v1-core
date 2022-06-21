@@ -43,7 +43,7 @@ async def setup() -> Setup:
 @pytest.mark.asyncio
 async def test_borrow_rates(setup: Setup):
     for (reserve_balance, total_debt, borrow_rate) in [
-        (100, 0, 1 * 10**25),  # 0% utilized: 1%
+        (100, 0, 0),  # 0% utilized: 0%
         (90, 10, 2 * 10**25),  # 10% utilized: 2%
         (50, 50, 6 * 10**25),  # 50% utilized: 6%
         (40, 60, 7 * 10**25),  # 60% utilized: 7%
