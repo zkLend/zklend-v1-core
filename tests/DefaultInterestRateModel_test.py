@@ -25,14 +25,14 @@ async def setup() -> Setup:
     # slope_0: 0.1
     # slope_1: 0.5
     # y_intercept: 1%
-    # optimal_rate: 60%
+    # optimal_rate: 80%
     model = await starknet.deploy(
         source=PATH_DEFAULT_INTEREST_RATE_MODEL,
         constructor_calldata=[
             1 * 10**26,  # slope_0
             5 * 10**26,  # slope_1
             1 * 10**25,  # y_intercept
-            6 * 10**26,  # optimal_rate
+            8 * 10**26,  # optimal_rate
         ],
         cairo_path=[CAIRO_PATH],
     )
@@ -43,13 +43,26 @@ async def setup() -> Setup:
 @pytest.mark.asyncio
 async def test_borrow_rates(setup: Setup):
     for (reserve_balance, total_debt, borrow_rate) in [
-        (100, 0, 0),  # 0% utilized: 0%
-        (90, 10, 2 * 10**25),  # 10% utilized: 2%
-        (50, 50, 6 * 10**25),  # 50% utilized: 6%
-        (40, 60, 7 * 10**25),  # 60% utilized: 7%
-        (30, 70, 12 * 10**25),  # 70% utilized: 12%
-        (10, 90, 22 * 10**25),  # 90% utilized: 22%
-        (0, 100, 27 * 10**25),  # 100% utilized: 27%
+        # 0% utilized: 0%
+        (100, 0, 0),
+        # 10% utilized:
+        #   1% + 0.1 * (10% / 80%) = 2.25%
+        (90, 10, 225 * 10**23),
+        # 50% utilized:
+        #   1% + 0.1 * (50% / 80%) = 7.25%
+        (50, 50, 725 * 10**23),
+        # 60% utilized:
+        #   1% + 0.1 * (60% / 80%) = 8.5%
+        (40, 60, 85 * 10**24),
+        # 70% utilized:
+        #   1% + 0.1 * (70% / 80%) = 9.75%
+        (30, 70, 975 * 10**23),
+        # 90% utilized:
+        #   1% + 0.1 + 0.5 * (90% - 80%) / (100% - 80%) = 36%
+        (10, 90, 36 * 10**25),
+        # 100% utilized:
+        #   1% + 0.1 + 0.5 * (100% - 80%) / (100% - 80%) = 61%
+        (0, 100, 61 * 10**25),
     ]:
         assert (
             await setup.model.get_interest_rates(reserve_balance, total_debt).call()

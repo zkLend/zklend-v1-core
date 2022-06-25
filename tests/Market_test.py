@@ -139,8 +139,8 @@ async def setup() -> Setup:
         constructor_calldata=[
             2 * 10**26,  # slope_0: 0.2
             3 * 10**26,  # slope_1: 0.3
-            0,  # y_intercept: 0%
-            7 * 10**26,  # optimal_rate: 70%
+            5 * 10**25,  # y_intercept: 5%
+            8 * 10**26,  # optimal_rate: 80%
         ],
         cairo_path=[CAIRO_PATH],
     )
@@ -465,14 +465,14 @@ async def test_borrow_token(setup: Setup):
 
     # Borrowing rate:
     #   Utilization rate = 22.5 / 10,000 = 0.00225
-    #   Borrowing rate = 0 + 0.00225 * 0.2 = 0.00045 => 45 * 10 ** 22
+    #   Borrowing rate = 0.05 + 0.2 * 0.00225 / 0.8 = 0.0505625 => 505625 * 10 ** 20
     # Lending rate:
-    #   Lending rate = 0.00045 * 0.00225 = 0.0000010125 => 10125 * 10 ** 17
+    #   Lending rate = 0.0505625 * 0.00225 = 0.000113765625 => 113765625 * 10 ** 15
     reserve_data = (
         await setup.market.get_reserve_data(setup.token_b.contract_address).call()
     ).result.data
-    assert reserve_data.current_lending_rate == 10125 * 10**17
-    assert reserve_data.current_borrowing_rate == 45 * 10**22
+    assert reserve_data.current_lending_rate == 113765625 * 10**15
+    assert reserve_data.current_borrowing_rate == 505625 * 10**20
 
     # Cannot borrow anymore with existing collateral
     await assert_reverted_with(
@@ -536,14 +536,14 @@ async def test_borrow_token(setup: Setup):
 
     # Borrowing rate:
     #   Utilization rate = 45 / 10,000 = 0.0045
-    #   Borrowing rate = 0 + 0.0045 * 0.2 = 0.0009 => 9 * 10 ** 23
+    #   Borrowing rate = 0.05 + 0.2 * 0.0045 / 0.8 = 0.051125 => 51125 * 10 ** 21
     # Lending rate:
-    #   Lending rate = 0.0009 * 0.0045 = 0.00000405 => 405 * 10 ** 19
+    #   Lending rate = 0.051125 * 0.0045 = 0.0002300625 => 2300625 * 10 ** 17
     reserve_data = (
         await setup.market.get_reserve_data(setup.token_b.contract_address).call()
     ).result.data
-    assert reserve_data.current_lending_rate == 405 * 10**19
-    assert reserve_data.current_borrowing_rate == 9 * 10**23
+    assert reserve_data.current_lending_rate == 2300625 * 10**17
+    assert reserve_data.current_borrowing_rate == 51125 * 10**21
 
 
 @pytest.mark.asyncio
@@ -566,14 +566,14 @@ async def test_rate_changes_on_deposit(setup_with_loan: Setup):
 
     # Borrowing rate:
     #   Utilization rate = 22.5 / 15,000 = 0.0015
-    #   Borrowing rate = 0 + 0.0015 * 0.2 = 0.0003 => 3 * 10 ** 23
+    #   Borrowing rate = 0.05 + 0.2 * 0.0015 / 0.8 = 0.050375 => 50375 * 10 ** 21
     # Lending rate:
-    #   Lending rate = 0.0003 * 0.0015 = 0.00000045 => 45 * 10 ** 19
+    #   Lending rate = 0.050375 * 0.0015 = 0.0000755625 => 755625 * 10 ** 17
     reserve_data = (
         await setup.market.get_reserve_data(setup.token_b.contract_address).call()
     ).result.data
-    assert reserve_data.current_lending_rate == 45 * 10**19
-    assert reserve_data.current_borrowing_rate == 3 * 10**23
+    assert reserve_data.current_lending_rate == 755625 * 10**17
+    assert reserve_data.current_borrowing_rate == 50375 * 10**21
 
 
 @pytest.mark.asyncio
@@ -596,14 +596,14 @@ async def test_rate_changes_on_withdrawal(setup_with_loan: Setup):
 
     # Borrowing rate:
     #   Utilization rate = 22.5 / 5,000 = 0.0045
-    #   Borrowing rate = 0 + 0.0045 * 0.2 = 0.0009 => 9 * 10 ** 23
+    #   Borrowing rate = 0.05 + 0.2 * 0.0045 / 0.8 = 0.051125 => 51125 * 10 ** 21
     # Lending rate:
-    #   Lending rate = 0.0009 * 0.0045 = 0.00000405 => 405 * 10 ** 19
+    #   Lending rate = 0.051125 * 0.0045 = 0.0002300625 => 2300625 * 10 ** 17
     reserve_data = (
         await setup.market.get_reserve_data(setup.token_b.contract_address).call()
     ).result.data
-    assert reserve_data.current_lending_rate == 405 * 10**19
-    assert reserve_data.current_borrowing_rate == 9 * 10**23
+    assert reserve_data.current_lending_rate == 2300625 * 10**17
+    assert reserve_data.current_borrowing_rate == 51125 * 10**21
 
 
 @pytest.mark.asyncio
@@ -619,12 +619,12 @@ async def test_interest_accumulation(setup_with_loan: Setup):
     )
 
     # Interest after 100 seconds:
-    #   Interest = 0.0000010125 * 10000 * 100 / (365 * 86400) = 0.000000032106164383561643835
-    #                                                         => 32106164383
-    #   Total balance = 10000 * 10 ** 18 + 32106164383
+    #   Interest = 0.000113765625 * 10000 * 100 / (365 * 86400) = 0.000003607484303652968036529
+    #                                                         => 3607484303652
+    #   Total balance = 10000 * 10 ** 18 + 3607484303652
     assert (
         await setup_with_loan.z_token_b.balanceOf(setup_with_loan.bob.address).call()
-    ).result.balance == (Uint256.from_int(10000 * 10**18 + 32106164383))
+    ).result.balance == (Uint256.from_int(10000 * 10**18 + 3607484303652))
 
 
 @pytest.mark.asyncio
@@ -642,19 +642,19 @@ async def test_debt_accumulation(setup_with_loan: Setup):
     )
 
     # Interest after 100 seconds:
-    #   Interest = 0.00045 * 22.5 * 100 / (365 * 86400) = 0.000000032106164383
-    #                                                   => 32106164383
-    #   Total debt = 22.5 * 10 ** 18 + 32106164383
+    #   Interest = 0.0505625 * 22.5 * 100 / (365 * 86400) = 0.000003607484303652968036529
+    #                                                   => 3607484303652
+    #   Total debt = 22.5 * 10 ** 18 + 3607484303652
     assert (
         await setup_with_loan.market.get_user_debt_for_token(
             setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (225 * 10**17 + 32106164383)
+    ).result.debt == (225 * 10**17 + 3607484303652)
     assert (
         await setup_with_loan.market.get_total_debt_for_token(
             setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (225 * 10**17 + 32106164383)
+    ).result.debt == (225 * 10**17 + 3607484303652)
 
 
 @pytest.mark.asyncio
@@ -700,7 +700,7 @@ async def test_no_debt_accumulation_without_loan(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_debt_repayment(setup_with_loan: Setup):
-    # Total debt is 22.500000032106164383 (based on `test_debt_accumulation`)
+    # Total debt is 22.500003607484303652 (based on `test_debt_accumulation`)
     setup_with_loan.starknet.state.state.block_info = BlockInfo.create_for_testing(
         setup_with_loan.starknet.state.state.block_info.block_number,
         100,
@@ -729,18 +729,18 @@ async def test_debt_repayment(setup_with_loan: Setup):
     )
 
     # Off by one due to rounding error
-    #   Expected: 21500000032106164383
-    #   Actual  : 21500000032106164384
+    #   Expected: 21500003607484303652
+    #   Actual  : 21500003607484303653
     assert (
         await setup_with_loan.market.get_user_debt_for_token(
             setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (21500000032106164384)
+    ).result.debt == (21500003607484303653)
     assert (
         await setup_with_loan.market.get_total_debt_for_token(
             setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (21500000032106164384)
+    ).result.debt == (21500003607484303653)
     assert (
         await setup_with_loan.token_b.balanceOf(setup_with_loan.alice.address).call()
     ).result.balance == (Uint256.from_int(215 * 10**17))
@@ -752,20 +752,20 @@ async def test_debt_repayment(setup_with_loan: Setup):
 
     # Interest rates after repayment
     #   Borrowing rate:
-    #     Utilization rate = 21.500000032106164384 / 10,000.000000032106164384
-    #                      = 0.002150000003203713613047154
-    #     Borrowing rate = 0 + 0.002150000003203713613047154 * 0.2
-    #                    = 0.000430000000640742722609430
+    #     Utilization rate = 21.500003607484303653 / 10,000.000003607484303653
+    #                      = 0.002150000359972821110154974
+    #     Borrowing rate = 0.05 + 0.2 * 0.002150000359972821110154974 / 0.8
+    #                    = 0.050537500089993205277538743
     #   Lending rate:
-    #     Lending rate = 0.000430000000640742722609430 * 0.002150000003203713613047154
-    #                  = 0.000000924500002755193709273
+    #     Lending rate = 0.050537500089993205277538743 * 0.002150000359972821110154974
+    #                  = 0.000108655643385611870596273
     reserve_data = (
         await setup_with_loan.market.get_reserve_data(
             setup_with_loan.token_b.contract_address
         ).call()
     ).result.data
-    assert reserve_data.current_lending_rate == 924500002755193709273
-    assert reserve_data.current_borrowing_rate == 430000000640742722609430
+    assert reserve_data.current_lending_rate == 108655643385611870596273
+    assert reserve_data.current_borrowing_rate == 50537500089993205277538743
 
 
 @pytest.mark.asyncio

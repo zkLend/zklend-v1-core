@@ -41,6 +41,7 @@ end
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     slope_0 : felt, slope_1 : felt, y_intercept : felt, optimal_rate : felt
 ):
+    # TODO: check `optimal_rate` range
     curve_params.write(
         CurveParams(
         slope_0=slope_0,
@@ -92,18 +93,21 @@ func calculate_borrow_rate{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
 
     let (below_optimal_rate) = is_le_felt(utilization_rate, params.optimal_rate)
     if below_optimal_rate == TRUE:
-        let (temp_1) = SafeDecimalMath_mul(utilization_rate, params.slope_0)
-        let (borrow_rate) = SafeMath_add(temp_1, params.y_intercept)
+        let (temp_1) = SafeDecimalMath_div(utilization_rate, params.optimal_rate)
+        let (temp_2) = SafeDecimalMath_mul(params.slope_0, temp_1)
+
+        let (borrow_rate) = SafeMath_add(params.y_intercept, temp_2)
 
         return (borrow_rate=borrow_rate)
     else:
-        # TODO: calculate `temp_2` in constructor directly
-        let (temp_1) = SafeDecimalMath_mul(params.optimal_rate, params.slope_0)
-        let (temp_2) = SafeMath_add(temp_1, params.y_intercept)
-
         # No need to use safe math here
         let excess_utilization_rate = utilization_rate - params.optimal_rate
-        let (temp_3) = SafeDecimalMath_mul(excess_utilization_rate, params.slope_1)
+        let optimal_to_one = SCALE - params.optimal_rate
+
+        let (temp_1) = SafeDecimalMath_div(excess_utilization_rate, optimal_to_one)
+        let (temp_2) = SafeDecimalMath_mul(params.slope_1, temp_1)
+        let (temp_3) = SafeMath_add(params.y_intercept, params.slope_0)
+
         let (borrow_rate) = SafeMath_add(temp_2, temp_3)
 
         return (borrow_rate=borrow_rate)
