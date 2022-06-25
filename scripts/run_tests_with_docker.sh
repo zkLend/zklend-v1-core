@@ -7,4 +7,4 @@ docker run --rm \
     -v "${SCRIPT_DIR}/entrypoints/run_tests.sh:/entry.sh:ro" \
     -v "${REPO_ROOT}/:/src/" \
     --entrypoint "/entry.sh" \
-    shardlabs/cairo-cli:0.8.2.1
+    shardlabs/cairo-cli:0.9.0
