@@ -1,4 +1,6 @@
 #!/bin/sh
 
+pip install pytest-xdist
+
 cd /src/
-pytest ./tests/*_test.py ./tests/**/*_test.py
+pytest -n 16 ./tests/*_test.py ./tests/**/*_test.py
