@@ -286,15 +286,7 @@ func deposit{
     end
 
     # Mints ZToken to user
-    let (is_first_deposit) = IZToken.mint(
-        contract_address=reserve.z_token_address, to=caller, amount=amount
-    )
-    if is_first_deposit == TRUE:
-        # Use deposit as collateral by default
-        # TODO: add option to disable auto collateral usage
-        set_collateral_usage(caller, reserve_index, TRUE)
-        return ()
-    end
+    IZToken.mint(contract_address=reserve.z_token_address, to=caller, amount=amount)
 
     return ()
 end
@@ -468,6 +460,51 @@ func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     let (caller) = get_caller_address()
 
     repay_debt(caller, caller, token, amount)
+
+    return ()
+end
+
+@external
+func enable_collateral{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt):
+    let (caller) = get_caller_address()
+
+    # Technically we don't need `reserve` here but we need to check existence
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not found"):
+        assert_not_zero(reserve.z_token_address)
+    end
+
+    let (reserve_index) = reserve_indices.read(token)
+
+    set_collateral_usage(caller, reserve_index, TRUE)
+
+    return ()
+end
+
+@external
+func disable_collateral{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt):
+    alloc_locals
+
+    let (caller) = get_caller_address()
+
+    # Technically we don't need `reserve` here but we need to check existence
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not found"):
+        assert_not_zero(reserve.z_token_address)
+    end
+
+    let (reserve_index) = reserve_indices.read(token)
+
+    set_collateral_usage(caller, reserve_index, FALSE)
+
+    # It's easier to post-check collateralization factor
+    with_attr error_message("Market: insufficient collateral"):
+        assert_not_undercollateralized(caller)
+    end
 
     return ()
 end

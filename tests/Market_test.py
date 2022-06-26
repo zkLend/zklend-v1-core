@@ -228,6 +228,13 @@ async def setup_with_loan(setup: Setup) -> Setup:
                     10_000 * 10**18,  # amount
                 ],
             ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_b.contract_address,  # token
+                ],
+            ),
         ]
     )
     await setup.alice.execute(
@@ -246,6 +253,13 @@ async def setup_with_loan(setup: Setup) -> Setup:
                 [
                     setup.token_a.contract_address,  # token
                     100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
                 ],
             ),
             Call(
@@ -285,7 +299,14 @@ async def test_token_transferred_on_deposit(setup: Setup):
                     setup.token_a.contract_address,  # token
                     10**18,  # amount
                 ],
-            )
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
+                ],
+            ),
         ]
     )
 
@@ -322,7 +343,14 @@ async def test_deposit_transfer_failed(setup: Setup):
                         setup.token_a.contract_address,  # token
                         10**18,  # amount
                     ],
-                )
+                ),
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("enable_collateral"),
+                    [
+                        setup.token_a.contract_address,  # token
+                    ],
+                ),
             ]
         ),
         "ERC20: transfer amount exceeds allowance",
@@ -347,6 +375,13 @@ async def test_token_burnt_on_withdrawal(setup: Setup):
                 [
                     setup.token_a.contract_address,  # token
                     100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
                 ],
             ),
         ]
@@ -403,6 +438,13 @@ async def test_borrow_token(setup: Setup):
                     10_000 * 10**18,  # amount
                 ],
             ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_b.contract_address,  # token
+                ],
+            ),
         ]
     )
 
@@ -422,6 +464,13 @@ async def test_borrow_token(setup: Setup):
                 [
                     setup.token_a.contract_address,  # token
                     100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
                 ],
             ),
         ]
@@ -521,6 +570,13 @@ async def test_borrow_token(setup: Setup):
             ),
             Call(
                 setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
                 get_selector_from_name("borrow"),
                 [
                     setup.token_b.contract_address,  # token
@@ -559,6 +615,13 @@ async def test_rate_changes_on_deposit(setup_with_loan: Setup):
                 [
                     setup.token_b.contract_address,  # token
                     5_000 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_b.contract_address,  # token
                 ],
             ),
         ]
@@ -676,6 +739,13 @@ async def test_no_debt_accumulation_without_loan(setup: Setup):
                 [
                     setup.token_a.contract_address,  # token
                     10_000 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
                 ],
             ),
         ]
