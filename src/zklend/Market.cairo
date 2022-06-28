@@ -209,6 +209,19 @@ func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
     return (usage=map)
 end
 
+@view
+func is_user_undercollateralized{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (is_undercollateralized : felt):
+    let (user_not_undercollateralized) = is_not_undercollateralized(user)
+
+    if user_not_undercollateralized == TRUE:
+        return (is_undercollateralized=FALSE)
+    else:
+        return (is_undercollateralized=TRUE)
+    end
+end
+
 #
 # External
 #
@@ -309,8 +322,6 @@ func withdraw{
         assert_not_zero(reserve.enabled)
     end
 
-    # TODO: check if user is still collateralized after withdrawal
-
     #
     # Interactions
     #
@@ -366,6 +377,7 @@ func withdraw{
     end
 
     # It's easier to post-check collateralization factor
+    # TODO: skip the check if not used as collateral
     with_attr error_message("Market: insufficient collateral"):
         assert_not_undercollateralized(caller)
     end
@@ -670,20 +682,27 @@ end
 func assert_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt):
-    alloc_locals
-
-    let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
-    let (is_not_undercollateralized) = is_le_felt(collateral_required, collateral_value)
-    assert is_not_undercollateralized = FALSE
+    let (user_not_undercollateralized) = is_not_undercollateralized(user)
+    assert user_not_undercollateralized = FALSE
     return ()
 end
 
 func assert_not_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt):
-    let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
-    assert_le_felt(collateral_required, collateral_value)
+    let (user_not_undercollateralized) = is_not_undercollateralized(user)
+    assert user_not_undercollateralized = TRUE
     return ()
+end
+
+func is_not_undercollateralized{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (res : felt):
+    alloc_locals
+
+    let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
+    let (is_not_undercollateralized) = is_le_felt(collateral_required, collateral_value)
+    return (res=is_not_undercollateralized)
 end
 
 func calculate_user_collateral_data{

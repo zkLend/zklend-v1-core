@@ -540,7 +540,7 @@ async def test_borrow_token(setup: Setup):
         "Market: insufficient collateral",
     )
 
-    # Cannot withdraw collateral
+    # Cannot withdraw or transfer collateral
     await assert_reverted_with(
         setup.alice.execute(
             [
@@ -555,6 +555,21 @@ async def test_borrow_token(setup: Setup):
             ]
         ),
         "Market: insufficient collateral",
+    )
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.z_token_a.contract_address,
+                    get_selector_from_name("transfer"),
+                    [
+                        setup.token_a.contract_address,  # recipient
+                        *Uint256.from_int(10 * 10**18),  # amount
+                    ],
+                )
+            ]
+        ),
+        "ZToken: invalid collateralization after transfer",
     )
 
     # Alice borrows more with more collateral

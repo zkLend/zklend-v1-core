@@ -9,4 +9,7 @@ namespace IMarket:
 
     func get_debt_accumulator(token : felt) -> (res : felt):
     end
+
+    func is_user_undercollateralized(user : felt) -> (is_undercollateralized : felt):
+    end
 end

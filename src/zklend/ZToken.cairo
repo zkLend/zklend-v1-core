@@ -3,7 +3,7 @@
 %lang starknet
 
 from zklend.interfaces.IMarket import IMarket
-from zklend.libraries.SafeCast import SafeCast_felt_to_uint256
+from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
 from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div, SafeDecimalMath_mul
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
@@ -102,6 +102,25 @@ end
 #
 
 @external
+func transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    recipient : felt, amount : Uint256
+) -> (success : felt):
+    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    return felt_transfer(recipient, felt_amount)
+end
+
+@external
+func felt_transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    recipient : felt, amount : felt
+) -> (success : felt):
+    let (caller) = get_caller_address()
+
+    transfer_internal(caller, recipient, amount, TRUE)
+
+    return (success=TRUE)
+end
+
+@external
 func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     to : felt, amount : felt
 ) -> (zero_balance_before : felt):
@@ -171,29 +190,10 @@ end
 func move{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     from_account : felt, to_account : felt, amount : felt
 ):
-    alloc_locals
-
     only_market()
 
-    let (accumulator) = get_accumulator()
-
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
-    with_attr error_message("ZToken: invalid move amount"):
-        assert_not_zero(scaled_down_amount)
-    end
-
-    let (raw_from_balance_before) = raw_balances.read(from_account)
-    let (raw_from_balance_after) = SafeMath_sub(raw_from_balance_before, scaled_down_amount)
-    raw_balances.write(from_account, raw_from_balance_after)
-
-    let (raw_to_balance_before) = raw_balances.read(to_account)
-    let (raw_to_balance_after) = SafeMath_add(raw_to_balance_before, scaled_down_amount)
-    raw_balances.write(to_account, raw_to_balance_after)
-
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
-    Transfer.emit(from_account, to_account, amount_u256)
-
-    return ()
+    # No need to check collateralization as `Market` only moves for liquidation
+    return transfer_internal(from_account, to_account, amount, FALSE)
 end
 
 func only_market{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
@@ -214,4 +214,46 @@ func get_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
         contract_address=market_addr, token=underlying_addr
     )
     return (accumulator=accumulator)
+end
+
+func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    from_account : felt, to_account : felt, amount : felt, check_collateralization : felt
+):
+    alloc_locals
+
+    let (accumulator) = get_accumulator()
+
+    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    with_attr error_message("ZToken: invalid transfer amount"):
+        assert_not_zero(scaled_down_amount)
+    end
+
+    # No need to check from balance first because SafeMath will fail
+    let (raw_from_balance_before) = raw_balances.read(from_account)
+    let (raw_from_balance_after) = SafeMath_sub(raw_from_balance_before, scaled_down_amount)
+    raw_balances.write(from_account, raw_from_balance_after)
+
+    let (raw_to_balance_before) = raw_balances.read(to_account)
+    let (raw_to_balance_after) = SafeMath_add(raw_to_balance_before, scaled_down_amount)
+    raw_balances.write(to_account, raw_to_balance_after)
+
+    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    Transfer.emit(from_account, to_account, amount_u256)
+
+    if check_collateralization == TRUE:
+        # TODO: skip check if token is not used as collateral
+        # TODO: skip check if sender has no debt
+        let (market_addr) = market.read()
+        let (is_undercollateralized) = IMarket.is_user_undercollateralized(
+            contract_address=market_addr, user=from_account
+        )
+
+        with_attr error_message("ZToken: invalid collateralization after transfer"):
+            assert is_undercollateralized = FALSE
+        end
+
+        return ()
+    else:
+        return ()
+    end
 end
