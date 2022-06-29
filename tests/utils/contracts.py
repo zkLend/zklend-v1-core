@@ -26,3 +26,4 @@ PATH_MOCK_SAFE_DECIMAL_MATH = str(TESTS_ROOT / "mocks" / "SafeDecimalMath_mock.c
 PATH_MOCK_ZIG_ZAG_ORACLE = str(TESTS_ROOT / "mocks" / "MockZigZagOracle.cairo")
 PATH_MOCK_MATH = str(TESTS_ROOT / "mocks" / "Math_mock.cairo")
 PATH_MOCK_PRICE_ORACLE = str(TESTS_ROOT / "mocks" / "MockPriceOracle.cairo")
+PATH_MOCK_MARKET = str(TESTS_ROOT / "mocks" / "MockMarket.cairo")

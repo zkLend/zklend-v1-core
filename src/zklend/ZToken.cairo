@@ -12,7 +12,7 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
-from openzeppelin.token.erc20.library import ERC20_initializer, Transfer
+from openzeppelin.token.erc20.library import Approval, ERC20_initializer, Transfer
 from openzeppelin.utils.constants import FALSE, TRUE
 
 #
@@ -33,6 +33,10 @@ end
 
 @storage_var
 func raw_balances(account : felt) -> (balance : felt):
+end
+
+@storage_var
+func allowances(owner : felt, spender : felt) -> (allowance : felt):
 end
 
 #
@@ -97,6 +101,24 @@ func felt_balance_of{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return (balance=scaled_up_balance)
 end
 
+@view
+func allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    owner : felt, spender : felt
+) -> (remaining : Uint256):
+    let (remaining) = felt_allowance(owner, spender)
+    let (remaining_u256 : Uint256) = SafeCast_felt_to_uint256(remaining)
+
+    return (remaining=remaining_u256)
+end
+
+@view
+func felt_allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    owner : felt, spender : felt
+) -> (remaining : felt):
+    let (amount) = allowances.read(owner, spender)
+    return (remaining=amount)
+end
+
 #
 # External
 #
@@ -115,7 +137,42 @@ func felt_transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check
 ) -> (success : felt):
     let (caller) = get_caller_address()
 
+    # NOTE: this exploit should no longer be possible since all transactions need must go through
+    #       the __execute__ method now, but we're still keeping it just in case
+    with_attr error_message("ZToken: zero address"):
+        assert_not_zero(caller)
+    end
+
     transfer_internal(caller, recipient, amount, TRUE)
+
+    return (success=TRUE)
+end
+
+@external
+func approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    spender : felt, amount : Uint256
+) -> (success : felt):
+    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    return felt_approve(spender, felt_amount)
+end
+
+@external
+func felt_approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    spender : felt, amount : felt
+) -> (success : felt):
+    let (caller) = get_caller_address()
+
+    # NOTE: this exploit should no longer be possible since all transactions need must go through
+    #       the __execute__ method now, but we're still keeping it just in case
+    with_attr error_message("ZToken: zero address"):
+        assert_not_zero(caller)
+    end
+
+    allowances.write(caller, spender, amount)
+
+    let (amount_u256) = SafeCast_felt_to_uint256(amount)
+
+    Approval.emit(caller, spender, amount_u256)
 
     return (success=TRUE)
 end
