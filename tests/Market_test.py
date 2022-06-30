@@ -208,6 +208,39 @@ async def setup() -> Setup:
 
 
 @pytest.fixture
+async def setup_with_deposit(setup: Setup) -> Setup:
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token_a.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(100 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
+                ],
+            ),
+        ]
+    )
+
+    return setup
+
+
+@pytest.fixture
 async def setup_with_loan(setup: Setup) -> Setup:
     # Same as `test_borrow_token`
     await setup.bob.execute(
@@ -358,34 +391,29 @@ async def test_deposit_transfer_failed(setup: Setup):
 
 
 @pytest.mark.asyncio
-async def test_token_burnt_on_withdrawal(setup: Setup):
-    await setup.alice.execute(
-        [
-            Call(
-                setup.token_a.contract_address,
-                get_selector_from_name("approve"),
-                [
-                    setup.market.contract_address,  # spender
-                    *Uint256.from_int(100 * 10**18),  # amount
-                ],
-            ),
-            Call(
-                setup.market.contract_address,
-                get_selector_from_name("deposit"),
-                [
-                    setup.token_a.contract_address,  # token
-                    100 * 10**18,  # amount
-                ],
-            ),
-            Call(
-                setup.market.contract_address,
-                get_selector_from_name("enable_collateral"),
-                [
-                    setup.token_a.contract_address,  # token
-                ],
-            ),
-        ]
+async def test_cannot_withdraw_with_zero_amount(setup_with_deposit: Setup):
+    setup = setup_with_deposit
+
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("withdraw"),
+                    [
+                        setup.token_a.contract_address,  # token : felt
+                        0,  # amount
+                    ],
+                ),
+            ]
+        ),
+        "Market: zero amount",
     )
+
+
+@pytest.mark.asyncio
+async def test_token_burnt_on_withdrawal(setup_with_deposit: Setup):
+    setup = setup_with_deposit
 
     # Alice: 999,900 TST_A, 100 zTST_A
     assert (

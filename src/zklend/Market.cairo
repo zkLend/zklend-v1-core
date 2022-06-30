@@ -308,6 +308,10 @@ end
 func withdraw{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(token : felt, amount : felt):
+    with_attr error_message("Market: zero amount"):
+        assert_not_zero(amount)
+    end
+
     return withdraw_internal(token, amount)
 end
 
