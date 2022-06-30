@@ -213,3 +213,33 @@ async def test_transfer_from(setup: Setup):
     assert (await setup.z_token.balanceOf(setup.bob.address).call()).result.balance == (
         Uint256.from_int(80 * 10**18)
     )
+
+
+@pytest.mark.asyncio
+async def test_transfer_all(setup: Setup):
+    await setup.alice.execute(
+        [
+            Call(
+                setup.z_token.contract_address,
+                get_selector_from_name("transfer_all"),
+                [
+                    setup.bob.address,  # recipient
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("set_lending_accumulator"),
+                [
+                    MOCK_TOKEN_ADDRESS,  # token
+                    4 * 10**27,  # value
+                ],
+            ),
+        ]
+    )
+
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(0))
+    assert (await setup.z_token.balanceOf(setup.bob.address).call()).result.balance == (
+        Uint256.from_int(400 * 10**18)
+    )

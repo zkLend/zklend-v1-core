@@ -247,6 +247,26 @@ func felt_approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
     return (success=TRUE)
 end
 
+# This method exists because ZToken balances are always increasing (unless when no interest is
+# accumulating). so it's hard for off-chain actors to clear balance completely.
+@external
+func transfer_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    recipient : felt
+):
+    let (caller) = get_caller_address()
+
+    # NOTE: this exploit should no longer be possible since all transactions need must go through
+    #       the __execute__ method now, but we're still keeping it just in case
+    with_attr error_message("ZToken: zero address"):
+        assert_not_zero(caller)
+    end
+
+    let (sender_raw_balance) = raw_balances.read(caller)
+    transfer_raw_internal(caller, recipient, sender_raw_balance, TRUE)
+
+    return ()
+end
+
 @external
 func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     to : felt, amount : felt
@@ -367,6 +387,49 @@ func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
     Transfer.emit(from_account, to_account, amount_u256)
 
+    if check_collateralization == TRUE:
+        # TODO: skip check if token is not used as collateral
+        # TODO: skip check if sender has no debt
+        let (market_addr) = market.read()
+        let (is_undercollateralized) = IMarket.is_user_undercollateralized(
+            contract_address=market_addr, user=from_account
+        )
+
+        with_attr error_message("ZToken: invalid collateralization after transfer"):
+            assert is_undercollateralized = FALSE
+        end
+
+        return ()
+    else:
+        return ()
+    end
+end
+
+func transfer_raw_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    from_account : felt, to_account : felt, raw_amount : felt, check_collateralization : felt
+):
+    alloc_locals
+
+    with_attr error_message("ZToken: invalid transfer amount"):
+        assert_not_zero(raw_amount)
+    end
+
+    # No need to check from balance first because SafeMath will fail
+    let (raw_from_balance_before) = raw_balances.read(from_account)
+    let (raw_from_balance_after) = SafeMath_sub(raw_from_balance_before, raw_amount)
+    raw_balances.write(from_account, raw_from_balance_after)
+
+    let (raw_to_balance_before) = raw_balances.read(to_account)
+    let (raw_to_balance_after) = SafeMath_add(raw_to_balance_before, raw_amount)
+    raw_balances.write(to_account, raw_to_balance_after)
+
+    let (accumulator) = get_accumulator()
+    let (scaled_up_amount) = SafeDecimalMath_mul(raw_amount, accumulator)
+
+    let (scaled_up_amount_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_amount)
+    Transfer.emit(from_account, to_account, scaled_up_amount_u256)
+
+    # TODO: refactor duplicate code
     if check_collateralization == TRUE:
         # TODO: skip check if token is not used as collateral
         # TODO: skip check if sender has no debt
