@@ -308,81 +308,14 @@ end
 func withdraw{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(token : felt, amount : felt):
-    alloc_locals
+    return withdraw_internal(token, amount)
+end
 
-    let (caller) = get_caller_address()
-    let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
-
-    #
-    # Checks
-    #
-    let (reserve) = reserves.read(token)
-    with_attr error_message("Market: reserve not enabled"):
-        assert_not_zero(reserve.enabled)
-    end
-
-    #
-    # Interactions
-    #
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-
-    # Updates interest rate
-    # TODO: check if there's a way to persist only one field (using syscall directly?)
-    let (reserve_balance_before_u256) = IERC20.balanceOf(
-        contract_address=token, account=this_address
-    )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount)
-    let (scaled_up_total_debt) = SafeDecimalMath_mul(
-        reserve.raw_total_debt, updated_debt_accumulator
-    )
-    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-        contract_address=reserve.interest_rate_model,
-        reserve_balance=reserve_balance_after,
-        total_debt=scaled_up_total_debt,
-    )
-    reserves.write(
-        token,
-        ReserveData(
-        enabled=reserve.enabled,
-        decimals=reserve.decimals,
-        z_token_address=reserve.z_token_address,
-        interest_rate_model=reserve.interest_rate_model,
-        collateral_factor=reserve.collateral_factor,
-        borrow_factor=reserve.borrow_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
-        current_lending_rate=new_lending_rate,
-        current_borrowing_rate=new_borrowing_rate,
-        raw_total_debt=reserve.raw_total_debt,
-        ),
-    )
-
-    # Burns token of user
-    IZToken.burn(contract_address=reserve.z_token_address, user=caller, amount=amount)
-
-    # Gives underlying tokens to user
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
-    let (transfer_success) = IERC20.transfer(
-        contract_address=token, recipient=caller, amount=amount_u256
-    )
-    with_attr error_message("Market: transfer failed"):
-        assert_not_zero(transfer_success)
-    end
-
-    # It's easier to post-check collateralization factor
-    # TODO: skip the check if not used as collateral
-    with_attr error_message("Market: insufficient collateral"):
-        assert_not_undercollateralized(caller)
-    end
-
-    return ()
+@external
+func withdraw_all{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt):
+    return withdraw_internal(token, 0)
 end
 
 @external
@@ -845,6 +778,93 @@ func get_user_collateral_usd_value_for_token{
     return (value=discounted_collteral_value)
 end
 
+# `amount` with `0` means withdrawing all
+func withdraw_internal{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
+    alloc_locals
+
+    # TODO: forbid `get_caller_address()` in non-external methods
+    let (caller) = get_caller_address()
+    let (this_address) = get_contract_address()
+    let (block_timestamp) = get_block_timestamp()
+
+    #
+    # Checks
+    #
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    #
+    # Effects
+    #
+
+    # Updates reserve data
+    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    # NOTE: it's fine to call out to external contract here before state update since it's trusted
+    let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
+
+    # Updates interest rate
+    # TODO: check if there's a way to persist only one field (using syscall directly?)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount_burnt)
+    let (scaled_up_total_debt) = SafeDecimalMath_mul(
+        reserve.raw_total_debt, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=scaled_up_total_debt,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        last_update_timestamp=block_timestamp,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=reserve.raw_total_debt,
+        ),
+    )
+
+    #
+    # Interactions
+    #
+
+    # Gives underlying tokens to user
+    let (amount_burnt_u256 : Uint256) = SafeCast_felt_to_uint256(amount_burnt)
+    let (transfer_success) = IERC20.transfer(
+        contract_address=token, recipient=caller, amount=amount_burnt_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
+
+    # It's easier to post-check collateralization factor
+    # TODO: skip the check if not used as collateral
+    with_attr error_message("Market: insufficient collateral"):
+        assert_not_undercollateralized(caller)
+    end
+
+    return ()
+end
+
 func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     repayer : felt, beneficiary : felt, token : felt, amount : felt
 ):
@@ -932,4 +952,17 @@ func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     end
 
     return ()
+end
+
+# `amount` with `0` means burning all
+func burn_z_token_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    z_token : felt, user : felt, amount : felt
+) -> (amount_burnt : felt):
+    if amount == 0:
+        let (amount_burnt) = IZToken.burn_all(contract_address=z_token, user=user)
+        return (amount_burnt=amount_burnt)
+    else:
+        IZToken.burn(contract_address=z_token, user=user, amount=amount)
+        return (amount_burnt=amount)
+    end
 end

@@ -416,6 +416,26 @@ async def test_token_burnt_on_withdrawal(setup: Setup):
         await setup.z_token_a.balanceOf(setup.alice.address).call()
     ).result.balance == (Uint256.from_int(75 * 10**18))
 
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("withdraw_all"),
+                [
+                    setup.token_a.contract_address,  # token : felt
+                ],
+            ),
+        ]
+    )
+
+    # Alice: 1,000,000 TST_A, 0 zTST_A
+    assert (
+        await setup.token_a.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(1_000_000 * 10**18))
+    assert (
+        await setup.z_token_a.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(0))
+
 
 @pytest.mark.asyncio
 async def test_borrow_token(setup: Setup):
