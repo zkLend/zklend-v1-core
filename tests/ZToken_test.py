@@ -150,3 +150,66 @@ async def test_approve_should_change_allowance(setup: Setup):
     assert (
         await setup.z_token.allowance(setup.alice.address, setup.bob.address).call()
     ).result.remaining == (Uint256.from_int(50 * 10**18))
+
+
+@pytest.mark.asyncio
+async def test_transfer_from(setup: Setup):
+    # Alice allownace for Bob: 50
+    # Alice balance: 400
+    await setup.alice.execute(
+        [
+            Call(
+                setup.z_token.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.bob.address,  # spender
+                    *Uint256.from_int(50 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("set_lending_accumulator"),
+                [
+                    MOCK_TOKEN_ADDRESS,  # token
+                    4 * 10**27,  # value
+                ],
+            ),
+        ]
+    )
+
+    # Bob transfers 40 from Alice
+    # Balances double:
+    #   Alice: (400 - 40) * 2 = 720
+    #   Bob: 40 * 2 = 80
+    #   Allowance: 50 - 40 = 10
+    await setup.bob.execute(
+        [
+            Call(
+                setup.z_token.contract_address,
+                get_selector_from_name("transferFrom"),
+                [
+                    setup.alice.address,  # sender
+                    setup.bob.address,  # recipient
+                    *Uint256.from_int(40 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("set_lending_accumulator"),
+                [
+                    MOCK_TOKEN_ADDRESS,  # token
+                    8 * 10**27,  # value
+                ],
+            ),
+        ]
+    )
+
+    assert (
+        await setup.z_token.allowance(setup.alice.address, setup.bob.address).call()
+    ).result.remaining == (Uint256.from_int(10 * 10**18))
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(720 * 10**18))
+    assert (await setup.z_token.balanceOf(setup.bob.address).call()).result.balance == (
+        Uint256.from_int(80 * 10**18)
+    )

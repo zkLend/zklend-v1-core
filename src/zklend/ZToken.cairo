@@ -186,6 +186,39 @@ func felt_transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check
 end
 
 @external
+func transferFrom{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    sender : felt, recipient : felt, amount : Uint256
+) -> (success : felt):
+    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    return felt_transfer_from(sender, recipient, felt_amount)
+end
+
+@external
+func felt_transfer_from{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    sender : felt, recipient : felt, amount : felt
+) -> (success : felt):
+    let (caller) = get_caller_address()
+
+    # NOTE: this exploit should no longer be possible since all transactions need must go through
+    #       the __execute__ method now, but we're still keeping it just in case
+    with_attr error_message("ZToken: zero address"):
+        assert_not_zero(caller)
+    end
+
+    # Allowances are not scaled so we can just subtract directly
+    let (existing_allowance) = allowances.read(sender, caller)
+    let (new_allowance) = SafeMath_sub(existing_allowance, amount)
+    allowances.write(sender, caller, new_allowance)
+
+    let (new_allowance_u256) = SafeCast_felt_to_uint256(new_allowance)
+    Approval.emit(sender, caller, new_allowance_u256)
+
+    transfer_internal(sender, recipient, amount, TRUE)
+
+    return (success=TRUE)
+end
+
+@external
 func approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     spender : felt, amount : Uint256
 ) -> (success : felt):
