@@ -334,6 +334,33 @@ func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 end
 
 @external
+func burn_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(user : felt) -> (
+    amount_burnt : felt
+):
+    alloc_locals
+
+    only_market()
+
+    let (raw_balance) = raw_balances.read(user)
+    with_attr error_message("ZToken: invalid burn amount"):
+        assert_not_zero(raw_balance)
+    end
+
+    raw_balances.write(user, 0)
+
+    let (raw_supply_before) = raw_total_supply.read()
+    let (raw_supply_after) = SafeMath_sub(raw_supply_before, raw_balance)
+    raw_total_supply.write(raw_supply_after)
+
+    let (accumulator) = get_accumulator()
+    let (scaled_up_amount) = SafeDecimalMath_mul(raw_balance, accumulator)
+    let (scaled_up_amount_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_amount)
+    Transfer.emit(user, 0, scaled_up_amount_u256)
+
+    return (amount_burnt=scaled_up_amount)
+end
+
+@external
 func move{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     from_account : felt, to_account : felt, amount : felt
 ):

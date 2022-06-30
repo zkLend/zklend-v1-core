@@ -243,3 +243,49 @@ async def test_transfer_all(setup: Setup):
     assert (await setup.z_token.balanceOf(setup.bob.address).call()).result.balance == (
         Uint256.from_int(400 * 10**18)
     )
+
+
+@pytest.mark.asyncio
+async def test_burn_all(setup: Setup):
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("mint_z_token"),
+                [
+                    setup.z_token.contract_address,  # z_token
+                    setup.bob.address,  # to
+                    100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("set_lending_accumulator"),
+                [
+                    MOCK_TOKEN_ADDRESS,  # token
+                    4 * 10**27,  # value
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("burn_all_z_token"),
+                [
+                    setup.z_token.contract_address,  # z_token
+                    setup.alice.address,  # user
+                ],
+            ),
+        ]
+    )
+
+    assert (await setup.market.get_last_call_result().call()).result.res == (
+        400 * 10**18
+    )
+    assert (
+        await setup.z_token.balanceOf(setup.alice.address).call()
+    ).result.balance == (Uint256.from_int(0))
+    assert (await setup.z_token.balanceOf(setup.bob.address).call()).result.balance == (
+        Uint256.from_int(200 * 10**18)
+    )
+    assert (await setup.z_token.totalSupply().call()).result.total_supply == (
+        Uint256.from_int(200 * 10**18)
+    )

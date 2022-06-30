@@ -24,6 +24,10 @@ end
 func user_undercollateralized(user : felt) -> (res : felt):
 end
 
+@storage_var
+func last_call_result() -> (res : felt):
+end
+
 #
 # Getters
 #
@@ -50,6 +54,14 @@ func is_user_undercollateralized{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
 ) -> (is_undercollateralized : felt):
     let (res) = user_undercollateralized.read(user)
     return (is_undercollateralized=res)
+end
+
+@view
+func get_last_call_result{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    res : felt
+):
+    let (res) = last_call_result.read()
+    return (res=res)
 end
 
 #
@@ -85,5 +97,15 @@ func mint_z_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
     z_token : felt, to : felt, amount : felt
 ):
     IZToken.mint(contract_address=z_token, to=to, amount=amount)
+    return ()
+end
+
+@external
+func burn_all_z_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    z_token : felt, user : felt
+):
+    let (amount_burnt) = IZToken.burn_all(contract_address=z_token, user=user)
+    last_call_result.write(amount_burnt)
+
     return ()
 end
