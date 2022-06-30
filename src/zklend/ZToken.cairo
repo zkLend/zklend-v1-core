@@ -12,7 +12,7 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
-from openzeppelin.token.erc20.library import Approval, ERC20_initializer, Transfer
+from openzeppelin.token.erc20.library import Approval, Transfer
 from openzeppelin.utils.constants import FALSE, TRUE
 
 #
@@ -25,6 +25,18 @@ end
 
 @storage_var
 func underlying() -> (res : felt):
+end
+
+@storage_var
+func token_name() -> (name : felt):
+end
+
+@storage_var
+func token_symbol() -> (symbol : felt):
+end
+
+@storage_var
+func token_decimals() -> (decimals : felt):
 end
 
 @storage_var
@@ -42,6 +54,7 @@ end
 #
 # Constructor
 #
+
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     _market : felt, _underlying : felt, _name : felt, _symbol : felt, _decimals : felt
@@ -54,13 +67,37 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     market.write(_market)
     underlying.write(_underlying)
 
-    ERC20_initializer(_name, _symbol, _decimals)
+    # TODO: check `decimals` range
+    token_name.write(_name)
+    token_symbol.write(_symbol)
+    token_decimals.write(_decimals)
+
     return ()
 end
 
 #
 # Getters
 #
+
+@view
+func name{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (name : felt):
+    let (res) = token_name.read()
+    return (name=res)
+end
+
+@view
+func symbol{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (symbol : felt):
+    let (res) = token_symbol.read()
+    return (symbol=res)
+end
+
+@view
+func decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    decimals : felt
+):
+    let (res) = token_decimals.read()
+    return (decimals=res)
+end
 
 @view
 func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (

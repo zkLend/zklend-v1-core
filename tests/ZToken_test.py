@@ -103,6 +103,17 @@ async def setup() -> Setup:
 
 
 @pytest.mark.asyncio
+async def test_meta(setup: Setup):
+    assert (await setup.z_token.name().call()).result.name == (
+        string_to_felt("TOKEN_NAME")
+    )
+    assert (await setup.z_token.symbol().call()).result.symbol == (
+        string_to_felt("TOKEN_SYMBOL")
+    )
+    assert (await setup.z_token.decimals().call()).result.decimals == (18)
+
+
+@pytest.mark.asyncio
 async def test_balance_should_scale_with_accumulator(setup: Setup):
     assert (
         await setup.z_token.balanceOf(setup.alice.address).call()
