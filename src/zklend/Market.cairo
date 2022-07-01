@@ -406,9 +406,26 @@ end
 func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt, amount : felt
 ):
+    alloc_locals
+
+    with_attr error_message("Market: zero amount"):
+        assert_not_zero(amount)
+    end
+
     let (caller) = get_caller_address()
 
-    repay_debt(caller, caller, token, amount)
+    repay_debt_route_internal(caller, caller, token, amount)
+
+    return ()
+end
+
+@external
+func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+    alloc_locals
+
+    let (caller) = get_caller_address()
+
+    repay_debt_route_internal(caller, caller, token, 0)
 
     return ()
 end
@@ -477,7 +494,7 @@ func liquidate{
     end
 
     # Liquidator repays debt for user
-    repay_debt(caller, user, debt_token, amount)
+    repay_debt_route_internal(caller, user, debt_token, amount)
 
     # Can only take from assets being used as collateral
     let (is_collateral) = is_used_as_collateral(user, 0)
@@ -869,8 +886,35 @@ func withdraw_internal{
     return ()
 end
 
-func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+# `amount` with `0` means repaying all
+func repay_debt_route_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     repayer : felt, beneficiary : felt, token : felt, amount : felt
+):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    if amount == 0:
+        let (user_raw_debt) = raw_user_debts.read(beneficiary, token)
+        let (repay_amount) = SafeDecimalMath_mul(user_raw_debt, updated_debt_accumulator)
+
+        return repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt)
+    else:
+        let (raw_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+
+        return repay_debt_internal(repayer, beneficiary, token, amount, raw_amount)
+    end
+end
+
+# ASSUMPTION: `repay_amount` = `raw_amount` * Debt Accumulator
+# ASSUMPTION: it's always called by `repay_debt_route_internal`
+func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    repayer : felt, beneficiary : felt, token : felt, repay_amount : felt, raw_amount : felt
 ):
     alloc_locals
 
@@ -881,14 +925,8 @@ func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     # Checks
     #
 
-    with_attr error_message("Market: zero amount"):
-        assert_not_zero(amount)
-    end
-
+    # No need to check `enabled` as it's already done in `repay_debt_route_internal`
     let (reserve) = reserves.read(token)
-    with_attr error_message("Market: reserve not enabled"):
-        assert_not_zero(reserve.enabled)
-    end
 
     # No need to check if user is overpaying, as `SafeMath_sub` below will fail anyways
     # No need to check collateral value. Always allow repaying even if it's undercollateralized
@@ -899,14 +937,14 @@ func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
 
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    # TODO: avoid calculating `updated_debt_accumulator` twice
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
-    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, scaled_down_amount)
+    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, raw_amount)
 
     # Updates user debt data
     let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
-    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, scaled_down_amount)
+    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, raw_amount)
     raw_user_debts.write(beneficiary, token, raw_user_debt_after)
 
     # Updates interest rate
@@ -915,7 +953,7 @@ func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         contract_address=token, account=this_address
     )
     let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
+    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, repay_amount)
     let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
         raw_total_debt_after, updated_debt_accumulator
     )
@@ -947,9 +985,9 @@ func repay_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     #
 
     # Takes token from user
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (repay_amount_u256 : Uint256) = SafeCast_felt_to_uint256(repay_amount)
     let (transfer_success) = IERC20.transferFrom(
-        contract_address=token, sender=repayer, recipient=this_address, amount=amount_u256
+        contract_address=token, sender=repayer, recipient=this_address, amount=repay_amount_u256
     )
     with_attr error_message("Market: transfer failed"):
         assert_not_zero(transfer_success)

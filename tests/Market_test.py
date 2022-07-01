@@ -18,6 +18,10 @@ from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 
+# TODO: add test cases for:
+# - rate changes after calling `withdraw_all` when there're aother debt & deposit holders
+# - rate changes after calling `repay_all` when there're aother debt & deposit holders
+
 
 class Setup:
     starknet: Starknet
@@ -781,6 +785,86 @@ async def test_debt_accumulation(setup_with_loan: Setup):
             setup_with_loan.token_b.contract_address
         ).call()
     ).result.debt == (225 * 10**17 + 3607484303652)
+
+
+@pytest.mark.asyncio
+async def test_repay_all_with_interest(setup_with_loan: Setup):
+    setup_with_loan.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup_with_loan.starknet.state.state.block_info.block_number,
+        100,
+    )
+
+    # Same as `test_debt_accumulation`
+    # Total debt = 22.500003607484303652 TST_B
+
+    await setup_with_loan.bob.execute(
+        [
+            Call(
+                setup_with_loan.token_b.contract_address,
+                get_selector_from_name("transfer"),
+                [
+                    setup_with_loan.alice.address,  # recipient
+                    *Uint256.from_int(1 * 10**18),  # amount
+                ],
+            ),
+        ]
+    )
+
+    await setup_with_loan.alice.execute(
+        [
+            Call(
+                setup_with_loan.token_b.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup_with_loan.market.contract_address,  # spender
+                    *Uint256.from_int(23 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup_with_loan.market.contract_address,
+                get_selector_from_name("repay_all"),
+                [
+                    setup_with_loan.token_b.contract_address,  # token
+                ],
+            ),
+        ]
+    )
+
+    # Alice TST_B balance:
+    #   22.5 + 1 - 22.500003607484303652 = 0.999996392515696348
+    assert (
+        await setup_with_loan.token_b.balanceOf(setup_with_loan.alice.address).call()
+    ).result.balance == (Uint256.from_int(999996392515696348))
+
+    # No more debt in system
+    assert (
+        await setup_with_loan.market.get_user_debt_for_token(
+            setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (0)
+    assert (
+        await setup_with_loan.market.get_total_debt_for_token(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (0)
+
+    # No more debt accumulation
+
+    setup_with_loan.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup_with_loan.starknet.state.state.block_info.block_number,
+        200,
+    )
+
+    assert (
+        await setup_with_loan.market.get_user_debt_for_token(
+            setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (0)
+    assert (
+        await setup_with_loan.market.get_total_debt_for_token(
+            setup_with_loan.token_b.contract_address
+        ).call()
+    ).result.debt == (0)
 
 
 @pytest.mark.asyncio
