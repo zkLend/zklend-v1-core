@@ -34,6 +34,14 @@ from openzeppelin.utils.constants import FALSE, TRUE
 const SECONDS_PER_YEAR = 31536000
 
 #
+# Events
+#
+
+@event
+func AccumulatorsSync(token : felt, lending_accumulator : felt, debt_accumulator : felt):
+end
+
+#
 # Structs
 #
 
@@ -255,6 +263,8 @@ func deposit{
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
+    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
+
     # Updates interest rate
     # TODO: check if there's a way to persist only one field (using syscall directly?)
     let (reserve_balance_before_u256) = IERC20.balanceOf(
@@ -341,6 +351,9 @@ func borrow{
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
+
     let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
     let (raw_total_debt_after) = SafeMath_add(reserve.raw_total_debt, scaled_down_amount)
 
@@ -593,6 +606,8 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     )
     reserves.write(token, new_reserve)
 
+    AccumulatorsSync.emit(token, SCALE, SCALE)
+
     let (current_reserve_count) = reserve_count.read()
     reserve_count.write(current_reserve_count + 1)
     reserve_tokens.write(current_reserve_count, token)
@@ -828,6 +843,8 @@ func withdraw_internal{
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
+    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
+
     # NOTE: it's fine to call out to external contract here before state update since it's trusted
     let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
 
@@ -940,6 +957,9 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     # TODO: avoid calculating `updated_debt_accumulator` twice
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
+
     let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, raw_amount)
 
     # Updates user debt data

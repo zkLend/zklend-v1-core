@@ -1,7 +1,7 @@
 import pytest
 
 from utils.account import Account, Call, deploy_account
-from utils.assertions import assert_reverted_with
+from utils.assertions import assert_events_emitted, assert_reverted_with
 from utils.contracts import (
     CAIRO_PATH,
     PATH_DEFAULT_INTEREST_RATE_MODEL,
@@ -13,6 +13,7 @@ from utils.contracts import (
 from utils.helpers import string_to_felt
 from utils.uint256 import Uint256
 
+from starkware.starknet.business_logic.execution.objects import Event
 from starkware.starknet.business_logic.state.state import BlockInfo
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.contract import StarknetContract
@@ -1114,3 +1115,223 @@ async def test_liquidation(setup_with_loan: Setup):
     assert (
         await setup_with_loan.z_token_a.balanceOf(setup_with_loan.alice.address).call()
     ).result.balance == (Uint256.from_int(7975 * 10**16))
+
+
+@pytest.mark.asyncio
+async def test_accumulators_sync_event(setup: Setup):
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token_a.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(100 * 10**18),  # amount
+                ],
+            )
+        ]
+    )
+
+    # Deposit emits the event
+    await assert_events_emitted(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("deposit"),
+                    [
+                        setup.token_a.contract_address,  # token
+                        100 * 10**18,  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("AccumulatorsSync")],
+                data=[
+                    setup.token_a.contract_address,  # token
+                    1 * 10**27,  # lending_accumulator
+                    1 * 10**27,  # debt_accumulator
+                ],
+            )
+        ],
+    )
+
+    # 100 seconds passed
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        100,
+    )
+
+    # Bob deposits 10,000 TST_B so that Alice can borrow.
+    # Accumulators unchanged
+    await assert_events_emitted(
+        setup.bob.execute(
+            [
+                Call(
+                    setup.token_b.contract_address,
+                    get_selector_from_name("approve"),
+                    [
+                        setup.market.contract_address,  # spender
+                        *Uint256.from_int(1_000_000 * 10**18),  # amount
+                    ],
+                ),
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("deposit"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        10_000 * 10**18,  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("AccumulatorsSync")],
+                data=[
+                    setup.token_b.contract_address,  # token
+                    1 * 10**27,  # lending_accumulator
+                    1 * 10**27,  # debt_accumulator
+                ],
+            )
+        ],
+    )
+
+    # 100 seconds passed
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        200,
+    )
+
+    # Alice borrows 22.5 TST_B
+    # Accumulators unchanged
+    await assert_events_emitted(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("enable_collateral"),
+                    [
+                        setup.token_a.contract_address,  # token
+                    ],
+                ),
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("borrow"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        225 * 10**17,  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("AccumulatorsSync")],
+                data=[
+                    setup.token_b.contract_address,  # token
+                    1 * 10**27,  # lending_accumulator
+                    1 * 10**27,  # debt_accumulator
+                ],
+            )
+        ],
+    )
+
+    # 100 seconds passed
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        300,
+    )
+
+    # Accumulations:
+    #   Interest rate (see `test_borrow_token`):
+    #     Borrowing rate = 0.0505625
+    #     Lending rate = 0.000113765625
+    #   Lending accmulator:
+    #     1 * (1 + (100 * 0.000113765625) / (365 * 86400)) = 1.000000000360748430365296803
+    #   Debt accmulator:
+    #     1 * (1 + (100 * 0.0505625) / (365 * 86400)) = 1.000000160332635717909690512
+
+    # Alice repays 1 TST_B
+    await assert_events_emitted(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.token_b.contract_address,
+                    get_selector_from_name("approve"),
+                    [
+                        setup.market.contract_address,  # spender
+                        *Uint256.from_int(1 * 10**18),  # amount
+                    ],
+                ),
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("repay"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        1 * 10**18,  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("AccumulatorsSync")],
+                data=[
+                    setup.token_b.contract_address,  # token
+                    1000000000360748430365296803,  # lending_accumulator
+                    1000000160332635717909690512,  # debt_accumulator
+                ],
+            )
+        ],
+    )
+
+    # 100 seconds passed
+    setup.starknet.state.state.block_info = BlockInfo.create_for_testing(
+        setup.starknet.state.state.block_info.block_number,
+        400,
+    )
+
+    # Accumulations:
+    #   Interest rate (see `test_debt_repayment`):
+    #     Borrowing rate = 0.050537500089993205277538743
+    #     Lending rate = 0.000108655643385611870596273
+    #   Lending accmulator:
+    #     1.000000000360748430365296803 * (1 + (100 * 0.000108655643385611870596273) / (365 * 86400))
+    #     = 1.000000000705293215451576684
+    #   Debt accmulator:
+    #     1.000000160332635717909690512 * (1 + (100 * 0.050537500089993205277538743) / (365 * 86400))
+    #     = 1.000000320586022935070387176
+
+    # Bob withdraws 5,000 TST_B
+    await assert_events_emitted(
+        setup.bob.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("withdraw"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        5_000 * 10**18,  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("AccumulatorsSync")],
+                data=[
+                    setup.token_b.contract_address,  # token
+                    1000000000705293215451576684,  # lending_accumulator
+                    1000000320586022935070387176,  # debt_accumulator
+                ],
+            )
+        ],
+    )

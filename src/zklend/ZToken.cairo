@@ -14,6 +14,7 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 from openzeppelin.token.erc20.library import Approval, Transfer
 from openzeppelin.utils.constants import FALSE, TRUE
+
 #
 # Events
 #
