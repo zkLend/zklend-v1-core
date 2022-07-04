@@ -14,6 +14,13 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 from openzeppelin.token.erc20.library import Approval, Transfer
 from openzeppelin.utils.constants import FALSE, TRUE
+#
+# Events
+#
+
+@event
+func RawTransfer(from_ : felt, to : felt, raw_value : felt, accumulator : felt, face_value : felt):
+end
 
 #
 # Storage
@@ -413,6 +420,7 @@ func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
 
     let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
     Transfer.emit(from_account, to_account, amount_u256)
+    RawTransfer.emit(from_account, to_account, scaled_down_amount, accumulator, amount)
 
     if check_collateralization == TRUE:
         # TODO: skip check if token is not used as collateral
@@ -455,6 +463,7 @@ func transfer_raw_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
 
     let (scaled_up_amount_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_amount)
     Transfer.emit(from_account, to_account, scaled_up_amount_u256)
+    RawTransfer.emit(from_account, to_account, raw_amount, accumulator, scaled_up_amount)
 
     # TODO: refactor duplicate code
     if check_collateralization == TRUE:

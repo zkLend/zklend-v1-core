@@ -6,7 +6,10 @@ from utils.helpers import string_to_felt
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import private_to_stark_key, sign
-from starkware.starknet.testing.contract import StarknetContract
+from starkware.starknet.testing.contract import (
+    StarknetContract,
+    StarknetTransactionExecutionInfo,
+)
 from starkware.starknet.testing.starknet import Starknet
 
 PREFIX_TRANSACTION = string_to_felt("StarkNet Transaction")
@@ -43,7 +46,7 @@ class Account:
         self.__account_contract = account_contract
         self.__private_key = private_key
 
-    async def execute(self, calls: List[Call]):
+    async def execute(self, calls: List[Call]) -> StarknetTransactionExecutionInfo:
         nonce = (await self.__account_contract.get_nonce().call()).result[0]
 
         raw_call_array: List[Tuple[int, int, int, int]] = []
@@ -91,9 +94,11 @@ class Account:
         )
         sig_r, sig_s = sign(message_hash, self.__private_key)
 
-        await self.__account_contract.__execute__(
+        result = await self.__account_contract.__execute__(
             raw_call_array, concated_calldata, nonce
         ).invoke(max_fee=0, signature=[sig_r, sig_s])
+
+        return result
 
     @property
     def address(self) -> int:

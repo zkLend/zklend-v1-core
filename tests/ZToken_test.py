@@ -1,6 +1,8 @@
 import pytest
+from starkware.starknet.business_logic.execution.objects import Event
 
 from utils.account import Account, Call, deploy_account
+from utils.assertions import assert_events_emitted
 from utils.contracts import (
     CAIRO_PATH,
     PATH_MOCK_MARKET,
@@ -118,6 +120,85 @@ async def test_balance_should_scale_with_accumulator(setup: Setup):
     assert (
         await setup.z_token.balanceOf(setup.alice.address).call()
     ).result.balance == (Uint256.from_int(200 * 10**18))
+
+
+@pytest.mark.asyncio
+async def test_transfer_should_emit_events(setup: Setup):
+    await assert_events_emitted(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.z_token.contract_address,
+                    get_selector_from_name("transfer"),
+                    [
+                        setup.bob.address,  # recipient
+                        *Uint256.from_int(50 * 10**18),  # amount
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.z_token.contract_address,
+                keys=[get_selector_from_name("Transfer")],
+                data=[
+                    setup.alice.address,  # from_
+                    setup.bob.address,  # to
+                    *Uint256.from_int(50 * 10**18),  # amount
+                ],
+            ),
+            Event(
+                from_address=setup.z_token.contract_address,
+                keys=[get_selector_from_name("RawTransfer")],
+                data=[
+                    setup.alice.address,  # from_
+                    setup.bob.address,  # to
+                    25 * 10**18,  # raw_value
+                    2 * 10**27,  # accumulator
+                    50 * 10**18,  # face_value
+                ],
+            ),
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_transfer_all_should_emit_events(setup: Setup):
+    await assert_events_emitted(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.z_token.contract_address,
+                    get_selector_from_name("transfer_all"),
+                    [
+                        setup.bob.address,  # recipient
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=setup.z_token.contract_address,
+                keys=[get_selector_from_name("Transfer")],
+                data=[
+                    setup.alice.address,  # from_
+                    setup.bob.address,  # to
+                    *Uint256.from_int(200 * 10**18),  # amount
+                ],
+            ),
+            Event(
+                from_address=setup.z_token.contract_address,
+                keys=[get_selector_from_name("RawTransfer")],
+                data=[
+                    setup.alice.address,  # from_
+                    setup.bob.address,  # to
+                    100 * 10**18,  # raw_value
+                    2 * 10**27,  # accumulator
+                    200 * 10**18,  # face_value
+                ],
+            ),
+        ],
+    )
 
 
 @pytest.mark.asyncio
