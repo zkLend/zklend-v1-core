@@ -41,6 +41,22 @@ const SECONDS_PER_YEAR = 31536000
 func AccumulatorsSync(token : felt, lending_accumulator : felt, debt_accumulator : felt):
 end
 
+@event
+func Deposit(user : felt, token : felt, face_amount : felt):
+end
+
+@event
+func Withdrawal(user : felt, token : felt, face_amount : felt):
+end
+
+@event
+func Borrowing(user : felt, token : felt, raw_amount : felt, face_amount : felt):
+end
+
+@event
+func Repayment(user : felt, token : felt, raw_amount : felt, face_amount : felt):
+end
+
 #
 # Structs
 #
@@ -298,6 +314,8 @@ func deposit{
         ),
     )
 
+    Deposit.emit(caller, token, amount)
+
     # Takes token from user
 
     let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
@@ -395,6 +413,8 @@ func borrow{
         ),
     )
 
+    Borrowing.emit(caller, token, scaled_down_amount, amount)
+
     # It's easier to post-check collateralization factor
     with_attr error_message("Market: insufficient collateral"):
         assert_not_undercollateralized(caller)
@@ -427,7 +447,8 @@ func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     let (caller) = get_caller_address()
 
-    repay_debt_route_internal(caller, caller, token, amount)
+    let (raw_amount, face_amount) = repay_debt_route_internal(caller, caller, token, amount)
+    Repayment.emit(caller, token, raw_amount, face_amount)
 
     return ()
 end
@@ -438,7 +459,8 @@ func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
 
     let (caller) = get_caller_address()
 
-    repay_debt_route_internal(caller, caller, token, 0)
+    let (raw_amount, face_amount) = repay_debt_route_internal(caller, caller, token, 0)
+    Repayment.emit(caller, token, raw_amount, face_amount)
 
     return ()
 end
@@ -881,6 +903,8 @@ func withdraw_internal{
         ),
     )
 
+    Withdrawal.emit(caller, token, amount_burnt)
+
     #
     # Interactions
     #
@@ -906,7 +930,7 @@ end
 # `amount` with `0` means repaying all
 func repay_debt_route_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     repayer : felt, beneficiary : felt, token : felt, amount : felt
-):
+) -> (raw_amount : felt, face_amount : felt):
     alloc_locals
 
     let (reserve) = reserves.read(token)
@@ -920,11 +944,15 @@ func repay_debt_route_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         let (user_raw_debt) = raw_user_debts.read(beneficiary, token)
         let (repay_amount) = SafeDecimalMath_mul(user_raw_debt, updated_debt_accumulator)
 
-        return repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt)
+        repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt)
+
+        return (raw_amount=user_raw_debt, face_amount=repay_amount)
     else:
         let (raw_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
 
-        return repay_debt_internal(repayer, beneficiary, token, amount, raw_amount)
+        repay_debt_internal(repayer, beneficiary, token, amount, raw_amount)
+
+        return (raw_amount=raw_amount, face_amount=amount)
     end
 end
 

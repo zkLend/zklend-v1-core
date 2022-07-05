@@ -1118,7 +1118,7 @@ async def test_liquidation(setup_with_loan: Setup):
 
 
 @pytest.mark.asyncio
-async def test_accumulators_sync_event(setup: Setup):
+async def test_event_emission(setup: Setup):
     await setup.alice.execute(
         [
             Call(
@@ -1132,7 +1132,7 @@ async def test_accumulators_sync_event(setup: Setup):
         ]
     )
 
-    # Deposit emits the event
+    # Deposit emits the events
     await assert_events_emitted(
         setup.alice.execute(
             [
@@ -1155,7 +1155,16 @@ async def test_accumulators_sync_event(setup: Setup):
                     1 * 10**27,  # lending_accumulator
                     1 * 10**27,  # debt_accumulator
                 ],
-            )
+            ),
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("Deposit")],
+                data=[
+                    setup.alice.address,  # user
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # face_amount
+                ],
+            ),
         ],
     )
 
@@ -1197,7 +1206,16 @@ async def test_accumulators_sync_event(setup: Setup):
                     1 * 10**27,  # lending_accumulator
                     1 * 10**27,  # debt_accumulator
                 ],
-            )
+            ),
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("Deposit")],
+                data=[
+                    setup.bob.address,  # user
+                    setup.token_b.contract_address,  # token
+                    10_000 * 10**18,  # face_amount
+                ],
+            ),
         ],
     )
 
@@ -1238,7 +1256,17 @@ async def test_accumulators_sync_event(setup: Setup):
                     1 * 10**27,  # lending_accumulator
                     1 * 10**27,  # debt_accumulator
                 ],
-            )
+            ),
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("Borrowing")],
+                data=[
+                    setup.alice.address,  # user
+                    setup.token_b.contract_address,  # token
+                    225 * 10**17,  # raw_amount
+                    225 * 10**17,  # face_amount
+                ],
+            ),
         ],
     )
 
@@ -1258,6 +1286,8 @@ async def test_accumulators_sync_event(setup: Setup):
     #     1 * (1 + (100 * 0.0505625) / (365 * 86400)) = 1.000000160332635717909690512
 
     # Alice repays 1 TST_B
+    #   Raw amount repaid:
+    #     1 / 1.000000160332635717909690512 = 0.999999839667389988
     await assert_events_emitted(
         setup.alice.execute(
             [
@@ -1288,7 +1318,17 @@ async def test_accumulators_sync_event(setup: Setup):
                     1000000000360748430365296803,  # lending_accumulator
                     1000000160332635717909690512,  # debt_accumulator
                 ],
-            )
+            ),
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("Repayment")],
+                data=[
+                    setup.alice.address,  # user
+                    setup.token_b.contract_address,  # token
+                    999999839667389988,  # raw_amount
+                    1 * 10**18,  # face_amount
+                ],
+            ),
         ],
     )
 
@@ -1332,6 +1372,15 @@ async def test_accumulators_sync_event(setup: Setup):
                     1000000000705293215451576684,  # lending_accumulator
                     1000000320586022935070387176,  # debt_accumulator
                 ],
-            )
+            ),
+            Event(
+                from_address=setup.market.contract_address,
+                keys=[get_selector_from_name("Withdrawal")],
+                data=[
+                    setup.bob.address,  # user
+                    setup.token_b.contract_address,  # token
+                    5_000 * 10**18,  # face_amount
+                ],
+            ),
         ],
     )
