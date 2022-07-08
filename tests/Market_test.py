@@ -391,7 +391,7 @@ async def test_deposit_transfer_failed(setup: Setup):
                 ),
             ]
         ),
-        "ERC20: transfer amount exceeds allowance",
+        "ERC20: insufficient allowance",
     )
 
 

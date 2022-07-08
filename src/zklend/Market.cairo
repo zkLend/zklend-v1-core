@@ -28,7 +28,7 @@ from starkware.starknet.common.syscalls import (
     get_contract_address,
 )
 
-from openzeppelin.access.ownable import Ownable_initializer, Ownable_only_owner
+from openzeppelin.access.ownable import Ownable
 from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
 
 const SECONDS_PER_YEAR = 31536000
@@ -119,7 +119,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 ):
     # TODO: check for zero addresses
 
-    Ownable_initializer(owner)
+    Ownable.initializer(owner)
     oracle.write(_oracle)
 
     return ()
@@ -573,7 +573,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     collateral_factor : felt,
     borrow_factor : felt,
 ):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     #
     # Checks

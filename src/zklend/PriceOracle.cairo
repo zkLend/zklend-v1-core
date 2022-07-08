@@ -11,7 +11,7 @@ from zklend.interfaces.IPriceOracleSource import IPriceOracleSource
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 
-from openzeppelin.access.ownable import Ownable_initializer, Ownable_only_owner
+from openzeppelin.access.ownable import Ownable
 
 #
 # Storage
@@ -27,7 +27,7 @@ end
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(owner : felt):
-    Ownable_initializer(owner)
+    Ownable.initializer(owner)
     return ()
 end
 
@@ -63,7 +63,7 @@ end
 func set_token_source{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt, source : felt
 ):
-    Ownable_only_owner()
+    Ownable.assert_only_owner()
 
     sources.write(token, source)
     return ()
