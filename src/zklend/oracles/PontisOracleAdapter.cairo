@@ -7,11 +7,10 @@
 from zklend.interfaces.third_parties.IPontisOracle import IPontisOracle
 from zklend.libraries.SafeMath import SafeMath_div, SafeMath_mul
 
+from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.pow import pow
-
-from openzeppelin.utils.constants import TRUE
 
 const TARGET_DECIMALS = 8
 

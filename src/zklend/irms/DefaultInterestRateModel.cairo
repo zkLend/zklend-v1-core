@@ -7,10 +7,9 @@
 from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div, SafeDecimalMath_mul, SCALE
 from zklend.libraries.SafeMath import SafeMath_add
 
+from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math_cmp import is_le_felt
-
-from openzeppelin.utils.constants import TRUE
 
 #
 # Structs

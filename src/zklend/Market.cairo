@@ -17,6 +17,7 @@ from zklend.libraries.SafeDecimalMath import (
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
@@ -29,7 +30,6 @@ from starkware.starknet.common.syscalls import (
 
 from openzeppelin.access.ownable import Ownable_initializer, Ownable_only_owner
 from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
-from openzeppelin.utils.constants import FALSE, TRUE
 
 const SECONDS_PER_YEAR = 31536000
 

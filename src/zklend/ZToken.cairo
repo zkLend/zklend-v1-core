@@ -7,13 +7,13 @@ from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256
 from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div, SafeDecimalMath_mul
 from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
 
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
 from openzeppelin.token.erc20.library import Approval, Transfer
-from openzeppelin.utils.constants import FALSE, TRUE
 
 #
 # Events
