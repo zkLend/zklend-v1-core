@@ -3,9 +3,9 @@
 %lang starknet
 
 from zklend.interfaces.IMarket import IMarket
-from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
-from zklend.libraries.SafeDecimalMath import SafeDecimalMath_div, SafeDecimalMath_mul
-from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
+from zklend.libraries.SafeCast import SafeCast
+from zklend.libraries.SafeDecimalMath import SafeDecimalMath
+from zklend.libraries.SafeMath import SafeMath
 
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
@@ -116,8 +116,8 @@ func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     let (accumulator) = get_accumulator()
 
     let (supply) = raw_total_supply.read()
-    let (scaled_up_supply) = SafeDecimalMath_mul(supply, accumulator)
-    let (scaled_up_supply_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_supply)
+    let (scaled_up_supply) = SafeDecimalMath.mul(supply, accumulator)
+    let (scaled_up_supply_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_supply)
 
     return (total_supply=scaled_up_supply_u256)
 end
@@ -127,7 +127,7 @@ func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
     account : felt
 ) -> (balance : Uint256):
     let (scaled_up_balance) = felt_balance_of(account)
-    let (scaled_up_balance_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_balance)
+    let (scaled_up_balance_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_balance)
 
     return (balance=scaled_up_balance_u256)
 end
@@ -141,7 +141,7 @@ func felt_balance_of{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     let (accumulator) = get_accumulator()
 
     let (balance) = raw_balances.read(account)
-    let (scaled_up_balance) = SafeDecimalMath_mul(balance, accumulator)
+    let (scaled_up_balance) = SafeDecimalMath.mul(balance, accumulator)
 
     return (balance=scaled_up_balance)
 end
@@ -151,7 +151,7 @@ func allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
     owner : felt, spender : felt
 ) -> (remaining : Uint256):
     let (remaining) = felt_allowance(owner, spender)
-    let (remaining_u256 : Uint256) = SafeCast_felt_to_uint256(remaining)
+    let (remaining_u256 : Uint256) = SafeCast.felt_to_uint256(remaining)
 
     return (remaining=remaining_u256)
 end
@@ -172,7 +172,7 @@ end
 func transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     recipient : felt, amount : Uint256
 ) -> (success : felt):
-    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    let (felt_amount) = SafeCast.uint256_to_felt(amount)
     return felt_transfer(recipient, felt_amount)
 end
 
@@ -197,7 +197,7 @@ end
 func transferFrom{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     sender : felt, recipient : felt, amount : Uint256
 ) -> (success : felt):
-    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    let (felt_amount) = SafeCast.uint256_to_felt(amount)
     return felt_transfer_from(sender, recipient, felt_amount)
 end
 
@@ -215,10 +215,10 @@ func felt_transfer_from{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
 
     # Allowances are not scaled so we can just subtract directly
     let (existing_allowance) = allowances.read(sender, caller)
-    let (new_allowance) = SafeMath_sub(existing_allowance, amount)
+    let (new_allowance) = SafeMath.sub(existing_allowance, amount)
     allowances.write(sender, caller, new_allowance)
 
-    let (new_allowance_u256) = SafeCast_felt_to_uint256(new_allowance)
+    let (new_allowance_u256) = SafeCast.felt_to_uint256(new_allowance)
     Approval.emit(sender, caller, new_allowance_u256)
 
     transfer_internal(sender, recipient, amount, TRUE)
@@ -230,7 +230,7 @@ end
 func approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     spender : felt, amount : Uint256
 ) -> (success : felt):
-    let (felt_amount) = SafeCast_uint256_to_felt(amount)
+    let (felt_amount) = SafeCast.uint256_to_felt(amount)
     return felt_approve(spender, felt_amount)
 end
 
@@ -248,7 +248,7 @@ func felt_approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
 
     allowances.write(caller, spender, amount)
 
-    let (amount_u256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256) = SafeCast.felt_to_uint256(amount)
 
     Approval.emit(caller, spender, amount_u256)
 
@@ -289,20 +289,20 @@ func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     let (accumulator) = get_accumulator()
 
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
     with_attr error_message("ZToken: invalid mint amount"):
         assert_not_zero(scaled_down_amount)
     end
 
     let (raw_balance_before) = raw_balances.read(to)
-    let (raw_balance_after) = SafeMath_add(raw_balance_before, scaled_down_amount)
+    let (raw_balance_after) = SafeMath.add(raw_balance_before, scaled_down_amount)
     raw_balances.write(to, raw_balance_after)
 
     let (raw_supply_before) = raw_total_supply.read()
-    let (raw_supply_after) = SafeMath_add(raw_supply_before, scaled_down_amount)
+    let (raw_supply_after) = SafeMath.add(raw_supply_before, scaled_down_amount)
     raw_total_supply.write(raw_supply_after)
 
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
     Transfer.emit(0, to, amount_u256)
 
     if raw_balance_before == 0:
@@ -322,20 +322,20 @@ func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 
     let (accumulator) = get_accumulator()
 
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
     with_attr error_message("ZToken: invalid burn amount"):
         assert_not_zero(scaled_down_amount)
     end
 
     let (raw_balance_before) = raw_balances.read(user)
-    let (raw_balance_after) = SafeMath_sub(raw_balance_before, scaled_down_amount)
+    let (raw_balance_after) = SafeMath.sub(raw_balance_before, scaled_down_amount)
     raw_balances.write(user, raw_balance_after)
 
     let (raw_supply_before) = raw_total_supply.read()
-    let (raw_supply_after) = SafeMath_sub(raw_supply_before, scaled_down_amount)
+    let (raw_supply_after) = SafeMath.sub(raw_supply_before, scaled_down_amount)
     raw_total_supply.write(raw_supply_after)
 
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
     Transfer.emit(user, 0, amount_u256)
 
     return ()
@@ -357,12 +357,12 @@ func burn_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     raw_balances.write(user, 0)
 
     let (raw_supply_before) = raw_total_supply.read()
-    let (raw_supply_after) = SafeMath_sub(raw_supply_before, raw_balance)
+    let (raw_supply_after) = SafeMath.sub(raw_supply_before, raw_balance)
     raw_total_supply.write(raw_supply_after)
 
     let (accumulator) = get_accumulator()
-    let (scaled_up_amount) = SafeDecimalMath_mul(raw_balance, accumulator)
-    let (scaled_up_amount_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_amount)
+    let (scaled_up_amount) = SafeDecimalMath.mul(raw_balance, accumulator)
+    let (scaled_up_amount_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_amount)
     Transfer.emit(user, 0, scaled_up_amount_u256)
 
     return (amount_burnt=scaled_up_amount)
@@ -405,21 +405,21 @@ func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
 
     let (accumulator) = get_accumulator()
 
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, accumulator)
+    let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
     with_attr error_message("ZToken: invalid transfer amount"):
         assert_not_zero(scaled_down_amount)
     end
 
     # No need to check from balance first because SafeMath will fail
     let (raw_from_balance_before) = raw_balances.read(from_account)
-    let (raw_from_balance_after) = SafeMath_sub(raw_from_balance_before, scaled_down_amount)
+    let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, scaled_down_amount)
     raw_balances.write(from_account, raw_from_balance_after)
 
     let (raw_to_balance_before) = raw_balances.read(to_account)
-    let (raw_to_balance_after) = SafeMath_add(raw_to_balance_before, scaled_down_amount)
+    let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, scaled_down_amount)
     raw_balances.write(to_account, raw_to_balance_after)
 
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
     Transfer.emit(from_account, to_account, amount_u256)
     RawTransfer.emit(from_account, to_account, scaled_down_amount, accumulator, amount)
 
@@ -452,17 +452,17 @@ func transfer_raw_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
 
     # No need to check from balance first because SafeMath will fail
     let (raw_from_balance_before) = raw_balances.read(from_account)
-    let (raw_from_balance_after) = SafeMath_sub(raw_from_balance_before, raw_amount)
+    let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, raw_amount)
     raw_balances.write(from_account, raw_from_balance_after)
 
     let (raw_to_balance_before) = raw_balances.read(to_account)
-    let (raw_to_balance_after) = SafeMath_add(raw_to_balance_before, raw_amount)
+    let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, raw_amount)
     raw_balances.write(to_account, raw_to_balance_after)
 
     let (accumulator) = get_accumulator()
-    let (scaled_up_amount) = SafeDecimalMath_mul(raw_amount, accumulator)
+    let (scaled_up_amount) = SafeDecimalMath.mul(raw_amount, accumulator)
 
-    let (scaled_up_amount_u256 : Uint256) = SafeCast_felt_to_uint256(scaled_up_amount)
+    let (scaled_up_amount_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_amount)
     Transfer.emit(from_account, to_account, scaled_up_amount_u256)
     RawTransfer.emit(from_account, to_account, raw_amount, accumulator, scaled_up_amount)
 

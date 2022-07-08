@@ -5,16 +5,10 @@
 from zklend.interfaces.IInterestRateModel import IInterestRateModel
 from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
-from zklend.libraries.Math import Math_shl
-from zklend.libraries.SafeCast import SafeCast_felt_to_uint256, SafeCast_uint256_to_felt
-from zklend.libraries.SafeDecimalMath import (
-    SafeDecimalMath_div,
-    SafeDecimalMath_div_decimals,
-    SafeDecimalMath_mul,
-    SafeDecimalMath_mul_decimals,
-    SCALE,
-)
-from zklend.libraries.SafeMath import SafeMath_add, SafeMath_div, SafeMath_mul, SafeMath_sub
+from zklend.libraries.Math import Math
+from zklend.libraries.SafeCast import SafeCast
+from zklend.libraries.SafeDecimalMath import SafeDecimalMath, SCALE
+from zklend.libraries.SafeMath import SafeMath
 
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_or, bitwise_xor
 from starkware.cairo.common.bool import FALSE, TRUE
@@ -155,13 +149,13 @@ func get_lending_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
         return (res=reserve.lending_accumulator)
     else:
         # Apply simple interest
-        let (time_diff) = SafeMath_sub(block_timestamp, reserve.last_update_timestamp)
+        let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp)
 
         # (current_lending_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
-        let (temp_1) = SafeMath_mul(reserve.current_lending_rate, time_diff)
-        let (temp_2) = SafeMath_div(temp_1, SECONDS_PER_YEAR)
-        let (temp_3) = SafeMath_add(temp_2, SCALE)
-        let (latest_accumulator) = SafeDecimalMath_mul(temp_3, reserve.lending_accumulator)
+        let (temp_1) = SafeMath.mul(reserve.current_lending_rate, time_diff)
+        let (temp_2) = SafeMath.div(temp_1, SECONDS_PER_YEAR)
+        let (temp_3) = SafeMath.add(temp_2, SCALE)
+        let (latest_accumulator) = SafeDecimalMath.mul(temp_3, reserve.lending_accumulator)
 
         return (res=latest_accumulator)
     end
@@ -184,13 +178,13 @@ func get_debt_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
         return (res=reserve.debt_accumulator)
     else:
         # Apply simple interest
-        let (time_diff) = SafeMath_sub(block_timestamp, reserve.last_update_timestamp)
+        let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp)
 
         # (current_borrowing_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
-        let (temp_1) = SafeMath_mul(reserve.current_borrowing_rate, time_diff)
-        let (temp_2) = SafeMath_div(temp_1, SECONDS_PER_YEAR)
-        let (temp_3) = SafeMath_add(temp_2, SCALE)
-        let (latest_accumulator) = SafeDecimalMath_mul(temp_3, reserve.debt_accumulator)
+        let (temp_1) = SafeMath.mul(reserve.current_borrowing_rate, time_diff)
+        let (temp_2) = SafeMath.div(temp_1, SECONDS_PER_YEAR)
+        let (temp_3) = SafeMath.add(temp_2, SCALE)
+        let (latest_accumulator) = SafeDecimalMath.mul(temp_3, reserve.debt_accumulator)
 
         return (res=latest_accumulator)
     end
@@ -208,7 +202,7 @@ func get_total_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, 
     end
 
     let (debt_accumulator) = get_debt_accumulator(token)
-    let (scaled_up_debt) = SafeDecimalMath_mul(reserve.raw_total_debt, debt_accumulator)
+    let (scaled_up_debt) = SafeDecimalMath.mul(reserve.raw_total_debt, debt_accumulator)
     return (debt=scaled_up_debt)
 end
 
@@ -221,7 +215,7 @@ func get_user_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
     let (debt_accumulator) = get_debt_accumulator(token)
     let (raw_debt) = raw_user_debts.read(user, token)
 
-    let (scaled_up_debt) = SafeDecimalMath_mul(raw_debt, debt_accumulator)
+    let (scaled_up_debt) = SafeDecimalMath.mul(raw_debt, debt_accumulator)
     return (debt=scaled_up_debt)
 end
 
@@ -286,9 +280,9 @@ func deposit{
     let (reserve_balance_before_u256) = IERC20.balanceOf(
         contract_address=token, account=this_address
     )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, amount)
-    let (scaled_up_total_debt) = SafeDecimalMath_mul(
+    let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath.add(reserve_balance_before, amount)
+    let (scaled_up_total_debt) = SafeDecimalMath.mul(
         reserve.raw_total_debt, updated_debt_accumulator
     )
     let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
@@ -318,7 +312,7 @@ func deposit{
 
     # Takes token from user
 
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
     let (transfer_success) = IERC20.transferFrom(
         contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
     )
@@ -372,12 +366,12 @@ func borrow{
 
     AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
-    let (scaled_down_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
-    let (raw_total_debt_after) = SafeMath_add(reserve.raw_total_debt, scaled_down_amount)
+    let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
+    let (raw_total_debt_after) = SafeMath.add(reserve.raw_total_debt, scaled_down_amount)
 
     # Updates user debt data
     let (raw_user_debt_before) = raw_user_debts.read(caller, token)
-    let (raw_user_debt_after) = SafeMath_add(raw_user_debt_before, scaled_down_amount)
+    let (raw_user_debt_after) = SafeMath.add(raw_user_debt_before, scaled_down_amount)
     raw_user_debts.write(caller, token, raw_user_debt_after)
 
     # Updates interest rate
@@ -385,9 +379,9 @@ func borrow{
     let (reserve_balance_before_u256) = IERC20.balanceOf(
         contract_address=token, account=this_address
     )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount)
-    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
+    let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath.sub(reserve_balance_before, amount)
+    let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
         raw_total_debt_after, updated_debt_accumulator
     )
     let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
@@ -424,7 +418,7 @@ func borrow{
     # Interactions
     #
 
-    let (amount_u256 : Uint256) = SafeCast_felt_to_uint256(amount)
+    let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
     let (transfer_success) = IERC20.transfer(
         contract_address=token, recipient=caller, amount=amount_u256
     )
@@ -544,10 +538,10 @@ func liquidate{
     let (collateral_token_price) = IPriceOracle.get_price(
         contract_address=oracle_addr, token=collateral_token
     )
-    let (debt_value_repaid) = SafeDecimalMath_mul_decimals(
+    let (debt_value_repaid) = SafeDecimalMath.mul_decimals(
         debt_token_price, amount, debt_reserve.decimals
     )
-    let (equivalent_collateral_amount) = SafeDecimalMath_div_decimals(
+    let (equivalent_collateral_amount) = SafeDecimalMath.div_decimals(
         debt_value_repaid, collateral_token_price, collateral_reserve.decimals
     )
     IZToken.move(
@@ -645,7 +639,7 @@ end
 func set_collateral_usage{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt, reserve_index : felt, use : felt):
-    let (reserve_slot) = Math_shl(1, reserve_index)
+    let (reserve_slot) = Math.shl(1, reserve_index)
     let (existing_usage) = collateral_usages.read(user)
 
     if use == TRUE:
@@ -661,7 +655,7 @@ end
 func is_used_as_collateral{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt, reserve_index : felt) -> (is_used : felt):
-    let (reserve_slot) = Math_shl(1, reserve_index)
+    let (reserve_slot) = Math.shl(1, reserve_index)
     let (existing_usage) = collateral_usages.read(user)
 
     let (and) = bitwise_and(existing_usage, reserve_slot)
@@ -733,7 +727,7 @@ func calculate_user_collateral_data_loop{
     local collateral_value_of_rest = collateral_value_of_rest
     local collateral_required_of_rest = collateral_required_of_rest
 
-    let (reserve_slot) = Math_shl(1, reserve_index)
+    let (reserve_slot) = Math.shl(1, reserve_index)
     let (reserve_slot_and) = bitwise_and(collateral_usage, reserve_slot)
 
     let (reserve_token) = reserve_tokens.read(reserve_index)
@@ -741,7 +735,7 @@ func calculate_user_collateral_data_loop{
     let (current_collteral_required) = get_collateral_usd_value_required_for_token(
         user, reserve_token
     )
-    let (total_collateral_required) = SafeMath_add(
+    let (total_collateral_required) = SafeMath.add(
         current_collteral_required, collateral_required_of_rest
     )
 
@@ -754,7 +748,7 @@ func calculate_user_collateral_data_loop{
         let (discounted_collteral_value) = get_user_collateral_usd_value_for_token(
             user, reserve_token
         )
-        let (total_collateral_value) = SafeMath_add(
+        let (total_collateral_value) = SafeMath.add(
             discounted_collteral_value, collateral_value_of_rest
         )
 
@@ -773,7 +767,7 @@ func get_collateral_usd_value_required_for_token{
     let (reserve) = reserves.read(token)
 
     let (debt_value) = get_user_debt_usd_value_for_token(user, token)
-    let (collateral_required) = SafeDecimalMath_div(debt_value, reserve.borrow_factor)
+    let (collateral_required) = SafeDecimalMath.div(debt_value, reserve.borrow_factor)
 
     return (value=collateral_required)
 end
@@ -790,7 +784,7 @@ func get_user_debt_usd_value_for_token{
     end
 
     let (debt_accumulator) = get_debt_accumulator(token)
-    let (scaled_up_debt_balance) = SafeDecimalMath_mul(raw_debt_balance, debt_accumulator)
+    let (scaled_up_debt_balance) = SafeDecimalMath.mul(raw_debt_balance, debt_accumulator)
 
     # Fetches price from oracle
     let (oracle_addr) = oracle.read()
@@ -798,7 +792,7 @@ func get_user_debt_usd_value_for_token{
 
     let (reserve) = reserves.read(token)
 
-    let (debt_value) = SafeDecimalMath_mul_decimals(
+    let (debt_value) = SafeDecimalMath.mul_decimals(
         debt_price, scaled_up_debt_balance, reserve.decimals
     )
 
@@ -824,12 +818,12 @@ func get_user_collateral_usd_value_for_token{
     let (collateral_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token)
 
     # `collateral_value` is represented in 8-decimal USD value
-    let (collateral_value) = SafeDecimalMath_mul_decimals(
+    let (collateral_value) = SafeDecimalMath.mul_decimals(
         collateral_price, collateral_balance, reserve.decimals
     )
 
     # Discounts value by collteral factor
-    let (discounted_collteral_value) = SafeDecimalMath_mul(
+    let (discounted_collteral_value) = SafeDecimalMath.mul(
         collateral_value, reserve.collateral_factor
     )
 
@@ -875,9 +869,9 @@ func withdraw_internal{
     let (reserve_balance_before_u256) = IERC20.balanceOf(
         contract_address=token, account=this_address
     )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_sub(reserve_balance_before, amount_burnt)
-    let (scaled_up_total_debt) = SafeDecimalMath_mul(
+    let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath.sub(reserve_balance_before, amount_burnt)
+    let (scaled_up_total_debt) = SafeDecimalMath.mul(
         reserve.raw_total_debt, updated_debt_accumulator
     )
     let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
@@ -910,7 +904,7 @@ func withdraw_internal{
     #
 
     # Gives underlying tokens to user
-    let (amount_burnt_u256 : Uint256) = SafeCast_felt_to_uint256(amount_burnt)
+    let (amount_burnt_u256 : Uint256) = SafeCast.felt_to_uint256(amount_burnt)
     let (transfer_success) = IERC20.transfer(
         contract_address=token, recipient=caller, amount=amount_burnt_u256
     )
@@ -942,13 +936,13 @@ func repay_debt_route_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
 
     if amount == 0:
         let (user_raw_debt) = raw_user_debts.read(beneficiary, token)
-        let (repay_amount) = SafeDecimalMath_mul(user_raw_debt, updated_debt_accumulator)
+        let (repay_amount) = SafeDecimalMath.mul(user_raw_debt, updated_debt_accumulator)
 
         repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt)
 
         return (raw_amount=user_raw_debt, face_amount=repay_amount)
     else:
-        let (raw_amount) = SafeDecimalMath_div(amount, updated_debt_accumulator)
+        let (raw_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
 
         repay_debt_internal(repayer, beneficiary, token, amount, raw_amount)
 
@@ -973,7 +967,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     # No need to check `enabled` as it's already done in `repay_debt_route_internal`
     let (reserve) = reserves.read(token)
 
-    # No need to check if user is overpaying, as `SafeMath_sub` below will fail anyways
+    # No need to check if user is overpaying, as `SafeMath.sub` below will fail anyways
     # No need to check collateral value. Always allow repaying even if it's undercollateralized
 
     #
@@ -988,11 +982,11 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
 
     AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
-    let (raw_total_debt_after) = SafeMath_sub(reserve.raw_total_debt, raw_amount)
+    let (raw_total_debt_after) = SafeMath.sub(reserve.raw_total_debt, raw_amount)
 
     # Updates user debt data
     let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
-    let (raw_user_debt_after) = SafeMath_sub(raw_user_debt_before, raw_amount)
+    let (raw_user_debt_after) = SafeMath.sub(raw_user_debt_before, raw_amount)
     raw_user_debts.write(beneficiary, token, raw_user_debt_after)
 
     # Updates interest rate
@@ -1000,9 +994,9 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     let (reserve_balance_before_u256) = IERC20.balanceOf(
         contract_address=token, account=this_address
     )
-    let (reserve_balance_before) = SafeCast_uint256_to_felt(reserve_balance_before_u256)
-    let (reserve_balance_after) = SafeMath_add(reserve_balance_before, repay_amount)
-    let (scaled_up_total_debt_after) = SafeDecimalMath_mul(
+    let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+    let (reserve_balance_after) = SafeMath.add(reserve_balance_before, repay_amount)
+    let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
         raw_total_debt_after, updated_debt_accumulator
     )
     let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
@@ -1033,7 +1027,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     #
 
     # Takes token from user
-    let (repay_amount_u256 : Uint256) = SafeCast_felt_to_uint256(repay_amount)
+    let (repay_amount_u256 : Uint256) = SafeCast.felt_to_uint256(repay_amount)
     let (transfer_success) = IERC20.transferFrom(
         contract_address=token, sender=repayer, recipient=this_address, amount=repay_amount_u256
     )

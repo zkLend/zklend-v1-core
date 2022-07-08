@@ -5,7 +5,7 @@
 %lang starknet
 
 from zklend.interfaces.third_parties.IPontisOracle import IPontisOracle
-from zklend.libraries.SafeMath import SafeMath_div, SafeMath_mul
+from zklend.libraries.SafeMath import SafeMath
 
 from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
@@ -88,11 +88,11 @@ func scale_price{range_check_ptr}(price : felt, decimals : felt) -> (scaled_pric
         let (should_scale_up) = is_le_felt(decimals, TARGET_DECIMALS)
         if should_scale_up == TRUE:
             let (multiplier) = pow(10, TARGET_DECIMALS - decimals)
-            let (scaled_price) = SafeMath_mul(price, multiplier)
+            let (scaled_price) = SafeMath.mul(price, multiplier)
             return (scaled_price=scaled_price)
         else:
             let (multiplier) = pow(10, decimals - TARGET_DECIMALS)
-            let (scaled_price) = SafeMath_div(price, multiplier)
+            let (scaled_price) = SafeMath.div(price, multiplier)
             return (scaled_price=scaled_price)
         end
     end
