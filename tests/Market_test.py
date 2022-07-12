@@ -163,6 +163,7 @@ async def setup() -> Setup:
                     irm_a.contract_address,  # interest_rate_model
                     5 * 10**26,  # collateral_factor
                     8 * 10**26,  # borrow_factor
+                    0,  # reserve_factor
                 ],
             ),
             Call(
@@ -174,6 +175,7 @@ async def setup() -> Setup:
                     irm_b.contract_address,  # interest_rate_model
                     75 * 10**25,  # collateral_factor
                     9 * 10**26,  # borrow_factor
+                    0,  # reserve_factor
                 ],
             ),
             Call(

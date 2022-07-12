@@ -63,6 +63,7 @@ struct ReserveData:
     member interest_rate_model : felt
     member collateral_factor : felt
     member borrow_factor : felt
+    member reserve_factor : felt
     member last_update_timestamp : felt
     member lending_accumulator : felt
     member debt_accumulator : felt
@@ -270,6 +271,7 @@ func deposit{
 
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    # TODO: mint interests to treasury based on reserve_factor
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
@@ -299,6 +301,7 @@ func deposit{
         interest_rate_model=reserve.interest_rate_model,
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
+        reserve_factor=reserve.reserve_factor,
         last_update_timestamp=block_timestamp,
         lending_accumulator=updated_lending_accumulator,
         debt_accumulator=updated_debt_accumulator,
@@ -361,6 +364,7 @@ func borrow{
 
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    # TODO: mint interests to treasury based on reserve_factor
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
@@ -398,6 +402,7 @@ func borrow{
         interest_rate_model=reserve.interest_rate_model,
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
+        reserve_factor=reserve.reserve_factor,
         last_update_timestamp=block_timestamp,
         lending_accumulator=updated_lending_accumulator,
         debt_accumulator=updated_debt_accumulator,
@@ -566,6 +571,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     interest_rate_model : felt,
     collateral_factor : felt,
     borrow_factor : felt,
+    reserve_factor : felt,
 ):
     Ownable.assert_only_owner()
 
@@ -597,6 +603,12 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_le_felt(borrow_factor, SCALE)
     end
 
+    # Reserve factor must be zero since it's not yet implemented
+    # TODO: remove this after reserve factor is implemented
+    with_attr error_message("Market: reserve factor not zero"):
+        assert reserve_factor = 0
+    end
+
     # TODO: check `z_token` has the same `decimals`
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
@@ -613,6 +625,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         interest_rate_model=interest_rate_model,
         collateral_factor=collateral_factor,
         borrow_factor=borrow_factor,
+        reserve_factor=reserve_factor,
         last_update_timestamp=0,
         lending_accumulator=SCALE,
         debt_accumulator=SCALE,
@@ -856,6 +869,7 @@ func withdraw_internal{
 
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
+    # TODO: mint interests to treasury based on reserve_factor
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
@@ -888,6 +902,7 @@ func withdraw_internal{
         interest_rate_model=reserve.interest_rate_model,
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
+        reserve_factor=reserve.reserve_factor,
         last_update_timestamp=block_timestamp,
         lending_accumulator=updated_lending_accumulator,
         debt_accumulator=updated_debt_accumulator,
@@ -977,6 +992,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     # Updates reserve data
     # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
     # TODO: avoid calculating `updated_debt_accumulator` twice
+    # TODO: mint interests to treasury based on reserve_factor
     let (updated_lending_accumulator) = get_lending_accumulator(token)
     let (updated_debt_accumulator) = get_debt_accumulator(token)
 
@@ -1013,6 +1029,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         interest_rate_model=reserve.interest_rate_model,
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
+        reserve_factor=reserve.reserve_factor,
         last_update_timestamp=block_timestamp,
         lending_accumulator=updated_lending_accumulator,
         debt_accumulator=updated_debt_accumulator,
