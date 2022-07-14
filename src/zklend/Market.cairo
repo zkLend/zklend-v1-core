@@ -23,6 +23,7 @@ from starkware.starknet.common.syscalls import (
 )
 
 from openzeppelin.access.ownable import Ownable
+from openzeppelin.upgrades.library import Proxy, Proxy_initialized
 from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
 
 const SECONDS_PER_YEAR = 31536000
@@ -105,19 +106,33 @@ func raw_user_debts(user : felt, token : felt) -> (debt : felt):
 end
 
 #
-# Constructor
+# Upgradeability
 #
 
-@constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+@external
+func initializer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     owner : felt, _oracle : felt
 ):
+    let (initialized) = Proxy_initialized.read()
+    with_attr error_message("Proxy: contract already initialized"):
+        assert initialized = FALSE
+    end
+    Proxy_initialized.write(TRUE)
+
     # TODO: check for zero addresses
 
     Ownable.initializer(owner)
     oracle.write(_oracle)
 
     return ()
+end
+
+@external
+func upgrade{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    new_implementation : felt
+):
+    Ownable.assert_only_owner()
+    return Proxy._set_implementation_hash(new_implementation)
 end
 
 #
@@ -643,6 +658,18 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     reserve_indices.write(token, current_reserve_count)
 
     return ()
+end
+
+@external
+func transfer_ownership{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    new_owner : felt
+):
+    return Ownable.transfer_ownership(new_owner)
+end
+
+@external
+func renounce_ownership{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
+    return Ownable.renounce_ownership()
 end
 
 #

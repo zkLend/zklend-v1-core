@@ -13,6 +13,7 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 
+from openzeppelin.upgrades.library import Proxy
 from openzeppelin.token.erc20.library import Approval, Transfer
 
 #
@@ -60,13 +61,20 @@ func allowances(owner : felt, spender : felt) -> (allowance : felt):
 end
 
 #
-# Constructor
+# Upgradeability
 #
 
-@constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    _market : felt, _underlying : felt, _name : felt, _symbol : felt, _decimals : felt
+@external
+func initializer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    proxy_admin : felt,
+    _market : felt,
+    _underlying : felt,
+    _name : felt,
+    _symbol : felt,
+    _decimals : felt,
 ):
+    Proxy.initializer(proxy_admin)
+
     with_attr error_message("ZToken: zero address"):
         assert_not_zero(_market)
         assert_not_zero(_underlying)
@@ -81,6 +89,22 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     token_decimals.write(_decimals)
 
     return ()
+end
+
+@external
+func upgrade{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    new_implementation : felt
+):
+    Proxy.assert_only_admin()
+    return Proxy._set_implementation_hash(new_implementation)
+end
+
+@external
+func transfer_proxy_admin{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    new_admin : felt
+):
+    Proxy.assert_only_admin()
+    return Proxy._set_admin(new_admin)
 end
 
 #

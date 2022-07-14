@@ -8,6 +8,7 @@ from utils.contracts import (
     PATH_ERC20,
     PATH_MARKET,
     PATH_MOCK_PRICE_ORACLE,
+    PATH_PROXY,
     PATH_ZTOKEN,
 )
 from utils.helpers import string_to_felt
@@ -75,13 +76,25 @@ async def setup() -> Setup:
         source=PATH_MOCK_PRICE_ORACLE, cairo_path=[CAIRO_PATH]
     )
 
+    market_cls = await starknet.declare(source=PATH_MARKET, cairo_path=[CAIRO_PATH])
+    z_token_cls = await starknet.declare(source=PATH_ZTOKEN, cairo_path=[CAIRO_PATH])
+
     market = await starknet.deploy(
-        source=PATH_MARKET,
+        source=PATH_PROXY,
         constructor_calldata=[
-            alice.address,  # owner
-            oracle.contract_address,  # _oracle
+            market_cls.class_hash,  # implementation_hash
+            get_selector_from_name("initializer"),  # selector
+            2,  # calldata_len
+            alice.address,  # calldata: owner
+            oracle.contract_address,  # calldata: _oracle
         ],
         cairo_path=[CAIRO_PATH],
+    )
+    market = StarknetContract(
+        state=market.state,
+        abi=market_cls.abi,
+        contract_address=market.contract_address,
+        deploy_execution_info=market.deploy_execution_info,
     )
 
     token_a = await starknet.deploy(
@@ -96,15 +109,25 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
     z_token_a = await starknet.deploy(
-        source=PATH_ZTOKEN,
+        source=PATH_PROXY,
         constructor_calldata=[
-            market.contract_address,  # _market
-            token_a.contract_address,  # _underlying
-            string_to_felt("zkLend Interest-Bearing TST_A"),  # _name
-            string_to_felt("zTST_A"),  # _symbol
-            18,  # _decimals
+            z_token_cls.class_hash,  # implementation_hash
+            get_selector_from_name("initializer"),  # selector
+            6,  # calldata_len
+            999999,  # calldata: proxy_admin
+            market.contract_address,  # calldata: _market
+            token_a.contract_address,  # calldata: _underlying
+            string_to_felt("zkLend Interest-Bearing TST_A"),  # calldata: _name
+            string_to_felt("zTST_A"),  # calldata: _symbol
+            18,  # calldata: _decimals
         ],
         cairo_path=[CAIRO_PATH],
+    )
+    z_token_a = StarknetContract(
+        state=z_token_a.state,
+        abi=z_token_cls.abi,
+        contract_address=z_token_a.contract_address,
+        deploy_execution_info=z_token_a.deploy_execution_info,
     )
     irm_a = await starknet.deploy(
         source=PATH_DEFAULT_INTEREST_RATE_MODEL,
@@ -129,15 +152,25 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
     z_token_b = await starknet.deploy(
-        source=PATH_ZTOKEN,
+        source=PATH_PROXY,
         constructor_calldata=[
-            market.contract_address,  # _market
-            token_b.contract_address,  # _underlying
-            string_to_felt("zkLend Interest-Bearing TST_B"),  # _name
-            string_to_felt("zTST_B"),  # _symbol
-            18,  # _decimals
+            z_token_cls.class_hash,  # implementation_hash
+            get_selector_from_name("initializer"),  # selector
+            6,  # calldata_len
+            999999,  # calldata: proxy_admin
+            market.contract_address,  # calldata: _market
+            token_b.contract_address,  # calldata: _underlying
+            string_to_felt("zkLend Interest-Bearing TST_B"),  # calldata: _name
+            string_to_felt("zTST_B"),  # calldata: _symbol
+            18,  # calldata: _decimals
         ],
         cairo_path=[CAIRO_PATH],
+    )
+    z_token_b = StarknetContract(
+        state=z_token_b.state,
+        abi=z_token_cls.abi,
+        contract_address=z_token_b.contract_address,
+        deploy_execution_info=z_token_b.deploy_execution_info,
     )
     irm_b = await starknet.deploy(
         source=PATH_DEFAULT_INTEREST_RATE_MODEL,

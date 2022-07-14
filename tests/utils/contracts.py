@@ -9,6 +9,7 @@ CAIRO_PATH = str(SRC_ROOT)
 
 PATH_MARKET = str(CONTRACT_ROOT / "Market.cairo")
 PATH_ZTOKEN = str(CONTRACT_ROOT / "ZToken.cairo")
+PATH_PROXY = str(CONTRACT_ROOT / "Proxy.cairo")
 PATH_ZIG_ZAG_ORACLE_ADAPTER = str(
     CONTRACT_ROOT / "oracles" / "ZigZagOracleAdapter.cairo"
 )

@@ -6,6 +6,7 @@ from utils.assertions import assert_events_emitted
 from utils.contracts import (
     CAIRO_PATH,
     PATH_MOCK_MARKET,
+    PATH_PROXY,
     PATH_ZTOKEN,
 )
 from utils.helpers import string_to_felt
@@ -53,16 +54,27 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
 
+    z_token_cls = await starknet.declare(source=PATH_ZTOKEN, cairo_path=[CAIRO_PATH])
     z_token = await starknet.deploy(
-        source=PATH_ZTOKEN,
+        source=PATH_PROXY,
         constructor_calldata=[
-            market.contract_address,  # _market
-            MOCK_TOKEN_ADDRESS,  # _underlying
-            string_to_felt("TOKEN_NAME"),  # _name
-            string_to_felt("TOKEN_SYMBOL"),  # _symbol
-            18,  # _decimals
+            z_token_cls.class_hash,  # implementation_hash
+            get_selector_from_name("initializer"),  # selector
+            6,  # calldata_len
+            999999,  # calldata: proxy_admin
+            market.contract_address,  # calldata: _market
+            MOCK_TOKEN_ADDRESS,  # calldata: _underlying
+            string_to_felt("TOKEN_NAME"),  # calldata: _name
+            string_to_felt("TOKEN_SYMBOL"),  # calldata: _symbol
+            18,  # calldata: _decimals
         ],
         cairo_path=[CAIRO_PATH],
+    )
+    z_token = StarknetContract(
+        state=z_token.state,
+        abi=z_token_cls.abi,
+        contract_address=z_token.contract_address,
+        deploy_execution_info=z_token.deploy_execution_info,
     )
 
     await alice.execute(
