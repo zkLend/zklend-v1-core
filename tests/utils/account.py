@@ -6,6 +6,7 @@ from utils.helpers import string_to_felt
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import private_to_stark_key, sign
+from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.contract import (
     StarknetContract,
     StarknetTransactionExecutionInfo,
@@ -69,30 +70,18 @@ class Account:
             execute_calldata.append(item)
         execute_calldata.append(nonce)
 
-        message_hash = compute_hash_on_elements(
+        transaction_hash = compute_hash_on_elements(
             [
-                PREFIX_TRANSACTION,
-                self.address,
-                compute_hash_on_elements(
-                    list(
-                        map(
-                            lambda item: compute_hash_on_elements(
-                                [
-                                    item.to,
-                                    item.selector,
-                                    compute_hash_on_elements(item.calldata),
-                                ]
-                            ),
-                            calls,
-                        )
-                    )
-                ),
-                nonce,
-                0,  # max_fee
+                string_to_felt("invoke"),
                 0,  # version
+                self.address,
+                get_selector_from_name("__execute__"),
+                compute_hash_on_elements(execute_calldata),
+                0,  # max_fee
+                string_to_felt("SN_GOERLI"),
             ]
         )
-        sig_r, sig_s = sign(message_hash, self.__private_key)
+        sig_r, sig_s = sign(transaction_hash, self.__private_key)
 
         result = await self.__account_contract.__execute__(
             raw_call_array, concated_calldata, nonce
