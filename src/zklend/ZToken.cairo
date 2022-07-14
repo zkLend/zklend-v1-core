@@ -188,6 +188,14 @@ func felt_allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     return (remaining=amount)
 end
 
+@view
+func underlying_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    token : felt
+):
+    let (res) = underlying.read()
+    return (token=res)
+end
+
 #
 # External
 #

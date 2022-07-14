@@ -628,6 +628,12 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
 
+    # Checks underlying token of the Z token contract
+    let (z_token_underlying) = IZToken.underlying_token(contract_address=z_token)
+    with_attr error_message("Market: underlying token mismatch"):
+        assert z_token_underlying = token
+    end
+
     # TODO: limit reserve count
 
     #

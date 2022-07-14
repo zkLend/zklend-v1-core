@@ -7,6 +7,9 @@ namespace IZToken:
     func felt_balance_of(account : felt) -> (balance : felt):
     end
 
+    func underlying_token() -> (token : felt):
+    end
+
     func mint(to : felt, amount : felt) -> (zero_balance_before : felt):
     end
 
