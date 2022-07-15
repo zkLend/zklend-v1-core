@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BUSL-1.1
 
-# PontisOracleAdapter : IPriceOracleSource
+# EmpiricOracleAdapter : IPriceOracleSource
 
 %lang starknet
 
-from zklend.interfaces.third_parties.IPontisOracle import IPontisOracle
+from zklend.interfaces.third_parties.IEmpiricOracle import IEmpiricOracle
 from zklend.libraries.SafeMath import SafeMath
 
 from starkware.cairo.common.bool import TRUE
@@ -72,8 +72,7 @@ func get_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     let (oracle_addr) = oracle.read()
     let (pair_key) = pair.read()
 
-    let (decimals) = IPontisOracle.get_decimals(contract_address=oracle_addr, key=pair_key)
-    let (price, last_updated_timestamp) = IPontisOracle.get_value(
+    let (price, decimals, last_updated_timestamp, _) = IEmpiricOracle.get_value(
         contract_address=oracle_addr, key=pair_key, aggregation_mode='median'
     )
 
