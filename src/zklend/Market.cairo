@@ -704,8 +704,8 @@ func is_used_as_collateral{
     let (reserve_slot) = Math.shl(1, reserve_index)
     let (existing_usage) = collateral_usages.read(user)
 
-    let (and) = bitwise_and(existing_usage, reserve_slot)
-    let (is_used) = is_not_zero(and)
+    let (and_result) = bitwise_and(existing_usage, reserve_slot)
+    let (is_used) = is_not_zero(and_result)
 
     return (is_used=is_used)
 end

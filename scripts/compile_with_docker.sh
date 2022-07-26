@@ -11,7 +11,7 @@ docker run --rm \
     --env "USER_ID=$(id -u)" \
     --env "GROUP_ID=$(id -g)" \
     --entrypoint sh \
-    shardlabs/cairo-cli:0.9.0 \
+    shardlabs/cairo-cli:0.9.1 \
     -c "cd /work && ./scripts/compile.sh"
 
 # Using prettier instead of `jq` due to known issue:
