@@ -52,6 +52,14 @@ end
 func Repayment(user : felt, token : felt, raw_amount : felt, face_amount : felt):
 end
 
+@event
+func CollateralEnabled(user : felt, token : felt):
+end
+
+@event
+func CollateralDisabled(user : felt, token : felt):
+end
+
 #
 # Structs
 #
@@ -483,6 +491,8 @@ end
 func enable_collateral{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(token : felt):
+    alloc_locals
+
     let (caller) = get_caller_address()
 
     # Technically we don't need `reserve` here but we need to check existence
@@ -494,6 +504,8 @@ func enable_collateral{
     let (reserve_index) = reserve_indices.read(token)
 
     set_collateral_usage(caller, reserve_index, TRUE)
+
+    CollateralEnabled.emit(caller, token)
 
     return ()
 end
@@ -520,6 +532,8 @@ func disable_collateral{
     with_attr error_message("Market: insufficient collateral"):
         assert_not_undercollateralized(caller)
     end
+
+    CollateralDisabled.emit(caller, token)
 
     return ()
 end
