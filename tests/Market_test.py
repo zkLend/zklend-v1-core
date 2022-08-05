@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
 from utils.assertions import assert_events_emitted, assert_reverted_with
@@ -65,7 +66,7 @@ class Setup:
         self.irm_b = irm_b
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 
@@ -247,7 +248,7 @@ async def setup() -> Setup:
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup_with_deposit(setup: Setup) -> Setup:
     await setup.alice.execute(
         [
@@ -280,7 +281,7 @@ async def setup_with_deposit(setup: Setup) -> Setup:
     return setup
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup_with_loan(setup: Setup) -> Setup:
     # Same as `test_borrow_token`
     await setup.bob.execute(

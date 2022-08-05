@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 
 from utils.contracts import (
     CAIRO_PATH,
@@ -18,7 +19,7 @@ class Setup:
         self.model = model
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 

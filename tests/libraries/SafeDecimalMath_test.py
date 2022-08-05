@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 import pytest
+import pytest_asyncio
 
 from utils.assertions import assert_reverted_with
 from utils.contracts import CAIRO_PATH, PATH_MOCK_SAFE_DECIMAL_MATH
@@ -21,7 +22,7 @@ class Setup:
         self.safe_decimal_math = safe_decimal_math
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 

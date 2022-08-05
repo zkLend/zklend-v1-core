@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 import pytest
+import pytest_asyncio
 
 from utils.contracts import CAIRO_PATH, PATH_MOCK_MATH
 
@@ -20,7 +21,7 @@ class Setup:
         self.math = math
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 

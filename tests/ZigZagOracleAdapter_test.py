@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
 from utils.contracts import (
@@ -31,7 +32,7 @@ class Setup:
         self.oracle = oracle
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 
