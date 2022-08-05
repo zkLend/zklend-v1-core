@@ -1,4 +1,6 @@
 import pytest
+import pytest_asyncio
+
 from starkware.starknet.business_logic.execution.objects import Event
 
 from utils.account import Account, Call, deploy_account
@@ -41,7 +43,7 @@ class Setup:
         self.z_token = z_token
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup() -> Setup:
     starknet = await Starknet.empty()
 
