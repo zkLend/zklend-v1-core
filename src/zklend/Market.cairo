@@ -276,7 +276,8 @@ func deposit{
 
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
+
+    let (_, updated_debt_accumulator) = update_accumulators(token)
 
     #
     # Checks
@@ -291,14 +292,6 @@ func deposit{
     #
     # Interactions
     #
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    # TODO: mint interests to treasury based on reserve_factor
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-
-    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
     # Updates interest rate
     # TODO: check if there's a way to persist only one field (using syscall directly?)
@@ -325,9 +318,9 @@ func deposit{
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
         reserve_factor=reserve.reserve_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
+        last_update_timestamp=reserve.last_update_timestamp,
+        lending_accumulator=reserve.lending_accumulator,
+        debt_accumulator=reserve.debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
@@ -378,20 +371,13 @@ func borrow{
 
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
+
+    let (_, updated_debt_accumulator) = update_accumulators(token)
 
     let (reserve) = reserves.read(token)
     with_attr error_message("Market: reserve not enabled"):
         assert_not_zero(reserve.enabled)
     end
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    # TODO: mint interests to treasury based on reserve_factor
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-
-    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
     let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
     let (raw_total_debt_after) = SafeMath.add(reserve.raw_total_debt, scaled_down_amount)
@@ -426,9 +412,9 @@ func borrow{
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
         reserve_factor=reserve.reserve_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
+        last_update_timestamp=reserve.last_update_timestamp,
+        lending_accumulator=reserve.lending_accumulator,
+        debt_accumulator=reserve.debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
@@ -899,7 +885,8 @@ func withdraw_internal{
     # TODO: forbid `get_caller_address()` in non-external methods
     let (caller) = get_caller_address()
     let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
+
+    let (_, updated_debt_accumulator) = update_accumulators(token)
 
     #
     # Checks
@@ -913,14 +900,6 @@ func withdraw_internal{
     #
     # Effects
     #
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    # TODO: mint interests to treasury based on reserve_factor
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-
-    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
     # NOTE: it's fine to call out to external contract here before state update since it's trusted
     let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
@@ -950,9 +929,9 @@ func withdraw_internal{
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
         reserve_factor=reserve.reserve_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
+        last_update_timestamp=reserve.last_update_timestamp,
+        lending_accumulator=reserve.lending_accumulator,
+        debt_accumulator=reserve.debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
@@ -1020,7 +999,8 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     alloc_locals
 
     let (this_address) = get_contract_address()
-    let (block_timestamp) = get_block_timestamp()
+
+    let (_, updated_debt_accumulator) = update_accumulators(token)
 
     #
     # Checks
@@ -1035,15 +1015,6 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     #
     # Effects
     #
-
-    # Updates reserve data
-    # TODO: re-use `reserve` instead of calling `get_debt_accumulator`
-    # TODO: avoid calculating `updated_debt_accumulator` twice
-    # TODO: mint interests to treasury based on reserve_factor
-    let (updated_lending_accumulator) = get_lending_accumulator(token)
-    let (updated_debt_accumulator) = get_debt_accumulator(token)
-
-    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
     let (raw_total_debt_after) = SafeMath.sub(reserve.raw_total_debt, raw_amount)
 
@@ -1077,9 +1048,9 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         collateral_factor=reserve.collateral_factor,
         borrow_factor=reserve.borrow_factor,
         reserve_factor=reserve.reserve_factor,
-        last_update_timestamp=block_timestamp,
-        lending_accumulator=updated_lending_accumulator,
-        debt_accumulator=updated_debt_accumulator,
+        last_update_timestamp=reserve.last_update_timestamp,
+        lending_accumulator=reserve.lending_accumulator,
+        debt_accumulator=reserve.debt_accumulator,
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
@@ -1113,4 +1084,45 @@ func burn_z_token_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, ran
         IZToken.burn(contract_address=z_token, user=user, amount=amount)
         return (amount_burnt=amount)
     end
+end
+
+func update_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (lending_accumulator : felt, debt_accumulator : felt):
+    alloc_locals
+
+    let (block_timestamp) = get_block_timestamp()
+
+    let (updated_lending_accumulator) = get_lending_accumulator(token)
+    let (updated_debt_accumulator) = get_debt_accumulator(token)
+
+    AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
+
+    # No need to check reserve existence since it's done in `get_lending_accumulator` and
+    # `get_debt_accumulator`
+    let (reserve) = reserves.read(token)
+
+    # TODO: use a manually-written storage namespace for updating only relevant fields
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        reserve_factor=reserve.reserve_factor,
+        last_update_timestamp=block_timestamp,
+        lending_accumulator=updated_lending_accumulator,
+        debt_accumulator=updated_debt_accumulator,
+        current_lending_rate=reserve.current_lending_rate,
+        current_borrowing_rate=reserve.current_borrowing_rate,
+        raw_total_debt=reserve.raw_total_debt,
+        ),
+    )
+
+    return (
+        lending_accumulator=updated_lending_accumulator, debt_accumulator=updated_debt_accumulator
+    )
 end
