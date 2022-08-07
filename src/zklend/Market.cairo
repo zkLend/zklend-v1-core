@@ -32,8 +32,14 @@ const SECONDS_PER_YEAR = 31536000
 # Events
 #
 
+# TODO: add `NewReserve` event
+
 @event
 func AccumulatorsSync(token : felt, lending_accumulator : felt, debt_accumulator : felt):
+end
+
+@event
+func ReserveFactorUpdate(token : felt, new_reserve_factor : felt):
 end
 
 @event
@@ -618,12 +624,6 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_le_felt(borrow_factor, SCALE)
     end
 
-    # Reserve factor must be zero since it's not yet implemented
-    # TODO: remove this after reserve factor is implemented
-    with_attr error_message("Market: reserve factor not zero"):
-        assert reserve_factor = 0
-    end
-
     # TODO: check `z_token` has the same `decimals`
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
@@ -662,6 +662,61 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     reserve_count.write(current_reserve_count + 1)
     reserve_tokens.write(current_reserve_count, token)
     reserve_indices.write(token, current_reserve_count)
+
+    return ()
+end
+
+@external
+func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt, new_reserve_factor : felt
+):
+    alloc_locals
+
+    Ownable.assert_only_owner()
+
+    # TODO: check new factor range
+
+    # We must update accumulators first, otherwise bad things might happen (e.g. user collateral
+    # balance decreases)
+    let (_, updated_debt_accumulator) = update_accumulators(token)
+
+    # No need to check existence
+    let (reserve) = reserves.read(token)
+
+    # Updates rates too
+    # TODO: double-check whether updating the rates is necessary here
+    let (this_address) = get_contract_address()
+    let (reserve_balance_u256) = IERC20.balanceOf(contract_address=token, account=this_address)
+    let (reserve_balance) = SafeCast.uint256_to_felt(reserve_balance_u256)
+    let (scaled_up_total_debt) = SafeDecimalMath.mul(
+        reserve.raw_total_debt, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=reserve.interest_rate_model,
+        reserve_balance=reserve_balance,
+        total_debt=scaled_up_total_debt,
+    )
+
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=reserve.enabled,
+        decimals=reserve.decimals,
+        z_token_address=reserve.z_token_address,
+        interest_rate_model=reserve.interest_rate_model,
+        collateral_factor=reserve.collateral_factor,
+        borrow_factor=reserve.borrow_factor,
+        reserve_factor=new_reserve_factor,
+        last_update_timestamp=reserve.last_update_timestamp,
+        lending_accumulator=reserve.lending_accumulator,
+        debt_accumulator=reserve.debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=reserve.raw_total_debt,
+        ),
+    )
+
+    ReserveFactorUpdate.emit(token, new_reserve_factor)
 
     return ()
 end
