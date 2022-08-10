@@ -7,6 +7,9 @@ namespace IZToken:
     func felt_balance_of(account : felt) -> (balance : felt):
     end
 
+    func get_raw_total_supply() -> (raw_supply : felt):
+    end
+
     func underlying_token() -> (token : felt):
     end
 

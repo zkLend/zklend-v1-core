@@ -196,6 +196,14 @@ func underlying_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
     return (token=res)
 end
 
+@view
+func get_raw_total_supply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    raw_supply : felt
+):
+    let (raw_supply) = raw_total_supply.read()
+    return (raw_supply=raw_supply)
+end
+
 #
 # External
 #

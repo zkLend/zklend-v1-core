@@ -35,6 +35,10 @@ const SECONDS_PER_YEAR = 31536000
 # TODO: add `NewReserve` event
 
 @event
+func TreasuryUpdate(new_treasury : felt):
+end
+
+@event
 func AccumulatorsSync(token : felt, lending_accumulator : felt, debt_accumulator : felt):
 end
 
@@ -93,6 +97,10 @@ end
 
 @storage_var
 func oracle() -> (oracle : felt):
+end
+
+@storage_var
+func treasury() -> (oracle : felt):
 end
 
 @storage_var
@@ -161,7 +169,6 @@ func get_reserve_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_ch
     return (data=reserve)
 end
 
-# TODO: refactor `get_lending_accumulator` and `get_debt_accumulator` to reduce duplicated code
 @view
 func get_lending_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token : felt
@@ -181,11 +188,25 @@ func get_lending_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
         # Apply simple interest
         let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp)
 
-        # (current_lending_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
+        # Treats reserve factor as zero if treasury address is not set
+        let (treasury_addr) = treasury.read()
+        local effective_reserve_factor : felt
+        if treasury_addr == 0:
+            effective_reserve_factor = 0
+        else:
+            effective_reserve_factor = reserve.reserve_factor
+        end
+
+        let (one_minus_reserve_factor) = SafeMath.sub(SCALE, effective_reserve_factor)
+
+        # New accumulator
+        # (current_lending_rate * (1 - reserve_factor) * time_diff / SECONDS_PER_YEAR + 1) * accumulator
         let (temp_1) = SafeMath.mul(reserve.current_lending_rate, time_diff)
-        let (temp_2) = SafeMath.div(temp_1, SECONDS_PER_YEAR)
-        let (temp_3) = SafeMath.add(temp_2, SCALE)
-        let (latest_accumulator) = SafeDecimalMath.mul(temp_3, reserve.lending_accumulator)
+        let (temp_2) = SafeMath.mul(temp_1, one_minus_reserve_factor)
+        let (temp_3) = SafeMath.div(temp_2, SECONDS_PER_YEAR)
+        let (temp_4) = SafeMath.div(temp_3, SCALE)
+        let (temp_5) = SafeMath.add(temp_4, SCALE)
+        let (latest_accumulator) = SafeDecimalMath.mul(temp_5, reserve.lending_accumulator)
 
         return (res=latest_accumulator)
     end
@@ -217,6 +238,47 @@ func get_debt_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
         let (latest_accumulator) = SafeDecimalMath.mul(temp_3, reserve.debt_accumulator)
 
         return (res=latest_accumulator)
+    end
+end
+
+# WARN: this must be run BEFORE adjusting the accumulators (otherwise always returns 0)
+@view
+func get_pending_treasury_amount{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    token : felt
+) -> (res : felt):
+    alloc_locals
+
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # Nothing for treasury if address set to zero
+    let (treasury_addr) = treasury.read()
+    if treasury_addr == 0:
+        return (res=0)
+    end
+
+    let (block_timestamp) = get_block_timestamp()
+    if reserve.last_update_timestamp == block_timestamp:
+        # Tresury amount already settled on the same block
+        return (res=0)
+    else:
+        # Apply simple interest
+        let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp)
+
+        let (raw_supply) = IZToken.get_raw_total_supply(contract_address=reserve.z_token_address)
+
+        # Amount to be paid to treasury (based on the adjusted accumulator)
+        # (current_lending_rate * reserve_factor * time_diff / SECONDS_PER_YEAR) * accumulator * raw_supply
+        let (temp_1) = SafeMath.mul(reserve.current_lending_rate, time_diff)
+        let (temp_2) = SafeMath.mul(temp_1, reserve.reserve_factor)
+        let (temp_3) = SafeMath.div(temp_2, SECONDS_PER_YEAR)
+        let (temp_4) = SafeMath.div(temp_3, SCALE)
+        let (temp_5) = SafeDecimalMath.mul(temp_4, reserve.lending_accumulator)
+        let (amount_to_treasury) = SafeDecimalMath.mul(raw_supply, temp_5)
+
+        return (res=amount_to_treasury)
     end
 end
 
@@ -722,6 +784,17 @@ func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
 end
 
 @external
+func set_treasury{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    new_treasury : felt
+):
+    Ownable.assert_only_owner()
+
+    treasury.write(new_treasury)
+    TreasuryUpdate.emit(new_treasury)
+    return ()
+end
+
+@external
 func transfer_ownership{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     new_owner : felt
 ):
@@ -1153,6 +1226,10 @@ func update_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
 
     AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator)
 
+    # It's okay to call this function here as the updated accumulators haven't been written into
+    # storage yet
+    let (amount_to_treasury) = get_pending_treasury_amount(token)
+
     # No need to check reserve existence since it's done in `get_lending_accumulator` and
     # `get_debt_accumulator`
     let (reserve) = reserves.read(token)
@@ -1176,6 +1253,18 @@ func update_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         raw_total_debt=reserve.raw_total_debt,
         ),
     )
+
+    # No need to check whether tresury address is zero as amount would be zero anyways
+    if amount_to_treasury != 0:
+        let (treasury_addr) = treasury.read()
+        IZToken.mint(
+            contract_address=reserve.z_token_address, to=treasury_addr, amount=amount_to_treasury
+        )
+
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
 
     return (
         lending_accumulator=updated_lending_accumulator, debt_accumulator=updated_debt_accumulator
