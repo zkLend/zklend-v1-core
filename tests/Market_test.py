@@ -25,6 +25,8 @@ from starkware.starknet.testing.starknet import Starknet
 # - rate changes after calling `withdraw_all` when there're aother debt & deposit holders
 # - rate changes after calling `repay_all` when there're aother debt & deposit holders
 
+MOCK_TREASURY_ADDRESS = 9999888899998888
+
 
 class Setup:
     starknet: Starknet
@@ -190,6 +192,13 @@ async def setup() -> Setup:
         [
             Call(
                 market.contract_address,
+                get_selector_from_name("set_treasury"),
+                [
+                    MOCK_TREASURY_ADDRESS,  # new_treasury
+                ],
+            ),
+            Call(
+                market.contract_address,
                 get_selector_from_name("add_reserve"),
                 [
                     token_a.contract_address,  # token
@@ -197,7 +206,7 @@ async def setup() -> Setup:
                     irm_a.contract_address,  # interest_rate_model
                     5 * 10**26,  # collateral_factor
                     8 * 10**26,  # borrow_factor
-                    0,  # reserve_factor
+                    10 * 10**25,  # reserve_factor
                 ],
             ),
             Call(
@@ -209,7 +218,7 @@ async def setup() -> Setup:
                     irm_b.contract_address,  # interest_rate_model
                     75 * 10**25,  # collateral_factor
                     9 * 10**26,  # borrow_factor
-                    0,  # reserve_factor
+                    20 * 10**25,  # reserve_factor
                 ],
             ),
             Call(
@@ -774,6 +783,7 @@ async def test_rate_changes_on_withdrawal(setup_with_loan: Setup):
 
 
 @pytest.mark.asyncio
+# TODO: test treasury balance
 async def test_interest_accumulation(setup_with_loan: Setup):
     # No interest accumulated yet
     assert (
@@ -786,12 +796,12 @@ async def test_interest_accumulation(setup_with_loan: Setup):
     )
 
     # Interest after 100 seconds:
-    #   Interest = 0.000113765625 * 10000 * 100 / (365 * 86400) = 0.000003607484303652968036529
-    #                                                         => 3607484303652
-    #   Total balance = 10000 * 10 ** 18 + 3607484303652
+    #   Interest = 0.000113765625 * 10000 * 100 * (1 - 20%) / (365 * 86400) = 0.000002885987442922374429223
+    #                                                         => 2885987442922
+    #   Total balance = 10000 * 10 ** 18 + 2885987442922
     assert (
         await setup_with_loan.z_token_b.balanceOf(setup_with_loan.bob.address).call()
-    ).result.balance == (Uint256.from_int(10000 * 10**18 + 3607484303652))
+    ).result.balance == (Uint256.from_int(10000 * 10**18 + 2885987442922))
 
 
 @pytest.mark.asyncio
@@ -1317,7 +1327,7 @@ async def test_event_emission(setup: Setup):
     #     Borrowing rate = 0.0505625
     #     Lending rate = 0.000113765625
     #   Lending accmulator:
-    #     1 * (1 + (100 * 0.000113765625) / (365 * 86400)) = 1.000000000360748430365296803
+    #     1 * (1 + (100 * 0.000113765625 * (1 - 20%)) / (365 * 86400)) = 1.000000000288598744292237442
     #   Debt accmulator:
     #     1 * (1 + (100 * 0.0505625) / (365 * 86400)) = 1.000000160332635717909690512
 
@@ -1351,7 +1361,7 @@ async def test_event_emission(setup: Setup):
                 keys=[get_selector_from_name("AccumulatorsSync")],
                 data=[
                     setup.token_b.contract_address,  # token
-                    1000000000360748430365296803,  # lending_accumulator
+                    1000000000288598744292237442,  # lending_accumulator
                     1000000160332635717909690512,  # debt_accumulator
                 ],
             ),
@@ -1379,8 +1389,8 @@ async def test_event_emission(setup: Setup):
     #     Borrowing rate = 0.050537500089993205277538743
     #     Lending rate = 0.000108655643385611870596273
     #   Lending accmulator:
-    #     1.000000000360748430365296803 * (1 + (100 * 0.000108655643385611870596273) / (365 * 86400))
-    #     = 1.000000000705293215451576684
+    #     1.000000000288598744292237442 * (1 + (100 * 0.000108655643385611870596273 * (1 - 20%)) / (365 * 86400))
+    #     = 1.000000000564234572341374307
     #   Debt accmulator:
     #     1.000000160332635717909690512 * (1 + (100 * 0.050537500089993205277538743) / (365 * 86400))
     #     = 1.000000320586022935070387176
@@ -1405,7 +1415,7 @@ async def test_event_emission(setup: Setup):
                 keys=[get_selector_from_name("AccumulatorsSync")],
                 data=[
                     setup.token_b.contract_address,  # token
-                    1000000000705293215451576684,  # lending_accumulator
+                    1000000000564234572341374307,  # lending_accumulator
                     1000000320586022935070387176,  # debt_accumulator
                 ],
             ),
