@@ -69,7 +69,7 @@ class Setup:
 
 
 @pytest_asyncio.fixture
-async def setup() -> Setup:
+async def pre_setup() -> Setup:
     starknet = await Starknet.empty()
 
     alice = await deploy_account(starknet)
@@ -186,62 +186,6 @@ async def setup() -> Setup:
         cairo_path=[CAIRO_PATH],
     )
 
-    # TST_A: 50% collateral_factor, 80% borrow_factor
-    # TST_B: 75% collateral_factor, 90% borrow_factor
-    await alice.execute(
-        [
-            Call(
-                market.contract_address,
-                get_selector_from_name("set_treasury"),
-                [
-                    MOCK_TREASURY_ADDRESS,  # new_treasury
-                ],
-            ),
-            Call(
-                market.contract_address,
-                get_selector_from_name("add_reserve"),
-                [
-                    token_a.contract_address,  # token
-                    z_token_a.contract_address,  # z_token
-                    irm_a.contract_address,  # interest_rate_model
-                    5 * 10**26,  # collateral_factor
-                    8 * 10**26,  # borrow_factor
-                    10 * 10**25,  # reserve_factor
-                ],
-            ),
-            Call(
-                market.contract_address,
-                get_selector_from_name("add_reserve"),
-                [
-                    token_b.contract_address,  # token
-                    z_token_b.contract_address,  # z_token
-                    irm_b.contract_address,  # interest_rate_model
-                    75 * 10**25,  # collateral_factor
-                    9 * 10**26,  # borrow_factor
-                    20 * 10**25,  # reserve_factor
-                ],
-            ),
-            Call(
-                oracle.contract_address,
-                get_selector_from_name("set_price"),
-                [
-                    token_a.contract_address,  # token
-                    50_00000000,  # price
-                    100,  # update_time
-                ],
-            ),
-            Call(
-                oracle.contract_address,
-                get_selector_from_name("set_price"),
-                [
-                    token_b.contract_address,  # token
-                    100_00000000,  # price
-                    100,  # update_time
-                ],
-            ),
-        ]
-    )
-
     return Setup(
         starknet,
         alice,
@@ -255,6 +199,67 @@ async def setup() -> Setup:
         z_token_b,
         irm_b,
     )
+
+
+@pytest_asyncio.fixture
+async def setup(pre_setup: Setup) -> Setup:
+    # TST_A: 50% collateral_factor, 80% borrow_factor
+    # TST_B: 75% collateral_factor, 90% borrow_factor
+    await pre_setup.alice.execute(
+        [
+            Call(
+                pre_setup.market.contract_address,
+                get_selector_from_name("set_treasury"),
+                [
+                    MOCK_TREASURY_ADDRESS,  # new_treasury
+                ],
+            ),
+            Call(
+                pre_setup.market.contract_address,
+                get_selector_from_name("add_reserve"),
+                [
+                    pre_setup.token_a.contract_address,  # token
+                    pre_setup.z_token_a.contract_address,  # z_token
+                    pre_setup.irm_a.contract_address,  # interest_rate_model
+                    5 * 10**26,  # collateral_factor
+                    8 * 10**26,  # borrow_factor
+                    10 * 10**25,  # reserve_factor
+                ],
+            ),
+            Call(
+                pre_setup.market.contract_address,
+                get_selector_from_name("add_reserve"),
+                [
+                    pre_setup.token_b.contract_address,  # token
+                    pre_setup.z_token_b.contract_address,  # z_token
+                    pre_setup.irm_b.contract_address,  # interest_rate_model
+                    75 * 10**25,  # collateral_factor
+                    9 * 10**26,  # borrow_factor
+                    20 * 10**25,  # reserve_factor
+                ],
+            ),
+            Call(
+                pre_setup.oracle.contract_address,
+                get_selector_from_name("set_price"),
+                [
+                    pre_setup.token_a.contract_address,  # token
+                    50_00000000,  # price
+                    100,  # update_time
+                ],
+            ),
+            Call(
+                pre_setup.oracle.contract_address,
+                get_selector_from_name("set_price"),
+                [
+                    pre_setup.token_b.contract_address,  # token
+                    100_00000000,  # price
+                    100,  # update_time
+                ],
+            ),
+        ]
+    )
+
+    return pre_setup
 
 
 @pytest_asyncio.fixture
@@ -357,6 +362,43 @@ async def setup_with_loan(setup: Setup) -> Setup:
     )
 
     return setup
+
+
+@pytest.mark.asyncio
+async def test_new_reserve_event(pre_setup: Setup):
+    await assert_events_emitted(
+        pre_setup.alice.execute(
+            [
+                Call(
+                    pre_setup.market.contract_address,
+                    get_selector_from_name("add_reserve"),
+                    [
+                        pre_setup.token_a.contract_address,  # token
+                        pre_setup.z_token_a.contract_address,  # z_token
+                        pre_setup.irm_a.contract_address,  # interest_rate_model
+                        5 * 10**26,  # collateral_factor
+                        8 * 10**26,  # borrow_factor
+                        10 * 10**25,  # reserve_factor
+                    ],
+                ),
+            ]
+        ),
+        [
+            Event(
+                from_address=pre_setup.market.contract_address,
+                keys=[get_selector_from_name("NewReserve")],
+                data=[
+                    pre_setup.token_a.contract_address,  # token
+                    pre_setup.z_token_a.contract_address,  # z_token
+                    18,  # decimals
+                    pre_setup.irm_a.contract_address,  # interest_rate_model
+                    5 * 10**26,  # collateral_factor
+                    8 * 10**26,  # borrow_factor
+                    10 * 10**25,  # reserve_factor
+                ],
+            ),
+        ],
+    )
 
 
 @pytest.mark.asyncio

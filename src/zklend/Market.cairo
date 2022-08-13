@@ -32,7 +32,17 @@ const SECONDS_PER_YEAR = 31536000
 # Events
 #
 
-# TODO: add `NewReserve` event
+@event
+func NewReserve(
+    token : felt,
+    z_token : felt,
+    decimals : felt,
+    interest_rate_model : felt,
+    collateral_factor : felt,
+    borrow_factor : felt,
+    reserve_factor : felt,
+):
+end
 
 @event
 func TreasuryUpdate(new_treasury : felt):
@@ -717,6 +727,16 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         raw_total_debt=0,
     )
     reserves.write(token, new_reserve)
+
+    NewReserve.emit(
+        token,
+        z_token,
+        decimals,
+        interest_rate_model,
+        collateral_factor,
+        borrow_factor,
+        reserve_factor,
+    )
 
     AccumulatorsSync.emit(token, SCALE, SCALE)
 
