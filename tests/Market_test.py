@@ -7,6 +7,7 @@ from utils.contracts import (
     CAIRO_PATH,
     PATH_DEFAULT_INTEREST_RATE_MODEL,
     PATH_ERC20,
+    PATH_FLASH_LOAN_HANDLER,
     PATH_MARKET,
     PATH_MOCK_PRICE_ORACLE,
     PATH_PROXY,
@@ -224,6 +225,7 @@ async def setup(pre_setup: Setup) -> Setup:
                     5 * 10**26,  # collateral_factor
                     8 * 10**26,  # borrow_factor
                     10 * 10**25,  # reserve_factor
+                    5 * 10**25,  # flash_loan_fee
                 ],
             ),
             Call(
@@ -236,6 +238,7 @@ async def setup(pre_setup: Setup) -> Setup:
                     75 * 10**25,  # collateral_factor
                     9 * 10**26,  # borrow_factor
                     20 * 10**25,  # reserve_factor
+                    1 * 10**25,  # flash_loan_fee
                 ],
             ),
             Call(
@@ -379,6 +382,7 @@ async def test_new_reserve_event(pre_setup: Setup):
                         5 * 10**26,  # collateral_factor
                         8 * 10**26,  # borrow_factor
                         10 * 10**25,  # reserve_factor
+                        5 * 10**25,  # flash_loan_fee
                     ],
                 ),
             ]
@@ -395,6 +399,7 @@ async def test_new_reserve_event(pre_setup: Setup):
                     5 * 10**26,  # collateral_factor
                     8 * 10**26,  # borrow_factor
                     10 * 10**25,  # reserve_factor
+                    5 * 10**25,  # flash_loan_fee
                 ],
             ),
         ],
@@ -1472,3 +1477,63 @@ async def test_event_emission(setup: Setup):
             ),
         ],
     )
+
+
+# Flash loan sanity test
+# TODO: add more test cases for flash loans
+@pytest.mark.asyncio
+async def test_flashloan(setup_with_loan: Setup):
+    setup = setup_with_loan
+    callback = await setup.starknet.deploy(
+        source=PATH_FLASH_LOAN_HANDLER,
+        constructor_calldata=[],
+        cairo_path=[CAIRO_PATH],
+    )
+
+    # Sends enough token to callback contract so that it can return funds
+    await setup.alice.execute(
+        [
+            Call(
+                setup_with_loan.token_a.contract_address,
+                get_selector_from_name("transfer"),
+                [
+                    callback.contract_address,  # recipient
+                    *Uint256.from_int(1_000 * 10**18),  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Returning 1 unit less than required
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    callback.contract_address,
+                    get_selector_from_name("take_flash_loan"),
+                    [
+                        setup.market.contract_address,  # market_addr
+                        setup.token_a.contract_address,  # token
+                        100 * 10**18,  # amount
+                        105 * 10**18 - 1,  # return_amount
+                    ],
+                ),
+            ]
+        ),
+        "Market: insufficient amount repaid",
+    )
+
+    setup.alice.execute(
+        [
+            Call(
+                callback.contract_address,
+                get_selector_from_name("take_flash_loan"),
+                [
+                    setup.market.contract_address,  # market_addr
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # amount
+                    105 * 10**18,  # return_amount
+                ],
+            ),
+        ]
+    ),

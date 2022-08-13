@@ -2,6 +2,7 @@
 
 %lang starknet
 
+from zklend.interfaces.callback.IZklendFlashCallback import IZklendFlashCallback
 from zklend.interfaces.IInterestRateModel import IInterestRateModel
 from zklend.interfaces.IPriceOracle import IPriceOracle
 from zklend.interfaces.IZToken import IZToken
@@ -42,6 +43,7 @@ func NewReserve(
     collateral_factor : felt,
     borrow_factor : felt,
     reserve_factor : felt,
+    flash_loan_fee : felt,
 ):
 end
 
@@ -73,6 +75,11 @@ end
 func Repayment(user : felt, token : felt, raw_amount : felt, face_amount : felt):
 end
 
+# NOTE: `fee` indicates the minimum fee amount to be paid back. It's possible more is actually paid.
+@event
+func FlashLoan(receiver : felt, token : felt, amount : felt, fee : felt):
+end
+
 @event
 func CollateralEnabled(user : felt, token : felt):
 end
@@ -100,6 +107,7 @@ struct ReserveData:
     member current_lending_rate : felt
     member current_borrowing_rate : felt
     member raw_total_debt : felt
+    member flash_loan_fee : felt
 end
 
 #
@@ -438,6 +446,16 @@ func liquidate{
     return ()
 end
 
+@external
+func flash_loan{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    receiver : felt, token : felt, amount : felt, calldata_len : felt, calldata : felt*
+):
+    ReentrancyGuard._start()
+    wrapped_flash_loan(receiver, token, amount, calldata_len, calldata)
+    ReentrancyGuard._end()
+    return ()
+end
+
 #
 # Permissioned entrypoints
 #
@@ -450,6 +468,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     collateral_factor : felt,
     borrow_factor : felt,
     reserve_factor : felt,
+    flash_loan_fee : felt,
 ):
     Ownable.assert_only_owner()
 
@@ -481,6 +500,11 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         assert_le_felt(borrow_factor, SCALE)
     end
 
+    # Checks flash_loan_fee range
+    with_attr error_message("Market: flash loan fee out of range"):
+        assert_le_felt(flash_loan_fee, SCALE)
+    end
+
     # TODO: check `z_token` has the same `decimals`
     # TODO: check `decimals` range
     let (decimals) = IERC20.decimals(contract_address=token)
@@ -510,6 +534,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         current_lending_rate=0,
         current_borrowing_rate=0,
         raw_total_debt=0,
+        flash_loan_fee=flash_loan_fee,
     )
     reserves.write(token, new_reserve)
 
@@ -521,6 +546,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         collateral_factor,
         borrow_factor,
         reserve_factor,
+        flash_loan_fee,
     )
 
     AccumulatorsSync.emit(token, SCALE, SCALE)
@@ -580,6 +606,7 @@ func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
@@ -670,6 +697,7 @@ func wrapped_deposit{
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
@@ -761,6 +789,7 @@ func wrapped_borrow{
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
@@ -865,9 +894,6 @@ func wrapped_disable_collateral{
     return ()
 end
 
-# With the current design, liquidators are responsible for calculating the maximum amount allowed.
-# We simply check collteralization factor is below one after liquidation.
-# TODO: calculate max amount on-chain because compute is cheap on StarkNet.
 func wrapped_liquidate{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt, debt_token : felt, amount : felt, collateral_token : felt):
@@ -915,6 +941,94 @@ func wrapped_liquidate{
     with_attr error_message("Market: invalid liquidation"):
         assert_undercollateralized(user)
     end
+
+    return ()
+end
+
+func wrapped_flash_loan{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    receiver : felt, token : felt, amount : felt, calldata_len : felt, calldata : felt*
+):
+    alloc_locals
+
+    let (this_address) = get_contract_address()
+
+    # Validates input
+    with_attr error_message("Market: zero amount"):
+        assert_not_zero(amount)
+    end
+    let (reserve) = reserves.read(token)
+    with_attr error_message("Market: reserve not enabled"):
+        assert_not_zero(reserve.enabled)
+    end
+
+    # Calculates minimum balance after the callback
+    let (loan_fee) = SafeDecimalMath.mul(amount, reserve.flash_loan_fee)
+    let (reserve_balance_before_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+    let (min_balance) = SafeMath.add(reserve_balance_before, loan_fee)
+
+    # Sends funds to receiver
+    let (amount_u256) = SafeCast.felt_to_uint256(amount)
+    let (transfer_success) = IERC20.transfer(
+        contract_address=token, recipient=receiver, amount=amount_u256
+    )
+    with_attr error_message("Market: transfer failed"):
+        assert_not_zero(transfer_success)
+    end
+
+    # Calls receiver callback (which should return funds to this contract)
+    IZklendFlashCallback.zklend_flash_callback(
+        contract_address=receiver, calldata_len=calldata_len, calldata=calldata
+    )
+
+    # Checks if enough funds have been returned
+    let (reserve_balance_after_u256) = IERC20.balanceOf(
+        contract_address=token, account=this_address
+    )
+    let (reserve_balance_after) = SafeCast.uint256_to_felt(reserve_balance_after_u256)
+    with_attr error_message("Market: insufficient amount repaid"):
+        assert_le_felt(min_balance, reserve_balance_after)
+    end
+
+    # Updates accumulators
+    let (_, updated_debt_accumulator) = update_accumulators(token)
+
+    # Reads from storage again to reflect updates from `update_accumulator`
+    # (unnecessary if we implement partial struct update with selected fields)
+    let (updated_reserve) = reserves.read(token)
+
+    # Updates rates
+    let (scaled_up_total_debt) = SafeDecimalMath.mul(
+        updated_reserve.raw_total_debt, updated_debt_accumulator
+    )
+    let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+        contract_address=updated_reserve.interest_rate_model,
+        reserve_balance=reserve_balance_after,
+        total_debt=scaled_up_total_debt,
+    )
+    reserves.write(
+        token,
+        ReserveData(
+        enabled=updated_reserve.enabled,
+        decimals=updated_reserve.decimals,
+        z_token_address=updated_reserve.z_token_address,
+        interest_rate_model=updated_reserve.interest_rate_model,
+        collateral_factor=updated_reserve.collateral_factor,
+        borrow_factor=updated_reserve.borrow_factor,
+        reserve_factor=updated_reserve.reserve_factor,
+        last_update_timestamp=updated_reserve.last_update_timestamp,
+        lending_accumulator=updated_reserve.lending_accumulator,
+        debt_accumulator=updated_reserve.debt_accumulator,
+        current_lending_rate=new_lending_rate,
+        current_borrowing_rate=new_borrowing_rate,
+        raw_total_debt=updated_reserve.raw_total_debt,
+        flash_loan_fee=updated_reserve.flash_loan_fee,
+        ),
+    )
+
+    FlashLoan.emit(receiver, token, amount, loan_fee)
 
     return ()
 end
@@ -1176,6 +1290,7 @@ func withdraw_internal{
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
@@ -1295,6 +1410,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         current_lending_rate=new_lending_rate,
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
@@ -1364,6 +1480,7 @@ func update_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         current_lending_rate=reserve.current_lending_rate,
         current_borrowing_rate=reserve.current_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
+        flash_loan_fee=reserve.flash_loan_fee,
         ),
     )
 
