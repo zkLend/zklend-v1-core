@@ -16,9 +16,11 @@ PATH_ZIG_ZAG_ORACLE_ADAPTER = str(
 PATH_DEFAULT_INTEREST_RATE_MODEL = str(
     CONTRACT_ROOT / "irms" / "DefaultInterestRateModel.cairo"
 )
-PATH_ERC20 = str(SRC_ROOT / "openzeppelin" / "token" / "erc20" / "ERC20.cairo")
+PATH_ERC20 = str(
+    SRC_ROOT / "openzeppelin" / "token" / "erc20" / "presets" / "ERC20.cairo"
+)
 PATH_ERC20_MINTABLE = str(
-    SRC_ROOT / "openzeppelin" / "token" / "erc20" / "ERC20_Mintable.cairo"
+    SRC_ROOT / "openzeppelin" / "token" / "erc20" / "presets" / "ERC20Mintable.cairo"
 )
 
 PATH_MOCK_SAFE_CAST = str(TESTS_ROOT / "mocks" / "SafeCast_mock.cairo")

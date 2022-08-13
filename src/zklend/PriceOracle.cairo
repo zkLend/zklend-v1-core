@@ -11,7 +11,7 @@ from zklend.interfaces.IPriceOracleSource import IPriceOracleSource
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 
-from openzeppelin.access.ownable import Ownable
+from openzeppelin.access.ownable.library import Ownable
 
 #
 # Storage

@@ -22,9 +22,9 @@ from starkware.starknet.common.syscalls import (
     get_contract_address,
 )
 
-from openzeppelin.access.ownable import Ownable
+from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.upgrades.library import Proxy, Proxy_initialized
-from openzeppelin.token.erc20.interfaces.IERC20 import IERC20
+from openzeppelin.token.erc20.IERC20 import IERC20
 
 const SECONDS_PER_YEAR = 31536000
 

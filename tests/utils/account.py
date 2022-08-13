@@ -20,6 +20,7 @@ ACCOUNT_CONTRACT_FILE = str(
     / "src"
     / "openzeppelin"
     / "account"
+    / "presets"
     / "Account.cairo"
 )
 
