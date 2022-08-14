@@ -7,6 +7,7 @@ from zklend.internals.Market.events import (
     TreasuryUpdate,
     AccumulatorsSync,
     ReserveFactorUpdate,
+    LiquidationBonusUpdate,
     Deposit,
     Withdrawal,
     Borrowing,
@@ -359,6 +360,46 @@ namespace External:
         )
 
         ReserveFactorUpdate.emit(token, new_reserve_factor)
+
+        return ()
+    end
+
+    func set_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, new_liquidation_bonus : felt
+    ):
+        alloc_locals
+
+        Ownable.assert_only_owner()
+
+        # No need to update accumulators or rates
+
+        let (reserve) = reserves.read(token)
+        with_attr error_message("Market: reserve not found"):
+            assert_not_zero(reserve.z_token_address)
+        end
+
+        reserves.write(
+            token,
+            Structs.ReserveData(
+            enabled=reserve.enabled,
+            decimals=reserve.decimals,
+            z_token_address=reserve.z_token_address,
+            interest_rate_model=reserve.interest_rate_model,
+            collateral_factor=reserve.collateral_factor,
+            borrow_factor=reserve.borrow_factor,
+            reserve_factor=reserve.reserve_factor,
+            last_update_timestamp=reserve.last_update_timestamp,
+            lending_accumulator=reserve.lending_accumulator,
+            debt_accumulator=reserve.debt_accumulator,
+            current_lending_rate=reserve.current_lending_rate,
+            current_borrowing_rate=reserve.current_borrowing_rate,
+            raw_total_debt=reserve.raw_total_debt,
+            flash_loan_fee=reserve.flash_loan_fee,
+            liquidation_bonus=new_liquidation_bonus,
+            ),
+        )
+
+        LiquidationBonusUpdate.emit(token, new_liquidation_bonus)
 
         return ()
     end

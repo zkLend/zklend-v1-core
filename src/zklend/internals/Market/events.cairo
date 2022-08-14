@@ -29,6 +29,10 @@ func ReserveFactorUpdate(token : felt, new_reserve_factor : felt):
 end
 
 @event
+func LiquidationBonusUpdate(token : felt, new_liquidation_bonus : felt):
+end
+
+@event
 func Deposit(user : felt, token : felt, face_amount : felt):
 end
 
