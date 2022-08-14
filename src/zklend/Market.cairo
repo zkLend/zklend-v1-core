@@ -75,7 +75,7 @@ end
 func Repayment(user : felt, token : felt, raw_amount : felt, face_amount : felt):
 end
 
-# NOTE: `fee` indicates the minimum fee amount to be paid back. It's possible more is actually paid.
+# NOTE: `fee` indicates the actual fee paid back, which could be higher than the minimum required.
 @event
 func FlashLoan(receiver : felt, token : felt, amount : felt, fee : felt):
 end
@@ -1028,7 +1028,8 @@ func wrapped_flash_loan{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
         ),
     )
 
-    FlashLoan.emit(receiver, token, amount, loan_fee)
+    let (actual_fee) = SafeMath.sub(reserve_balance_after, reserve_balance_before)
+    FlashLoan.emit(receiver, token, amount, actual_fee)
 
     return ()
 end
