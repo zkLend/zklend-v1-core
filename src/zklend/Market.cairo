@@ -75,6 +75,17 @@ end
 func Repayment(user : felt, token : felt, raw_amount : felt, face_amount : felt):
 end
 
+@event
+func Liquidation(
+    liquidator : felt,
+    user : felt,
+    debt_token : felt,
+    debt_amount : felt,
+    collateral_token : felt,
+    collateral_amount : felt,
+):
+end
+
 # NOTE: `fee` indicates the actual fee paid back, which could be higher than the minimum required.
 @event
 func FlashLoan(receiver : felt, token : felt, amount : felt, fee : felt):
@@ -941,6 +952,10 @@ func wrapped_liquidate{
     with_attr error_message("Market: invalid liquidation"):
         assert_undercollateralized(user)
     end
+
+    Liquidation.emit(
+        caller, user, debt_token, amount, collateral_token, equivalent_collateral_amount
+    )
 
     return ()
 end
