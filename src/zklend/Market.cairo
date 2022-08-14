@@ -44,6 +44,7 @@ func NewReserve(
     borrow_factor : felt,
     reserve_factor : felt,
     flash_loan_fee : felt,
+    liquidation_bonus : felt,
 ):
 end
 
@@ -119,6 +120,7 @@ struct ReserveData:
     member current_borrowing_rate : felt
     member raw_total_debt : felt
     member flash_loan_fee : felt
+    member liquidation_bonus : felt
 end
 
 #
@@ -480,6 +482,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
     borrow_factor : felt,
     reserve_factor : felt,
     flash_loan_fee : felt,
+    liquidation_bonus : felt,
 ):
     Ownable.assert_only_owner()
 
@@ -546,6 +549,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         current_borrowing_rate=0,
         raw_total_debt=0,
         flash_loan_fee=flash_loan_fee,
+        liquidation_bonus=liquidation_bonus,
     )
     reserves.write(token, new_reserve)
 
@@ -558,6 +562,7 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
         borrow_factor,
         reserve_factor,
         flash_loan_fee,
+        liquidation_bonus,
     )
 
     AccumulatorsSync.emit(token, SCALE, SCALE)
@@ -618,6 +623,7 @@ func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -709,6 +715,7 @@ func wrapped_deposit{
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -801,6 +808,7 @@ func wrapped_borrow{
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -929,7 +937,6 @@ func wrapped_liquidate{
     end
 
     # Liquidator withdraws collateral from user
-    # TODO: account for liquidation bonus
     let (oracle_addr) = oracle.read()
     let (debt_token_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=debt_token)
     let (collateral_token_price) = IPriceOracle.get_price(
@@ -941,11 +948,16 @@ func wrapped_liquidate{
     let (equivalent_collateral_amount) = SafeDecimalMath.div_decimals(
         debt_value_repaid, collateral_token_price, collateral_reserve.decimals
     )
+    let (one_plus_liquidation_bonus) = SafeMath.add(SCALE, collateral_reserve.liquidation_bonus)
+    let (collateral_amount_after_bonus) = SafeDecimalMath.mul(
+        equivalent_collateral_amount, one_plus_liquidation_bonus
+    )
+
     IZToken.move(
         contract_address=collateral_reserve.z_token_address,
         from_account=user,
         to_account=caller,
-        amount=equivalent_collateral_amount,
+        amount=collateral_amount_after_bonus,
     )
 
     # Checks user collateralization factor after liquidation
@@ -954,7 +966,7 @@ func wrapped_liquidate{
     end
 
     Liquidation.emit(
-        caller, user, debt_token, amount, collateral_token, equivalent_collateral_amount
+        caller, user, debt_token, amount, collateral_token, collateral_amount_after_bonus
     )
 
     return ()
@@ -1040,6 +1052,7 @@ func wrapped_flash_loan{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=updated_reserve.raw_total_debt,
         flash_loan_fee=updated_reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -1307,6 +1320,7 @@ func withdraw_internal{
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -1427,6 +1441,7 @@ func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         current_borrowing_rate=new_borrowing_rate,
         raw_total_debt=raw_total_debt_after,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
@@ -1497,6 +1512,7 @@ func update_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
         current_borrowing_rate=reserve.current_borrowing_rate,
         raw_total_debt=reserve.raw_total_debt,
         flash_loan_fee=reserve.flash_loan_fee,
+        liquidation_bonus=reserve.liquidation_bonus,
         ),
     )
 
