@@ -338,26 +338,8 @@ namespace External:
             total_debt=scaled_up_total_debt,
         )
 
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=new_reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=reserve.raw_total_debt,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_reserve_factor(token, new_reserve_factor)
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         ReserveFactorUpdate.emit(token, new_reserve_factor)
 
@@ -378,26 +360,7 @@ namespace External:
             assert_not_zero(reserve.z_token_address)
         end
 
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=reserve.current_lending_rate,
-            current_borrowing_rate=reserve.current_borrowing_rate,
-            raw_total_debt=reserve.raw_total_debt,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=new_liquidation_bonus,
-            ),
-        )
+        reserves.write_liquidation_bonus(token, new_liquidation_bonus)
 
         LiquidationBonusUpdate.emit(token, new_liquidation_bonus)
 
@@ -632,7 +595,6 @@ namespace Internal:
         #
 
         # Updates interest rate
-        # TODO: check if there's a way to persist only one field (using syscall directly?)
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         )
@@ -646,26 +608,7 @@ namespace Internal:
             reserve_balance=reserve_balance_after,
             total_debt=scaled_up_total_debt,
         )
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=reserve.raw_total_debt,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         Deposit.emit(caller, token, amount)
 
@@ -734,7 +677,6 @@ namespace Internal:
         raw_user_debts.write(caller, token, raw_user_debt_after)
 
         # Updates interest rate
-        # TODO: check if there's a way to persist only one field (using syscall directly?)
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         )
@@ -748,26 +690,8 @@ namespace Internal:
             reserve_balance=reserve_balance_after,
             total_debt=scaled_up_total_debt_after,
         )
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=raw_total_debt_after,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
+        reserves.write_raw_total_debt(token, raw_total_debt_after)
 
         Borrowing.emit(caller, token, scaled_down_amount, amount)
 
@@ -988,8 +912,9 @@ namespace Internal:
         # Updates accumulators
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        # Reads from storage again to reflect updates from `update_accumulator`
-        # (unnecessary if we implement partial struct update with selected fields)
+        # Reads from storage again to reflect any update during the loan.
+        # (though changes should be impossible with the reentrancy guard in place)
+        # IMPORTANT: if we remove the reentrancy guard, this becomes necessary
         let (updated_reserve) = reserves.read(token)
 
         # Updates rates
@@ -1001,26 +926,7 @@ namespace Internal:
             reserve_balance=reserve_balance_after,
             total_debt=scaled_up_total_debt,
         )
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=updated_reserve.enabled,
-            decimals=updated_reserve.decimals,
-            z_token_address=updated_reserve.z_token_address,
-            interest_rate_model=updated_reserve.interest_rate_model,
-            collateral_factor=updated_reserve.collateral_factor,
-            borrow_factor=updated_reserve.borrow_factor,
-            reserve_factor=updated_reserve.reserve_factor,
-            last_update_timestamp=updated_reserve.last_update_timestamp,
-            lending_accumulator=updated_reserve.lending_accumulator,
-            debt_accumulator=updated_reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=updated_reserve.raw_total_debt,
-            flash_loan_fee=updated_reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         let (actual_fee) = SafeMath.sub(reserve_balance_after, reserve_balance_before)
         FlashLoan.emit(receiver, token, amount, actual_fee)
@@ -1281,7 +1187,6 @@ namespace Internal:
         let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
 
         # Updates interest rate
-        # TODO: check if there's a way to persist only one field (using syscall directly?)
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         )
@@ -1295,26 +1200,7 @@ namespace Internal:
             reserve_balance=reserve_balance_after,
             total_debt=scaled_up_total_debt,
         )
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=reserve.raw_total_debt,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         Withdrawal.emit(caller, token, amount_burnt)
 
@@ -1404,7 +1290,6 @@ namespace Internal:
         raw_user_debts.write(beneficiary, token, raw_user_debt_after)
 
         # Updates interest rate
-        # TODO: check if there's a way to persist only one field (using syscall directly?)
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         )
@@ -1418,26 +1303,8 @@ namespace Internal:
             reserve_balance=reserve_balance_after,
             total_debt=scaled_up_total_debt_after,
         )
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=reserve.last_update_timestamp,
-            lending_accumulator=reserve.lending_accumulator,
-            debt_accumulator=reserve.debt_accumulator,
-            current_lending_rate=new_lending_rate,
-            current_borrowing_rate=new_borrowing_rate,
-            raw_total_debt=raw_total_debt_after,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
-        )
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
+        reserves.write_raw_total_debt(token, raw_total_debt_after)
 
         #
         # Interactions
@@ -1488,26 +1355,8 @@ namespace Internal:
         # `get_debt_accumulator`
         let (reserve) = reserves.read(token)
 
-        # TODO: use a manually-written storage namespace for updating only relevant fields
-        reserves.write(
-            token,
-            Structs.ReserveData(
-            enabled=reserve.enabled,
-            decimals=reserve.decimals,
-            z_token_address=reserve.z_token_address,
-            interest_rate_model=reserve.interest_rate_model,
-            collateral_factor=reserve.collateral_factor,
-            borrow_factor=reserve.borrow_factor,
-            reserve_factor=reserve.reserve_factor,
-            last_update_timestamp=block_timestamp,
-            lending_accumulator=updated_lending_accumulator,
-            debt_accumulator=updated_debt_accumulator,
-            current_lending_rate=reserve.current_lending_rate,
-            current_borrowing_rate=reserve.current_borrowing_rate,
-            raw_total_debt=reserve.raw_total_debt,
-            flash_loan_fee=reserve.flash_loan_fee,
-            liquidation_bonus=reserve.liquidation_bonus,
-            ),
+        reserves.write_accumulators(
+            token, block_timestamp, updated_lending_accumulator, updated_debt_accumulator
         )
 
         # No need to check whether tresury address is zero as amount would be zero anyways

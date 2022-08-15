@@ -16,6 +16,7 @@ end
 # NOTE: not using member offsets (e.g. `Structs.ReserveData.enabled` for `0`) on purpose to make
 # any mistake more visible.
 # IMPORTANT: update this namespace whenever ReserveData is changed!!
+# TODO: add test cases for all functions
 namespace reserves:
     from starkware.starknet.common.storage import normalize_address
     from starkware.starknet.common.syscalls import storage_read, storage_write
@@ -138,6 +139,67 @@ namespace reserves:
         storage_write(address=storage_addr + 13, value=[cast(&value, felt) + 13])
         # liquidation_bonus
         storage_write(address=storage_addr + 14, value=[cast(&value, felt) + 14])
+
+        return ()
+    end
+
+    func write_raw_total_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, value : felt
+    ):
+        let (storage_addr) = addr(token)
+
+        # raw_total_debt
+        storage_write(address=storage_addr + 12, value=value)
+
+        return ()
+    end
+
+    func write_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, value : felt
+    ):
+        let (storage_addr) = addr(token)
+
+        # reserve_factor
+        storage_write(address=storage_addr + 6, value=value)
+
+        return ()
+    end
+
+    func write_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, value : felt
+    ):
+        let (storage_addr) = addr(token)
+
+        # liquidation_bonus
+        storage_write(address=storage_addr + 14, value=value)
+
+        return ()
+    end
+
+    func write_accumulators{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, timestamp : felt, lending_accumulator, debt_accumulator
+    ):
+        let (storage_addr) = addr(token)
+
+        # last_update_timestamp
+        storage_write(address=storage_addr + 7, value=timestamp)
+        # lending_accumulator
+        storage_write(address=storage_addr + 8, value=lending_accumulator)
+        # debt_accumulator
+        storage_write(address=storage_addr + 9, value=debt_accumulator)
+
+        return ()
+    end
+
+    func write_rates{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt, lending_rate : felt, borrowing_rate : felt
+    ):
+        let (storage_addr) = addr(token)
+
+        # current_lending_rate
+        storage_write(address=storage_addr + 10, value=lending_rate)
+        # current_borrowing_rate
+        storage_write(address=storage_addr + 11, value=borrowing_rate)
 
         return ()
     end
