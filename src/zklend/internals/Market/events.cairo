@@ -25,6 +25,10 @@ func AccumulatorsSync(token : felt, lending_accumulator : felt, debt_accumulator
 end
 
 @event
+func InterestRatesSync(token : felt, lending_rate : felt, borrowing_rate : felt):
+end
+
+@event
 func ReserveFactorUpdate(token : felt, new_reserve_factor : felt):
 end
 
