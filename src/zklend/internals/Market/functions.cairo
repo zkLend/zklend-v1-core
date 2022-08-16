@@ -321,25 +321,18 @@ namespace External:
         # balance decreases)
         let (_, updated_debt_accumulator) = Internal.update_accumulators(token)
 
-        # No need to check existence
-        let (reserve) = reserves.read(token)
-
         # Updates rates too
         # TODO: double-check whether updating the rates is necessary here
-        let (this_address) = get_contract_address()
-        let (reserve_balance_u256) = IERC20.balanceOf(contract_address=token, account=this_address)
-        let (reserve_balance) = SafeCast.uint256_to_felt(reserve_balance_u256)
-        let (scaled_up_total_debt) = SafeDecimalMath.mul(
-            reserve.raw_total_debt, updated_debt_accumulator
-        )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=reserve.interest_rate_model,
-            reserve_balance=reserve_balance,
-            total_debt=scaled_up_total_debt,
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=FALSE,
+            abs_delta_reserve_balance=0,
+            is_delta_raw_total_debt_negative=FALSE,
+            abs_delta_raw_total_debt=0,
         )
 
         reserves.write_reserve_factor(token, new_reserve_factor)
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         ReserveFactorUpdate.emit(token, new_reserve_factor)
 
@@ -577,20 +570,14 @@ namespace Internal:
         #
 
         # Updates interest rate
-        let (reserve_balance_before_u256) = IERC20.balanceOf(
-            contract_address=token, account=this_address
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=FALSE,
+            abs_delta_reserve_balance=amount,
+            is_delta_raw_total_debt_negative=FALSE,
+            abs_delta_raw_total_debt=0,
         )
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
-        let (reserve_balance_after) = SafeMath.add(reserve_balance_before, amount)
-        let (scaled_up_total_debt) = SafeDecimalMath.mul(
-            reserve.raw_total_debt, updated_debt_accumulator
-        )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=reserve.interest_rate_model,
-            reserve_balance=reserve_balance_after,
-            total_debt=scaled_up_total_debt,
-        )
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         Deposit.emit(caller, token, amount)
 
@@ -648,7 +635,6 @@ namespace Internal:
         let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
-        let (raw_total_debt_after) = SafeMath.add(reserve.raw_total_debt, scaled_down_amount)
 
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token)
@@ -656,21 +642,14 @@ namespace Internal:
         raw_user_debts.write(caller, token, raw_user_debt_after)
 
         # Updates interest rate
-        let (reserve_balance_before_u256) = IERC20.balanceOf(
-            contract_address=token, account=this_address
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=TRUE,
+            abs_delta_reserve_balance=amount,
+            is_delta_raw_total_debt_negative=FALSE,
+            abs_delta_raw_total_debt=scaled_down_amount,
         )
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
-        let (reserve_balance_after) = SafeMath.sub(reserve_balance_before, amount)
-        let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
-            raw_total_debt_after, updated_debt_accumulator
-        )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=reserve.interest_rate_model,
-            reserve_balance=reserve_balance_after,
-            total_debt=scaled_up_total_debt_after,
-        )
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
-        reserves.write_raw_total_debt(token, raw_total_debt_after)
 
         Borrowing.emit(caller, token, scaled_down_amount, amount)
 
@@ -878,21 +857,15 @@ namespace Internal:
         # Updates accumulators
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        # Reads from storage again to reflect any update during the loan.
-        # (though changes should be impossible with the reentrancy guard in place)
-        # IMPORTANT: if we remove the reentrancy guard, this becomes necessary
-        let (updated_reserve) = reserves.read(token)
-
         # Updates rates
-        let (scaled_up_total_debt) = SafeDecimalMath.mul(
-            updated_reserve.raw_total_debt, updated_debt_accumulator
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=FALSE,
+            abs_delta_reserve_balance=0,
+            is_delta_raw_total_debt_negative=FALSE,
+            abs_delta_raw_total_debt=0,
         )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=updated_reserve.interest_rate_model,
-            reserve_balance=reserve_balance_after,
-            total_debt=scaled_up_total_debt,
-        )
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         let (actual_fee) = SafeMath.sub(reserve_balance_after, reserve_balance_before)
         FlashLoan.emit(receiver, token, amount, actual_fee)
@@ -1150,20 +1123,14 @@ namespace Internal:
         let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
 
         # Updates interest rate
-        let (reserve_balance_before_u256) = IERC20.balanceOf(
-            contract_address=token, account=this_address
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=TRUE,
+            abs_delta_reserve_balance=amount_burnt,
+            is_delta_raw_total_debt_negative=FALSE,
+            abs_delta_raw_total_debt=0,
         )
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
-        let (reserve_balance_after) = SafeMath.sub(reserve_balance_before, amount_burnt)
-        let (scaled_up_total_debt) = SafeDecimalMath.mul(
-            reserve.raw_total_debt, updated_debt_accumulator
-        )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=reserve.interest_rate_model,
-            reserve_balance=reserve_balance_after,
-            total_debt=scaled_up_total_debt,
-        )
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
 
         Withdrawal.emit(caller, token, amount_burnt)
 
@@ -1242,29 +1209,20 @@ namespace Internal:
         # Effects
         #
 
-        let (raw_total_debt_after) = SafeMath.sub(reserve.raw_total_debt, raw_amount)
-
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
         let (raw_user_debt_after) = SafeMath.sub(raw_user_debt_before, raw_amount)
         raw_user_debts.write(beneficiary, token, raw_user_debt_after)
 
         # Updates interest rate
-        let (reserve_balance_before_u256) = IERC20.balanceOf(
-            contract_address=token, account=this_address
+        Internal.update_rates_and_raw_total_debt(
+            token=token,
+            updated_debt_accumulator=updated_debt_accumulator,
+            is_delta_reserve_balance_negative=FALSE,
+            abs_delta_reserve_balance=repay_amount,
+            is_delta_raw_total_debt_negative=TRUE,
+            abs_delta_raw_total_debt=raw_amount,
         )
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
-        let (reserve_balance_after) = SafeMath.add(reserve_balance_before, repay_amount)
-        let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
-            raw_total_debt_after, updated_debt_accumulator
-        )
-        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
-            contract_address=reserve.interest_rate_model,
-            reserve_balance=reserve_balance_after,
-            total_debt=scaled_up_total_debt_after,
-        )
-        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
-        reserves.write_raw_total_debt(token, raw_total_debt_after)
 
         #
         # Interactions
@@ -1337,6 +1295,77 @@ namespace Internal:
             lending_accumulator=updated_lending_accumulator,
             debt_accumulator=updated_debt_accumulator,
         )
+    end
+
+    func update_rates_and_raw_total_debt{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(
+        token : felt,
+        updated_debt_accumulator : felt,
+        is_delta_reserve_balance_negative : felt,
+        abs_delta_reserve_balance : felt,
+        is_delta_raw_total_debt_negative : felt,
+        abs_delta_raw_total_debt : felt,
+    ):
+        alloc_locals
+
+        let (this_address) = get_contract_address()
+
+        let (
+            interest_rate_model, raw_total_debt_before
+        ) = reserves.read_interest_rate_model_and_raw_total_debt(token)
+
+        # Makes sure reserve exists
+        # (the caller must check it's enabled if needed since it's not validated here)
+        with_attr error_message("Market: reserve not found"):
+            assert_not_zero(interest_rate_model)
+        end
+
+        let (reserve_balance_before_u256) = IERC20.balanceOf(
+            contract_address=token, account=this_address
+        )
+        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256)
+
+        local reserve_balance_after : felt
+        if is_delta_reserve_balance_negative == TRUE:
+            let (res) = SafeMath.sub(reserve_balance_before, abs_delta_reserve_balance)
+            reserve_balance_after = res
+        else:
+            let (res) = SafeMath.add(reserve_balance_before, abs_delta_reserve_balance)
+            reserve_balance_after = res
+        end
+
+        local raw_total_debt_after : felt
+        if is_delta_raw_total_debt_negative == TRUE:
+            let (res) = SafeMath.sub(raw_total_debt_before, abs_delta_raw_total_debt)
+            raw_total_debt_after = res
+        else:
+            let (res) = SafeMath.add(raw_total_debt_before, abs_delta_raw_total_debt)
+            raw_total_debt_after = res
+        end
+
+        let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
+            raw_total_debt_after, updated_debt_accumulator
+        )
+        let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(
+            contract_address=interest_rate_model,
+            reserve_balance=reserve_balance_after,
+            total_debt=scaled_up_total_debt_after,
+        )
+
+        # Writes to storage
+        reserves.write_rates(token, new_lending_rate, new_borrowing_rate)
+        if raw_total_debt_before != raw_total_debt_after:
+            reserves.write_raw_total_debt(token, raw_total_debt_after)
+        else:
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+        end
+
+        # TODO: add interest rate update event
+
+        return ()
     end
 
     # Checks reserve exists and returns full reserve data

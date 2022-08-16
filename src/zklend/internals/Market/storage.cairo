@@ -143,6 +143,24 @@ namespace reserves:
         return ()
     end
 
+    func read_interest_rate_model_and_raw_total_debt{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(token : felt) -> (interest_rate_model : felt, raw_total_debt : felt):
+        let (storage_addr) = addr(token)
+
+        # interest_rate_model
+        let (__storage_var_temp3) = storage_read(address=storage_addr + 3)
+        # raw_total_debt
+        let (__storage_var_temp12) = storage_read(address=storage_addr + 12)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (interest_rate_model=__storage_var_temp3, raw_total_debt=__storage_var_temp12)
+    end
+
     func write_raw_total_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         token : felt, value : felt
     ):
