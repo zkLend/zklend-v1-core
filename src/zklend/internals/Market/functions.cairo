@@ -355,10 +355,7 @@ namespace External:
 
         # No need to update accumulators or rates
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not found"):
-            assert_not_zero(reserve.z_token_address)
-        end
+        let (reserve) = Internal.assert_reserve_exists(token)
 
         reserves.write_liquidation_bonus(token, new_liquidation_bonus)
 
@@ -405,10 +402,7 @@ namespace View:
     ) -> (res : felt):
         alloc_locals
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -447,10 +441,7 @@ namespace View:
     ) -> (res : felt):
         alloc_locals
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -476,10 +467,7 @@ namespace View:
     }(token : felt) -> (res : felt):
         alloc_locals
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         # Nothing for treasury if address set to zero
         let (treasury_addr) = treasury.read()
@@ -517,10 +505,7 @@ namespace View:
     }(token : felt) -> (debt : felt):
         alloc_locals
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (debt_accumulator) = get_debt_accumulator(token)
         let (scaled_up_debt) = SafeDecimalMath.mul(reserve.raw_total_debt, debt_accumulator)
@@ -583,10 +568,7 @@ namespace Internal:
         #
         # Checks
         #
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (reserve_index) = reserve_indices.read(token)
 
@@ -663,10 +645,7 @@ namespace Internal:
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
         let (raw_total_debt_after) = SafeMath.add(reserve.raw_total_debt, scaled_down_amount)
@@ -754,10 +733,7 @@ namespace Internal:
         let (caller) = get_caller_address()
 
         # Technically we don't need `reserve` here but we need to check existence
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not found"):
-            assert_not_zero(reserve.z_token_address)
-        end
+        let (reserve) = Internal.assert_reserve_exists(token)
 
         let (reserve_index) = reserve_indices.read(token)
 
@@ -779,10 +755,7 @@ namespace Internal:
         let (caller) = get_caller_address()
 
         # Technically we don't need `reserve` here but we need to check existence
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not found"):
-            assert_not_zero(reserve.z_token_address)
-        end
+        let (reserve) = Internal.assert_reserve_exists(token)
 
         let (reserve_index) = reserve_indices.read(token)
 
@@ -808,12 +781,8 @@ namespace Internal:
 
         let (caller) = get_caller_address()
 
-        let (debt_reserve) = reserves.read(debt_token)
-        let (collateral_reserve) = reserves.read(collateral_token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(debt_reserve.enabled)
-            assert_not_zero(collateral_reserve.enabled)
-        end
+        let (debt_reserve) = Internal.assert_reserve_enabled(debt_token)
+        let (collateral_reserve) = Internal.assert_reserve_enabled(collateral_token)
 
         # Liquidator repays debt for user
         repay_debt_route_internal(caller, user, debt_token, amount)
@@ -873,10 +842,7 @@ namespace Internal:
         with_attr error_message("Market: zero amount"):
             assert_not_zero(amount)
         end
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         # Calculates minimum balance after the callback
         let (loan_fee) = SafeDecimalMath.mul(amount, reserve.flash_loan_fee)
@@ -1174,10 +1140,7 @@ namespace Internal:
         # Checks
         #
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         #
         # Effects
@@ -1234,10 +1197,7 @@ namespace Internal:
     ):
         alloc_locals
 
-        let (reserve) = reserves.read(token)
-        with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
-        end
+        let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (updated_debt_accumulator) = View.get_debt_accumulator(token)
 
@@ -1377,5 +1337,27 @@ namespace Internal:
             lending_accumulator=updated_lending_accumulator,
             debt_accumulator=updated_debt_accumulator,
         )
+    end
+
+    # Checks reserve exists and returns full reserve data
+    func assert_reserve_exists{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (reserve : Structs.ReserveData):
+        let (reserve) = reserves.read(token)
+        with_attr error_message("Market: reserve not found"):
+            assert_not_zero(reserve.z_token_address)
+        end
+        return (reserve=reserve)
+    end
+
+    # Checks reserve is enabled and returns full reserve data
+    func assert_reserve_enabled{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (reserve : Structs.ReserveData):
+        let (reserve) = reserves.read(token)
+        with_attr error_message("Market: reserve not enabled"):
+            assert_not_zero(reserve.enabled)
+        end
+        return (reserve=reserve)
     end
 end
