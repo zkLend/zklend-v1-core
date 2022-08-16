@@ -6,6 +6,7 @@ from zklend.internals.Market.events import (
     NewReserve,
     TreasuryUpdate,
     AccumulatorsSync,
+    InterestRatesSync,
     ReserveFactorUpdate,
     LiquidationBonusUpdate,
     Deposit,
@@ -299,6 +300,7 @@ namespace External:
         )
 
         AccumulatorsSync.emit(token, SCALE, SCALE)
+        InterestRatesSync.emit(token, 0, 0)
 
         let (current_reserve_count) = reserve_count.read()
         reserve_count.write(current_reserve_count + 1)
@@ -1363,7 +1365,7 @@ namespace Internal:
             tempvar range_check_ptr = range_check_ptr
         end
 
-        # TODO: add interest rate update event
+        InterestRatesSync.emit(token, new_lending_rate, new_borrowing_rate)
 
         return ()
     end
