@@ -143,16 +143,24 @@ namespace External:
         return ()
     end
 
-    func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, amount : felt
-    ):
+    func repay{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt, amount : felt):
         ReentrancyGuard._start()
         Internal.repay(token, amount)
         ReentrancyGuard._end()
         return ()
     end
 
-    func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+    func repay_all{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt):
         ReentrancyGuard._start()
         Internal.repay_all(token)
         ReentrancyGuard._end()
@@ -656,10 +664,14 @@ namespace Internal:
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
 
+        # TODO: check `scaled_down_amount` is not zero
+
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token)
         let (raw_user_debt_after) = SafeMath.add(raw_user_debt_before, scaled_down_amount)
         raw_user_debts.write(caller, token, raw_user_debt_after)
+
+        set_user_has_debt(caller, token, raw_user_debt_before, raw_user_debt_after)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
@@ -693,9 +705,12 @@ namespace Internal:
         return ()
     end
 
-    func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, amount : felt
-    ):
+    func repay{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt, amount : felt):
         alloc_locals
 
         with_attr error_message("Market: zero amount"):
@@ -710,7 +725,12 @@ namespace Internal:
         return ()
     end
 
-    func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+    func repay_all{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt):
         alloc_locals
 
         let (caller) = get_caller_address()
@@ -901,12 +921,38 @@ namespace Internal:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(user : felt, reserve_index : felt, use : felt):
+        return set_user_flag(user, reserve_index * 2, use)
+    end
+
+    # ASSUMPTION: `token` maps to a valid reserve
+    func set_user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, token : felt, debt_before : felt, debt_after):
+        let (reserve_index) = reserve_indices.read(token)
+        if debt_before == 0 and debt_after != 0:
+            return set_user_flag(user, reserve_index * 2 + 1, TRUE)
+        end
+        if debt_before != 0 and debt_after == 0:
+            return set_user_flag(user, reserve_index * 2 + 1, FALSE)
+        end
+        return ()
+    end
+
+    func set_user_flag{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, offset : felt, set : felt):
         alloc_locals
 
-        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (reserve_slot) = Math.shl(1, offset)
         let (existing_map) = user_flags.read(user)
 
-        if use == TRUE:
+        if set == TRUE:
             let (new_map) = bitwise_or(existing_map, reserve_slot)
         else:
             let (inverse_slot) = bitwise_not(reserve_slot)
@@ -1187,7 +1233,10 @@ namespace Internal:
 
     # `amount` with `0` means repaying all
     func repay_debt_route_internal{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
     }(repayer : felt, beneficiary : felt, token : felt, amount : felt) -> (
         raw_amount : felt, face_amount : felt
     ):
@@ -1215,9 +1264,12 @@ namespace Internal:
 
     # ASSUMPTION: `repay_amount` = `raw_amount` * Debt Accumulator
     # ASSUMPTION: it's always called by `repay_debt_route_internal`
-    func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        repayer : felt, beneficiary : felt, token : felt, repay_amount : felt, raw_amount : felt
-    ):
+    func repay_debt_internal{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(repayer : felt, beneficiary : felt, token : felt, repay_amount : felt, raw_amount : felt):
         alloc_locals
 
         let (this_address) = get_contract_address()
@@ -1242,6 +1294,8 @@ namespace Internal:
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
         let (raw_user_debt_after) = SafeMath.sub(raw_user_debt_before, raw_amount)
         raw_user_debts.write(beneficiary, token, raw_user_debt_after)
+
+        set_user_has_debt(beneficiary, token, raw_user_debt_before, raw_user_debt_after)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
