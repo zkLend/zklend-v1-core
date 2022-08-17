@@ -410,6 +410,33 @@ async def test_new_reserve_event(pre_setup: Setup):
     )
 
 
+# Context: there was a bug in commit 98cc54b that incorrectly enables collateral usage when calling
+# the disable function on an already-disabled collteral.
+@pytest.mark.asyncio
+async def test_disabling_already_disabled_collateral(setup: Setup):
+    # Token is disabled as collateral by default
+    assert (
+        await setup.market.get_collateral_usage(setup.alice.address).call()
+    ).result.usage & (1 << 0) == 0
+
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("disable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
+                ],
+            ),
+        ]
+    )
+
+    # Token should still be disabled
+    assert (
+        await setup.market.get_collateral_usage(setup.alice.address).call()
+    ).result.usage & (1 << 0) == 0
+
+
 @pytest.mark.asyncio
 async def test_token_transferred_on_deposit(setup: Setup):
     await setup.alice.execute(
