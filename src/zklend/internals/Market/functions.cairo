@@ -58,6 +58,9 @@ from openzeppelin.upgrades.library import Proxy, Proxy_initialized
 
 const SECONDS_PER_YEAR = 31536000
 
+# 0b1010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010
+const DEBT_FLAG_FILTER = 1206167596222043702328864427173832373471562340267089208744349833415761767082
+
 # This namespace is mostly used for adding reentrancy guard
 namespace External:
     #
@@ -564,6 +567,26 @@ namespace View:
             return (is_undercollateralized=TRUE)
         end
     end
+
+    func is_collateral_enabled{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, token : felt) -> (enabled : felt):
+        let (reserve_index) = reserve_indices.read(token)
+        let (enabled) = Internal.is_used_as_collateral(user, reserve_index)
+        return (enabled=enabled)
+    end
+
+    func user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt) -> (has_debt : felt):
+        return Internal.user_has_debt(user)
+    end
 end
 
 namespace Internal:
@@ -976,6 +999,20 @@ namespace Internal:
         let (is_used) = is_not_zero(and_result)
 
         return (is_used=is_used)
+    end
+
+    func user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt) -> (has_debt : felt):
+        let (map) = user_flags.read(user)
+
+        let (and_result) = bitwise_and(map, DEBT_FLAG_FILTER)
+        let (has_debt) = is_not_zero(and_result)
+
+        return (has_debt=has_debt)
     end
 
     func assert_undercollateralized{

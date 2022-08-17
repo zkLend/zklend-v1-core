@@ -652,6 +652,11 @@ async def test_borrow_token(setup: Setup):
         ]
     )
 
+    # Debt flag not set before borrowing
+    assert (
+        await setup.market.user_has_debt(setup.alice.address).call()
+    ).result.has_debt == 0
+
     # TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
     # For borrowing TST_B: 2,500 * 0.9 = 2,250 USD
     # Maximum borrow: 22.5 TST_B
@@ -683,6 +688,11 @@ async def test_borrow_token(setup: Setup):
             )
         ]
     )
+
+    # Debt flag  set after borrowing
+    assert (
+        await setup.market.user_has_debt(setup.alice.address).call()
+    ).result.has_debt == 1
 
     assert (
         await setup.token_b.balanceOf(setup.alice.address).call()

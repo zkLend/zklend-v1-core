@@ -86,6 +86,20 @@ func is_user_undercollateralized{
     return View.is_user_undercollateralized(user)
 end
 
+@view
+func is_collateral_enabled{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, token : felt) -> (enabled : felt):
+    return View.is_collateral_enabled(user, token)
+end
+
+@view
+func user_has_debt{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (has_debt : felt):
+    return View.user_has_debt(user)
+end
+
 #
 # Permissionless entrypoints
 #
