@@ -823,11 +823,13 @@ namespace Internal:
         let (debt_reserve) = Internal.assert_reserve_enabled(debt_token)
         let (collateral_reserve) = Internal.assert_reserve_enabled(collateral_token)
 
+        let (collateral_reserve_index) = reserve_indices.read(collateral_token)
+
         # Liquidator repays debt for user
         repay_debt_route_internal(caller, user, debt_token, amount)
 
         # Can only take from assets being used as collateral
-        let (is_collateral) = is_used_as_collateral(user, 0)
+        let (is_collateral) = is_used_as_collateral(user, collateral_reserve_index)
         with_attr error_message("Market: cannot withdraw non-collateral token"):
             assert is_collateral = TRUE
         end
