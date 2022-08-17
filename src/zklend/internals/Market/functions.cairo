@@ -572,8 +572,7 @@ namespace View:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(user : felt, token : felt) -> (enabled : felt):
-        let (reserve_index) = reserve_indices.read(token)
-        let (enabled) = Internal.is_used_as_collateral(user, reserve_index)
+        let (enabled) = Internal.is_used_as_collateral(user, token)
         return (enabled=enabled)
     end
 
@@ -772,9 +771,7 @@ namespace Internal:
 
         Internal.assert_reserve_exists(token)
 
-        let (reserve_index) = reserve_indices.read(token)
-
-        set_collateral_usage(caller, reserve_index, TRUE)
+        set_collateral_usage(caller, token, TRUE)
 
         CollateralEnabled.emit(caller, token)
 
@@ -793,9 +790,7 @@ namespace Internal:
 
         Internal.assert_reserve_exists(token)
 
-        let (reserve_index) = reserve_indices.read(token)
-
-        set_collateral_usage(caller, reserve_index, FALSE)
+        set_collateral_usage(caller, token, FALSE)
 
         # It's easier to post-check collateralization factor
         with_attr error_message("Market: insufficient collateral"):
@@ -820,13 +815,11 @@ namespace Internal:
         let (debt_reserve) = Internal.assert_reserve_enabled(debt_token)
         let (collateral_reserve) = Internal.assert_reserve_enabled(collateral_token)
 
-        let (collateral_reserve_index) = reserve_indices.read(collateral_token)
-
         # Liquidator repays debt for user
         repay_debt_route_internal(caller, user, debt_token, amount)
 
         # Can only take from assets being used as collateral
-        let (is_collateral) = is_used_as_collateral(user, collateral_reserve_index)
+        let (is_collateral) = is_used_as_collateral(user, collateral_token)
         with_attr error_message("Market: cannot withdraw non-collateral token"):
             assert is_collateral = TRUE
         end
@@ -936,12 +929,14 @@ namespace Internal:
     # Internal
     #
 
+    # ASSUMPTION: `token` maps to a valid reserve
     func set_collateral_usage{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt, reserve_index : felt, use : felt):
+    }(user : felt, token : felt, use : felt):
+        let (reserve_index) = reserve_indices.read(token)
         return set_user_flag(user, reserve_index * 2, use)
     end
 
@@ -984,12 +979,16 @@ namespace Internal:
         return ()
     end
 
+    # ASSUMPTION: `token` maps to a valid reserve
     func is_used_as_collateral{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt, reserve_index : felt) -> (is_used : felt):
+    }(user : felt, token : felt) -> (is_used : felt):
+        alloc_locals
+
+        let (reserve_index) = reserve_indices.read(token)
         let (reserve_slot) = Math.shl(1, reserve_index * 2)
         let (existing_map) = user_flags.read(user)
 
@@ -1217,8 +1216,6 @@ namespace Internal:
 
         let (reserve) = Internal.assert_reserve_enabled(token)
 
-        let (reserve_index) = reserve_indices.read(token)
-
         #
         # Effects
         #
@@ -1253,7 +1250,7 @@ namespace Internal:
 
         # It's easier to post-check collateralization factor, at the cost of making failed
         # transactions more expensive.
-        let (is_asset_used_as_collateral) = is_used_as_collateral(user, reserve_index)
+        let (is_asset_used_as_collateral) = is_used_as_collateral(user, token)
         if is_asset_used_as_collateral == TRUE:
             with_attr error_message("Market: insufficient collateral"):
                 assert_not_undercollateralized(user)
