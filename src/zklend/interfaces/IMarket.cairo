@@ -13,6 +13,9 @@ namespace IMarket:
     func is_user_undercollateralized(user : felt) -> (is_undercollateralized : felt):
     end
 
+    func is_collateral_enabled(user : felt, token : felt) -> (enabled : felt):
+    end
+
     func flash_loan(
         receiver : felt, token : felt, amount : felt, calldata_len : felt, calldata : felt*
     ):
