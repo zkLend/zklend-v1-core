@@ -95,7 +95,13 @@ namespace External:
             assert_not_zero(caller)
         end
 
-        Internal.transfer_internal(caller, recipient, amount, TRUE)
+        Internal.transfer_internal(
+            from_account=caller,
+            to_account=recipient,
+            amount=amount,
+            is_amount_raw=FALSE,
+            check_collateralization=TRUE,
+        )
 
         return (success=TRUE)
     end
@@ -126,7 +132,13 @@ namespace External:
         let (new_allowance_u256) = SafeCast.felt_to_uint256(new_allowance)
         Approval.emit(sender, caller, new_allowance_u256)
 
-        Internal.transfer_internal(sender, recipient, amount, TRUE)
+        Internal.transfer_internal(
+            from_account=sender,
+            to_account=recipient,
+            amount=amount,
+            is_amount_raw=FALSE,
+            check_collateralization=TRUE,
+        )
 
         return (success=TRUE)
     end
@@ -172,7 +184,13 @@ namespace External:
         end
 
         let (sender_raw_balance) = raw_balances.read(caller)
-        Internal.transfer_raw_internal(caller, recipient, sender_raw_balance, TRUE)
+        Internal.transfer_internal(
+            from_account=caller,
+            to_account=recipient,
+            amount=sender_raw_balance,
+            is_amount_raw=TRUE,
+            check_collateralization=TRUE,
+        )
 
         return ()
     end
@@ -277,7 +295,13 @@ namespace External:
         Internal.only_market()
 
         # No need to check collateralization as `Market` only moves for liquidation
-        return Internal.transfer_internal(from_account, to_account, amount, FALSE)
+        return Internal.transfer_internal(
+            from_account=from_account,
+            to_account=to_account,
+            amount=amount,
+            is_amount_raw=FALSE,
+            check_collateralization=FALSE,
+        )
     end
 end
 
@@ -393,52 +417,27 @@ namespace Internal:
     end
 
     func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        from_account : felt, to_account : felt, amount : felt, check_collateralization : felt
+        from_account : felt,
+        to_account : felt,
+        amount : felt,
+        is_amount_raw : felt,
+        check_collateralization : felt,
     ):
         alloc_locals
 
         let (accumulator) = get_accumulator()
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
-        with_attr error_message("ZToken: invalid transfer amount"):
-            assert_not_zero(scaled_down_amount)
-        end
-
-        # No need to check from balance first because SafeMath will fail
-        let (raw_from_balance_before) = raw_balances.read(from_account)
-        let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, scaled_down_amount)
-        raw_balances.write(from_account, raw_from_balance_after)
-
-        let (raw_to_balance_before) = raw_balances.read(to_account)
-        let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, scaled_down_amount)
-        raw_balances.write(to_account, raw_to_balance_after)
-
-        let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
-        Transfer.emit(from_account, to_account, amount_u256)
-        RawTransfer.emit(from_account, to_account, scaled_down_amount, accumulator, amount)
-
-        if check_collateralization == TRUE:
-            # TODO: skip check if token is not used as collateral
-            # TODO: skip check if sender has no debt
-            let (market_addr) = market.read()
-            let (is_undercollateralized) = IMarket.is_user_undercollateralized(
-                contract_address=market_addr, user=from_account
-            )
-
-            with_attr error_message("ZToken: invalid collateralization after transfer"):
-                assert is_undercollateralized = FALSE
-            end
-
-            return ()
+        local raw_amount : felt
+        local face_amount : felt
+        if is_amount_raw == TRUE:
+            let (scaled_up_amount) = SafeDecimalMath.mul(amount, accumulator)
+            raw_amount = amount
+            face_amount = scaled_up_amount
         else:
-            return ()
+            let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
+            raw_amount = scaled_down_amount
+            face_amount = amount
         end
-    end
-
-    func transfer_raw_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        from_account : felt, to_account : felt, raw_amount : felt, check_collateralization : felt
-    ):
-        alloc_locals
 
         with_attr error_message("ZToken: invalid transfer amount"):
             assert_not_zero(raw_amount)
@@ -453,14 +452,10 @@ namespace Internal:
         let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, raw_amount)
         raw_balances.write(to_account, raw_to_balance_after)
 
-        let (accumulator) = get_accumulator()
-        let (scaled_up_amount) = SafeDecimalMath.mul(raw_amount, accumulator)
+        let (face_amount_u256 : Uint256) = SafeCast.felt_to_uint256(face_amount)
+        Transfer.emit(from_account, to_account, face_amount_u256)
+        RawTransfer.emit(from_account, to_account, raw_amount, accumulator, face_amount)
 
-        let (scaled_up_amount_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_amount)
-        Transfer.emit(from_account, to_account, scaled_up_amount_u256)
-        RawTransfer.emit(from_account, to_account, raw_amount, accumulator, scaled_up_amount)
-
-        # TODO: refactor duplicate code
         if check_collateralization == TRUE:
             # TODO: skip check if token is not used as collateral
             # TODO: skip check if sender has no debt
