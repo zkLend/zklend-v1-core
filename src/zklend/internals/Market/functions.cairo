@@ -375,7 +375,7 @@ namespace External:
 
         # No need to update accumulators or rates
 
-        let (reserve) = Internal.assert_reserve_exists(token)
+        Internal.assert_reserve_exists(token)
 
         reserves.write_liquidation_bonus(token, new_liquidation_bonus)
 
@@ -610,8 +610,6 @@ namespace Internal:
         #
         let (reserve) = Internal.assert_reserve_enabled(token)
 
-        let (reserve_index) = reserve_indices.read(token)
-
         #
         # Interactions
         #
@@ -677,11 +675,10 @@ namespace Internal:
         alloc_locals
 
         let (caller) = get_caller_address()
-        let (this_address) = get_contract_address()
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
         with_attr error_message("Market: invalid amount"):
@@ -1212,8 +1209,6 @@ namespace Internal:
     }(user : felt, token : felt, amount : felt):
         alloc_locals
 
-        let (this_address) = get_contract_address()
-
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
         #
@@ -1285,7 +1280,7 @@ namespace Internal:
     ):
         alloc_locals
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
 
         let (updated_debt_accumulator) = View.get_debt_accumulator(token)
 
@@ -1322,9 +1317,6 @@ namespace Internal:
         #
         # Checks
         #
-
-        # No need to check `enabled` as it's already done in `repay_debt_route_internal`
-        let (reserve) = reserves.read(token)
 
         # No need to check if user is overpaying, as `SafeMath.sub` below will fail anyways
         # No need to check collateral value. Always allow repaying even if it's undercollateralized
