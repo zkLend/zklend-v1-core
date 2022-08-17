@@ -257,7 +257,7 @@ namespace reserves:
         return (interest_rate_model=__storage_var_temp3, raw_total_debt=__storage_var_temp12)
     end
 
-    func read_decimals_and_z_token_address_and_collateral_factor{
+    func read_for_get_user_collateral_usd_value_for_token{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
     }(token : felt) -> (decimals : felt, z_token_address : felt, collateral_factor : felt):
         let (storage_addr) = addr(token)
@@ -278,6 +278,100 @@ namespace reserves:
             decimals=__storage_var_temp1,
             z_token_address=__storage_var_temp2,
             collateral_factor=__storage_var_temp4,
+        )
+    end
+
+    func read_for_get_lending_accumulator{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(token : felt) -> (
+        reserve_factor : felt,
+        last_update_timestamp : felt,
+        lending_accumulator : felt,
+        current_lending_rate : felt,
+    ):
+        let (storage_addr) = addr(token)
+
+        # reserve_factor
+        let (__storage_var_temp6) = storage_read(address=storage_addr + 6)
+        # last_update_timestamp
+        let (__storage_var_temp7) = storage_read(address=storage_addr + 7)
+        # lending_accumulator
+        let (__storage_var_temp8) = storage_read(address=storage_addr + 8)
+        # current_lending_rate
+        let (__storage_var_temp10) = storage_read(address=storage_addr + 10)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (
+            reserve_factor=__storage_var_temp6,
+            last_update_timestamp=__storage_var_temp7,
+            lending_accumulator=__storage_var_temp8,
+            current_lending_rate=__storage_var_temp10,
+        )
+    end
+
+    func read_for_get_debt_accumulator{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(token : felt) -> (
+        last_update_timestamp : felt, debt_accumulator : felt, current_borrowing_rate : felt
+    ):
+        let (storage_addr) = addr(token)
+
+        # last_update_timestamp
+        let (__storage_var_temp7) = storage_read(address=storage_addr + 7)
+        # debt_accumulator
+        let (__storage_var_temp9) = storage_read(address=storage_addr + 9)
+        # current_borrowing_rate
+        let (__storage_var_temp11) = storage_read(address=storage_addr + 11)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (
+            last_update_timestamp=__storage_var_temp7,
+            debt_accumulator=__storage_var_temp9,
+            current_borrowing_rate=__storage_var_temp11,
+        )
+    end
+
+    func read_for_get_pending_treasury_amount{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(token : felt) -> (
+        z_token_address : felt,
+        reserve_factor : felt,
+        last_update_timestamp : felt,
+        lending_accumulator : felt,
+        current_lending_rate : felt,
+    ):
+        let (storage_addr) = addr(token)
+
+        # z_token_address
+        let (__storage_var_temp2) = storage_read(address=storage_addr + 2)
+        # reserve_factor
+        let (__storage_var_temp6) = storage_read(address=storage_addr + 6)
+        # last_update_timestamp
+        let (__storage_var_temp7) = storage_read(address=storage_addr + 7)
+        # lending_accumulator
+        let (__storage_var_temp8) = storage_read(address=storage_addr + 8)
+        # current_lending_rate
+        let (__storage_var_temp10) = storage_read(address=storage_addr + 10)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (
+            z_token_address=__storage_var_temp2,
+            reserve_factor=__storage_var_temp6,
+            last_update_timestamp=__storage_var_temp7,
+            lending_accumulator=__storage_var_temp8,
+            current_lending_rate=__storage_var_temp10,
         )
     end
 
