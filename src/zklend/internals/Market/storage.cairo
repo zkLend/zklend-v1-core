@@ -143,6 +143,54 @@ namespace reserves:
         return ()
     end
 
+    func read_decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (decimals : felt):
+        let (storage_addr) = addr(token)
+
+        # decimals
+        let (__storage_var_temp1) = storage_read(address=storage_addr + 1)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (decimals=__storage_var_temp1)
+    end
+
+    func read_z_token_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (z_token_address : felt):
+        let (storage_addr) = addr(token)
+
+        # z_token_address
+        let (__storage_var_temp2) = storage_read(address=storage_addr + 2)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (z_token_address=__storage_var_temp2)
+    end
+
+    func read_borrow_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (borrow_factor : felt):
+        let (storage_addr) = addr(token)
+
+        # borrow_factor
+        let (__storage_var_temp5) = storage_read(address=storage_addr + 5)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (borrow_factor=__storage_var_temp5)
+    end
+
     func read_interest_rate_model_and_raw_total_debt{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
     }(token : felt) -> (interest_rate_model : felt, raw_total_debt : felt):
@@ -159,6 +207,30 @@ namespace reserves:
         tempvar range_check_ptr = range_check_ptr
 
         return (interest_rate_model=__storage_var_temp3, raw_total_debt=__storage_var_temp12)
+    end
+
+    func read_decimals_and_z_token_address_and_collateral_factor{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+    }(token : felt) -> (decimals : felt, z_token_address : felt, collateral_factor : felt):
+        let (storage_addr) = addr(token)
+
+        # decimals
+        let (__storage_var_temp1) = storage_read(address=storage_addr + 1)
+        # z_token_address
+        let (__storage_var_temp2) = storage_read(address=storage_addr + 2)
+        # collateral_factor
+        let (__storage_var_temp4) = storage_read(address=storage_addr + 4)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (
+            decimals=__storage_var_temp1,
+            z_token_address=__storage_var_temp2,
+            collateral_factor=__storage_var_temp4,
+        )
     end
 
     func write_raw_total_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
