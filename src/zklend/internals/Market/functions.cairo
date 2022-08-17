@@ -1045,6 +1045,12 @@ namespace Internal:
     }(user : felt) -> (res : felt):
         alloc_locals
 
+        # Skips expensive collateralization check if user has no debt at all
+        let (has_debt) = user_has_debt(user)
+        if has_debt == FALSE:
+            return (res=TRUE)
+        end
+
         let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
         let (is_not_undercollateralized) = is_le_felt(collateral_required, collateral_value)
         return (res=is_not_undercollateralized)
