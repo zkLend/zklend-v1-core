@@ -689,7 +689,7 @@ async def test_borrow_token(setup: Setup):
         ]
     )
 
-    # Debt flag  set after borrowing
+    # Debt flag set after borrowing
     assert (
         await setup.market.user_has_debt(setup.alice.address).call()
     ).result.has_debt == 1
