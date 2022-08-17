@@ -18,7 +18,7 @@ namespace Math:
     func shl{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(a : felt, b : felt) -> (res : felt):
         alloc_locals
 
-        # For left shifting we pretend there're only 251 bits in `flt`.
+        # For left shifting we pretend there're only 251 bits in `felt`.
         let (le_250) = is_le_felt(b, 250)
         if le_250 == 1:
             let (shift) = pow(2, b)

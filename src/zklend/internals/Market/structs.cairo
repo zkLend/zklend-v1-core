@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 namespace Structs:
-    # TODO: compress small fields into bitmap
     struct ReserveData:
         member enabled : felt
         member decimals : felt

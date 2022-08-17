@@ -51,7 +51,8 @@ namespace External:
         market.write(_market)
         underlying.write(_underlying)
 
-        # TODO: check `decimals` range
+        # We probably don't need to range check `_decimals` as it's checked against the real token
+        # when adding reserves anyways.
         token_name.write(_name)
         token_symbol.write(_symbol)
         token_decimals.write(_decimals)

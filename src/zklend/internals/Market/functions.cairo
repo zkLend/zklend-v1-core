@@ -73,7 +73,10 @@ namespace External:
         end
         Proxy_initialized.write(TRUE)
 
-        # TODO: check for zero addresses
+        with_attr error_message("Market: zero address"):
+            assert_not_zero(owner)
+            assert_not_zero(_oracle)
+        end
 
         Ownable.initializer(owner)
         oracle.write(_oracle)
@@ -248,22 +251,24 @@ namespace External:
             assert_le_felt(borrow_factor, SCALE)
         end
 
-        # Checks flash_loan_fee range
-        with_attr error_message("Market: flash loan fee out of range"):
-            assert_le_felt(flash_loan_fee, SCALE)
+        # Checks reserve_factor range
+        with_attr error_message("Market: reserve factor out of range"):
+            assert_le_felt(reserve_factor, SCALE)
         end
 
-        # TODO: check `z_token` has the same `decimals`
-        # TODO: check `decimals` range
+        # There's no need to limit `flash_loan_fee` range as it's charged on top of the loan amount
+
         let (decimals) = IERC20.decimals(contract_address=token)
+        let (z_token_decimals) = IERC20.decimals(contract_address=z_token)
+        with_attr error_message("Market: token decimals mismatch"):
+            assert decimals = z_token_decimals
+        end
 
         # Checks underlying token of the Z token contract
         let (z_token_underlying) = IZToken.underlying_token(contract_address=z_token)
         with_attr error_message("Market: underlying token mismatch"):
             assert z_token_underlying = token
         end
-
-        # TODO: limit reserve count
 
         #
         # Effects
@@ -303,9 +308,16 @@ namespace External:
         InterestRatesSync.emit(token, 0, 0)
 
         let (current_reserve_count) = reserve_count.read()
-        reserve_count.write(current_reserve_count + 1)
+        let new_reserve_count = current_reserve_count + 1
+        reserve_count.write(new_reserve_count)
         reserve_tokens.write(current_reserve_count, token)
         reserve_indices.write(token, current_reserve_count)
+
+        # We can only have up to 251 reserves due to the use of bitmap for user collateral usage
+        # until we will change to use more than 1 felt for that.
+        with_attr error_message("Market: too many reserves"):
+            assert_le_felt(new_reserve_count, 251)
+        end
 
         return ()
     end
@@ -317,14 +329,16 @@ namespace External:
 
         Ownable.assert_only_owner()
 
-        # TODO: check new factor range
+        # Checks reserve_factor range
+        with_attr error_message("Market: reserve factor out of range"):
+            assert_le_felt(new_reserve_factor, SCALE)
+        end
 
         # We must update accumulators first, otherwise bad things might happen (e.g. user collateral
         # balance decreases)
         let (_, updated_debt_accumulator) = Internal.update_accumulators(token)
 
-        # Updates rates too
-        # TODO: double-check whether updating the rates is necessary here
+        # Looks like it isn't necessary to also update rates here but still doing it just to be safe
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -340,6 +354,8 @@ namespace External:
 
         return ()
     end
+
+    # TODO: add setter for flash loan fee
 
     func set_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         token : felt, new_liquidation_bonus : felt
@@ -609,7 +625,8 @@ namespace Internal:
             assert_not_zero(amount)
         end
 
-        return withdraw_internal(token, amount)
+        let (caller) = get_caller_address()
+        return withdraw_internal(caller, token, amount)
     end
 
     func withdraw_all{
@@ -618,7 +635,8 @@ namespace Internal:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(token : felt):
-        return withdraw_internal(token, 0)
+        let (caller) = get_caller_address()
+        return withdraw_internal(caller, token, 0)
     end
 
     func borrow{
@@ -1102,11 +1120,9 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(token : felt, amount : felt):
+    }(user : felt, token : felt, amount : felt):
         alloc_locals
 
-        # TODO: forbid `get_caller_address()` in non-external methods
-        let (caller) = get_caller_address()
         let (this_address) = get_contract_address()
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
@@ -1117,12 +1133,14 @@ namespace Internal:
 
         let (reserve) = Internal.assert_reserve_enabled(token)
 
+        let (reserve_index) = reserve_indices.read(token)
+
         #
         # Effects
         #
 
         # NOTE: it's fine to call out to external contract here before state update since it's trusted
-        let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, caller, amount)
+        let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, user, amount)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
@@ -1134,7 +1152,7 @@ namespace Internal:
             abs_delta_raw_total_debt=0,
         )
 
-        Withdrawal.emit(caller, token, amount_burnt)
+        Withdrawal.emit(user, token, amount_burnt)
 
         #
         # Interactions
@@ -1143,16 +1161,26 @@ namespace Internal:
         # Gives underlying tokens to user
         let (amount_burnt_u256 : Uint256) = SafeCast.felt_to_uint256(amount_burnt)
         let (transfer_success) = IERC20.transfer(
-            contract_address=token, recipient=caller, amount=amount_burnt_u256
+            contract_address=token, recipient=user, amount=amount_burnt_u256
         )
         with_attr error_message("Market: transfer failed"):
             assert_not_zero(transfer_success)
         end
 
-        # It's easier to post-check collateralization factor
-        # TODO: skip the check if not used as collateral
-        with_attr error_message("Market: insufficient collateral"):
-            assert_not_undercollateralized(caller)
+        # It's easier to post-check collateralization factor, at the cost of making failed
+        # transactions more expensive.
+        # TODO: also don't check when the user has no debt at all
+        let (is_asset_used_as_collateral) = is_used_as_collateral(user, reserve_index)
+        if is_asset_used_as_collateral == TRUE:
+            with_attr error_message("Market: insufficient collateral"):
+                assert_not_undercollateralized(user)
+            end
+        else:
+            # No need to check if the asset is not used as collateral at all
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+            tempvar bitwise_ptr = bitwise_ptr
         end
 
         return ()

@@ -4,6 +4,7 @@
 
 from zklend.libraries.SafeMath import SafeMath
 
+from starkware.cairo.common.math import assert_le_felt
 from starkware.cairo.common.pow import pow
 
 const SCALE = 10 ** 27
@@ -27,7 +28,10 @@ namespace SafeDecimalMath:
     func mul_decimals{range_check_ptr}(a : felt, b : felt, b_decimals : felt) -> (res : felt):
         alloc_locals
 
-        # TODO: check `b_decimals` range
+        # `pow` overflows if `b_decimals` > 75,
+        with_attr error_message("Market: decimlas out of range"):
+            assert_le_felt(b_decimals, 75)
+        end
 
         let (scaled_product) = SafeMath.mul(a, b)
         let (scale) = pow(10, b_decimals)
@@ -36,7 +40,10 @@ namespace SafeDecimalMath:
     end
 
     func div_decimals{range_check_ptr}(a : felt, b : felt, b_decimals : felt) -> (res : felt):
-        # TODO: check `b_decimals` range
+        # `pow` overflows if `b_decimals` > 75,
+        with_attr error_message("Market: decimlas out of range"):
+            assert_le_felt(b_decimals, 75)
+        end
 
         let (scale) = pow(10, b_decimals)
         let (scaled_a) = SafeMath.mul(a, scale)
