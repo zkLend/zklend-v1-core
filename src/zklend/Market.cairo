@@ -73,10 +73,10 @@ func get_user_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
 end
 
 @view
-func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func get_user_flags{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     user : felt
-) -> (usage : felt):
-    return View.get_collateral_usage(user)
+) -> (map : felt):
+    return View.get_user_flags(user)
 end
 
 @view
@@ -84,6 +84,20 @@ func is_user_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(user : felt) -> (is_undercollateralized : felt):
     return View.is_user_undercollateralized(user)
+end
+
+@view
+func is_collateral_enabled{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt, token : felt) -> (enabled : felt):
+    return View.is_collateral_enabled(user, token)
+end
+
+@view
+func user_has_debt{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user : felt) -> (has_debt : felt):
+    return View.user_has_debt(user)
 end
 
 #
@@ -119,14 +133,16 @@ func borrow{
 end
 
 @external
-func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, amount : felt
-):
+func repay{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt, amount : felt):
     return External.repay(token, amount)
 end
 
 @external
-func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+func repay_all{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(token : felt):
     return External.repay_all(token)
 end
 

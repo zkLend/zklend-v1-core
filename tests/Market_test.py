@@ -416,8 +416,8 @@ async def test_new_reserve_event(pre_setup: Setup):
 async def test_disabling_already_disabled_collateral(setup: Setup):
     # Token is disabled as collateral by default
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 0
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 0
 
     await setup.alice.execute(
         [
@@ -433,8 +433,8 @@ async def test_disabling_already_disabled_collateral(setup: Setup):
 
     # Token should still be disabled
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 0
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 0
 
 
 @pytest.mark.asyncio
@@ -487,8 +487,8 @@ async def test_token_transferred_on_deposit(setup: Setup):
 
     # Token is set as collateral by default
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 1
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 1
 
 
 @pytest.mark.asyncio
@@ -652,6 +652,11 @@ async def test_borrow_token(setup: Setup):
         ]
     )
 
+    # Debt flag not set before borrowing
+    assert (
+        await setup.market.user_has_debt(setup.alice.address).call()
+    ).result.has_debt == 0
+
     # TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
     # For borrowing TST_B: 2,500 * 0.9 = 2,250 USD
     # Maximum borrow: 22.5 TST_B
@@ -683,6 +688,11 @@ async def test_borrow_token(setup: Setup):
             )
         ]
     )
+
+    # Debt flag set after borrowing
+    assert (
+        await setup.market.user_has_debt(setup.alice.address).call()
+    ).result.has_debt == 1
 
     assert (
         await setup.token_b.balanceOf(setup.alice.address).call()

@@ -25,7 +25,7 @@ from zklend.internals.Market.storage import (
     reserve_count,
     reserve_tokens,
     reserve_indices,
-    collateral_usages,
+    user_flags,
     raw_user_debts,
 )
 from zklend.internals.Market.structs import Structs
@@ -57,6 +57,9 @@ from openzeppelin.token.erc20.IERC20 import IERC20
 from openzeppelin.upgrades.library import Proxy, Proxy_initialized
 
 const SECONDS_PER_YEAR = 31536000
+
+# 0b1010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010
+const DEBT_FLAG_FILTER = 1206167596222043702328864427173832373471562340267089208744349833415761767082
 
 # This namespace is mostly used for adding reentrancy guard
 namespace External:
@@ -143,16 +146,24 @@ namespace External:
         return ()
     end
 
-    func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, amount : felt
-    ):
+    func repay{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt, amount : felt):
         ReentrancyGuard._start()
         Internal.repay(token, amount)
         ReentrancyGuard._end()
         return ()
     end
 
-    func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+    func repay_all{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt):
         ReentrancyGuard._start()
         Internal.repay_all(token)
         ReentrancyGuard._end()
@@ -313,10 +324,10 @@ namespace External:
         reserve_tokens.write(current_reserve_count, token)
         reserve_indices.write(token, current_reserve_count)
 
-        # We can only have up to 251 reserves due to the use of bitmap for user collateral usage
-        # until we will change to use more than 1 felt for that.
+        # We can only have up to 125 reserves due to the use of bitmap for user collateral usage
+        # and debt flags until we will change to use more than 1 felt for that.
         with_attr error_message("Market: too many reserves"):
-            assert_le_felt(new_reserve_count, 251)
+            assert_le_felt(new_reserve_count, 125)
         end
 
         return ()
@@ -535,11 +546,11 @@ namespace View:
         return (debt=scaled_up_debt)
     end
 
-    func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    func get_user_flags{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         user : felt
-    ) -> (usage : felt):
-        let (map) = collateral_usages.read(user)
-        return (usage=map)
+    ) -> (map : felt):
+        let (map) = user_flags.read(user)
+        return (map=map)
     end
 
     func is_user_undercollateralized{
@@ -555,6 +566,26 @@ namespace View:
         else:
             return (is_undercollateralized=TRUE)
         end
+    end
+
+    func is_collateral_enabled{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, token : felt) -> (enabled : felt):
+        let (reserve_index) = reserve_indices.read(token)
+        let (enabled) = Internal.is_used_as_collateral(user, reserve_index)
+        return (enabled=enabled)
+    end
+
+    func user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt) -> (has_debt : felt):
+        return Internal.user_has_debt(user)
     end
 end
 
@@ -656,10 +687,14 @@ namespace Internal:
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
 
+        # TODO: check `scaled_down_amount` is not zero
+
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token)
         let (raw_user_debt_after) = SafeMath.add(raw_user_debt_before, scaled_down_amount)
         raw_user_debts.write(caller, token, raw_user_debt_after)
+
+        set_user_has_debt(caller, token, raw_user_debt_before, raw_user_debt_after)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
@@ -693,9 +728,12 @@ namespace Internal:
         return ()
     end
 
-    func repay{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, amount : felt
-    ):
+    func repay{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt, amount : felt):
         alloc_locals
 
         with_attr error_message("Market: zero amount"):
@@ -710,7 +748,12 @@ namespace Internal:
         return ()
     end
 
-    func repay_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt):
+    func repay_all{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(token : felt):
         alloc_locals
 
         let (caller) = get_caller_address()
@@ -901,19 +944,45 @@ namespace Internal:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(user : felt, reserve_index : felt, use : felt):
+        return set_user_flag(user, reserve_index * 2, use)
+    end
+
+    # ASSUMPTION: `token` maps to a valid reserve
+    func set_user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, token : felt, debt_before : felt, debt_after):
+        let (reserve_index) = reserve_indices.read(token)
+        if debt_before == 0 and debt_after != 0:
+            return set_user_flag(user, reserve_index * 2 + 1, TRUE)
+        end
+        if debt_before != 0 and debt_after == 0:
+            return set_user_flag(user, reserve_index * 2 + 1, FALSE)
+        end
+        return ()
+    end
+
+    func set_user_flag{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, offset : felt, set : felt):
         alloc_locals
 
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (existing_usage) = collateral_usages.read(user)
+        let (reserve_slot) = Math.shl(1, offset)
+        let (existing_map) = user_flags.read(user)
 
-        if use == TRUE:
-            let (new_usage) = bitwise_or(existing_usage, reserve_slot)
+        if set == TRUE:
+            let (new_map) = bitwise_or(existing_map, reserve_slot)
         else:
             let (inverse_slot) = bitwise_not(reserve_slot)
-            let (new_usage) = bitwise_and(existing_usage, inverse_slot)
+            let (new_map) = bitwise_and(existing_map, inverse_slot)
         end
 
-        collateral_usages.write(user, new_usage)
+        user_flags.write(user, new_map)
         return ()
     end
 
@@ -923,13 +992,27 @@ namespace Internal:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(user : felt, reserve_index : felt) -> (is_used : felt):
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (existing_usage) = collateral_usages.read(user)
+        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (existing_map) = user_flags.read(user)
 
-        let (and_result) = bitwise_and(existing_usage, reserve_slot)
+        let (and_result) = bitwise_and(existing_map, reserve_slot)
         let (is_used) = is_not_zero(and_result)
 
         return (is_used=is_used)
+    end
+
+    func user_has_debt{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt) -> (has_debt : felt):
+        let (map) = user_flags.read(user)
+
+        let (and_result) = bitwise_and(map, DEBT_FLAG_FILTER)
+        let (has_debt) = is_not_zero(and_result)
+
+        return (has_debt=has_debt)
     end
 
     func assert_undercollateralized{
@@ -977,10 +1060,10 @@ namespace Internal:
         if reserve_cnt == 0:
             return (collateral_value=0, collateral_required=0)
         else:
-            let (collateral_usage) = collateral_usages.read(user)
+            let (flags) = user_flags.read(user)
 
             let (collateral_value, collateral_required) = calculate_user_collateral_data_loop(
-                user, collateral_usage, reserve_cnt, 0
+                user, flags, reserve_cnt, 0
             )
 
             return (collateral_value=collateral_value, collateral_required=collateral_required)
@@ -993,7 +1076,7 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt, collateral_usage : felt, reserve_count : felt, reserve_index : felt) -> (
+    }(user : felt, flags : felt, reserve_count : felt, reserve_index : felt) -> (
         collateral_value : felt, collateral_required : felt
     ):
         alloc_locals
@@ -1004,14 +1087,12 @@ namespace Internal:
 
         let (
             collateral_value_of_rest, collateral_required_of_rest
-        ) = calculate_user_collateral_data_loop(
-            user, collateral_usage, reserve_count, reserve_index + 1
-        )
+        ) = calculate_user_collateral_data_loop(user, flags, reserve_count, reserve_index + 1)
         local collateral_value_of_rest = collateral_value_of_rest
         local collateral_required_of_rest = collateral_required_of_rest
 
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (reserve_slot_and) = bitwise_and(collateral_usage, reserve_slot)
+        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (reserve_slot_and) = bitwise_and(flags, reserve_slot)
 
         let (reserve_token) = reserve_tokens.read(reserve_index)
 
@@ -1189,7 +1270,10 @@ namespace Internal:
 
     # `amount` with `0` means repaying all
     func repay_debt_route_internal{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
     }(repayer : felt, beneficiary : felt, token : felt, amount : felt) -> (
         raw_amount : felt, face_amount : felt
     ):
@@ -1217,9 +1301,12 @@ namespace Internal:
 
     # ASSUMPTION: `repay_amount` = `raw_amount` * Debt Accumulator
     # ASSUMPTION: it's always called by `repay_debt_route_internal`
-    func repay_debt_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        repayer : felt, beneficiary : felt, token : felt, repay_amount : felt, raw_amount : felt
-    ):
+    func repay_debt_internal{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(repayer : felt, beneficiary : felt, token : felt, repay_amount : felt, raw_amount : felt):
         alloc_locals
 
         let (this_address) = get_contract_address()
@@ -1244,6 +1331,8 @@ namespace Internal:
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
         let (raw_user_debt_after) = SafeMath.sub(raw_user_debt_before, raw_amount)
         raw_user_debts.write(beneficiary, token, raw_user_debt_after)
+
+        set_user_has_debt(beneficiary, token, raw_user_debt_before, raw_user_debt_after)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
