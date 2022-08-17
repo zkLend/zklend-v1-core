@@ -143,6 +143,22 @@ namespace reserves:
         return ()
     end
 
+    func read_enabled{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (enabled : felt):
+        let (storage_addr) = addr(token)
+
+        # enabled
+        let (__storage_var_temp0) = storage_read(address=storage_addr + 0)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (enabled=__storage_var_temp0)
+    end
+
     func read_decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         token : felt
     ) -> (decimals : felt):
@@ -189,6 +205,38 @@ namespace reserves:
         tempvar range_check_ptr = range_check_ptr
 
         return (borrow_factor=__storage_var_temp5)
+    end
+
+    func read_raw_total_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (raw_total_debt : felt):
+        let (storage_addr) = addr(token)
+
+        # raw_total_debt
+        let (__storage_var_temp12) = storage_read(address=storage_addr + 12)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (raw_total_debt=__storage_var_temp12)
+    end
+
+    func read_flash_loan_fee{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        token : felt
+    ) -> (flash_loan_fee : felt):
+        let (storage_addr) = addr(token)
+
+        # flash_loan_fee
+        let (__storage_var_temp13) = storage_read(address=storage_addr + 13)
+
+        # TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+
+        return (flash_loan_fee=__storage_var_temp13)
     end
 
     func read_interest_rate_model_and_raw_total_debt{

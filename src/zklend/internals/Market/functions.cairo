@@ -422,7 +422,8 @@ namespace View:
     ) -> (res : felt):
         alloc_locals
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (reserve) = reserves.read(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -461,7 +462,8 @@ namespace View:
     ) -> (res : felt):
         alloc_locals
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (reserve) = reserves.read(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -487,7 +489,8 @@ namespace View:
     }(token : felt) -> (res : felt):
         alloc_locals
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (reserve) = reserves.read(token)
 
         # Nothing for treasury if address set to zero
         let (treasury_addr) = treasury.read()
@@ -525,10 +528,11 @@ namespace View:
     }(token : felt) -> (debt : felt):
         alloc_locals
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (raw_total_debt) = reserves.read_raw_total_debt(token)
 
         let (debt_accumulator) = get_debt_accumulator(token)
-        let (scaled_up_debt) = SafeDecimalMath.mul(reserve.raw_total_debt, debt_accumulator)
+        let (scaled_up_debt) = SafeDecimalMath.mul(raw_total_debt, debt_accumulator)
         return (debt=scaled_up_debt)
     end
 
@@ -607,7 +611,8 @@ namespace Internal:
         #
         # Checks
         #
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (z_token_address) = reserves.read_z_token_address(token)
 
         #
         # Interactions
@@ -636,7 +641,7 @@ namespace Internal:
         end
 
         # Mints ZToken to user
-        IZToken.mint(contract_address=reserve.z_token_address, to=caller, amount=amount)
+        IZToken.mint(contract_address=z_token_address, to=caller, amount=amount)
 
         return ()
     end
@@ -812,8 +817,10 @@ namespace Internal:
 
         let (caller) = get_caller_address()
 
-        let (debt_reserve) = Internal.assert_reserve_enabled(debt_token)
-        let (collateral_reserve) = Internal.assert_reserve_enabled(collateral_token)
+        Internal.assert_reserve_enabled(debt_token)
+        Internal.assert_reserve_enabled(collateral_token)
+        let (debt_reserve_decimals) = reserves.read_decimals(debt_token)
+        let (collateral_reserve) = reserves.read(collateral_token)
 
         # Liquidator repays debt for user
         repay_debt_route_internal(caller, user, debt_token, amount)
@@ -833,7 +840,7 @@ namespace Internal:
             contract_address=oracle_addr, token=collateral_token
         )
         let (debt_value_repaid) = SafeDecimalMath.mul_decimals(
-            debt_token_price, amount, debt_reserve.decimals
+            debt_token_price, amount, debt_reserve_decimals
         )
         let (equivalent_collateral_amount) = SafeDecimalMath.div_decimals(
             debt_value_repaid, collateral_token_price, collateral_reserve.decimals
@@ -873,10 +880,12 @@ namespace Internal:
         with_attr error_message("Market: zero amount"):
             assert_not_zero(amount)
         end
-        let (reserve) = Internal.assert_reserve_enabled(token)
+
+        Internal.assert_reserve_enabled(token)
+        let (flash_loan_fee) = reserves.read_flash_loan_fee(token)
 
         # Calculates minimum balance after the callback
-        let (loan_fee) = SafeDecimalMath.mul(amount, reserve.flash_loan_fee)
+        let (loan_fee) = SafeDecimalMath.mul(amount, flash_loan_fee)
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         )
@@ -1214,14 +1223,15 @@ namespace Internal:
         # Checks
         #
 
-        let (reserve) = Internal.assert_reserve_enabled(token)
+        Internal.assert_reserve_enabled(token)
+        let (z_token_address) = reserves.read_z_token_address(token)
 
         #
         # Effects
         #
 
         # NOTE: it's fine to call out to external contract here before state update since it's trusted
-        let (amount_burnt) = burn_z_token_internal(reserve.z_token_address, user, amount)
+        let (amount_burnt) = burn_z_token_internal(z_token_address, user, amount)
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
@@ -1495,11 +1505,11 @@ namespace Internal:
     # Checks reserve is enabled and returns full reserve data
     func assert_reserve_enabled{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         token : felt
-    ) -> (reserve : Structs.ReserveData):
-        let (reserve) = reserves.read(token)
+    ):
+        let (enabled) = reserves.read_enabled(token)
         with_attr error_message("Market: reserve not enabled"):
-            assert_not_zero(reserve.enabled)
+            assert_not_zero(enabled)
         end
-        return (reserve=reserve)
+        return ()
     end
 end
