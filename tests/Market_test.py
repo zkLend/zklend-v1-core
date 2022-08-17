@@ -416,8 +416,8 @@ async def test_new_reserve_event(pre_setup: Setup):
 async def test_disabling_already_disabled_collateral(setup: Setup):
     # Token is disabled as collateral by default
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 0
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 0
 
     await setup.alice.execute(
         [
@@ -433,8 +433,8 @@ async def test_disabling_already_disabled_collateral(setup: Setup):
 
     # Token should still be disabled
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 0
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 0
 
 
 @pytest.mark.asyncio
@@ -487,8 +487,8 @@ async def test_token_transferred_on_deposit(setup: Setup):
 
     # Token is set as collateral by default
     assert (
-        await setup.market.get_collateral_usage(setup.alice.address).call()
-    ).result.usage & (1 << 0) == 1
+        await setup.market.get_user_flags(setup.alice.address).call()
+    ).result.map & (1 << 0 * 2) == 1
 
 
 @pytest.mark.asyncio

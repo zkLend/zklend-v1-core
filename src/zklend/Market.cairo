@@ -73,10 +73,10 @@ func get_user_debt_for_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
 end
 
 @view
-func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func get_user_flags{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     user : felt
-) -> (usage : felt):
-    return View.get_collateral_usage(user)
+) -> (map : felt):
+    return View.get_user_flags(user)
 end
 
 @view

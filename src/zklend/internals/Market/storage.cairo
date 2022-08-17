@@ -235,8 +235,13 @@ end
 func reserve_indices(token : felt) -> (index : felt):
 end
 
+# Bit 0: whether reserve #0 is used as collateral
+# Bit 1: whether user has debt in reserve #0
+# Bit 2: whether reserve #1 is used as collateral
+# Bit 3: whether user has debt in reserve #1
+# ...
 @storage_var
-func collateral_usages(user : felt) -> (map : felt):
+func user_flags(user : felt) -> (map : felt):
 end
 
 @storage_var

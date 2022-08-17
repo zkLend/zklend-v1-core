@@ -25,7 +25,7 @@ from zklend.internals.Market.storage import (
     reserve_count,
     reserve_tokens,
     reserve_indices,
-    collateral_usages,
+    user_flags,
     raw_user_debts,
 )
 from zklend.internals.Market.structs import Structs
@@ -313,10 +313,10 @@ namespace External:
         reserve_tokens.write(current_reserve_count, token)
         reserve_indices.write(token, current_reserve_count)
 
-        # We can only have up to 251 reserves due to the use of bitmap for user collateral usage
-        # until we will change to use more than 1 felt for that.
+        # We can only have up to 125 reserves due to the use of bitmap for user collateral usage
+        # and debt flags until we will change to use more than 1 felt for that.
         with_attr error_message("Market: too many reserves"):
-            assert_le_felt(new_reserve_count, 251)
+            assert_le_felt(new_reserve_count, 125)
         end
 
         return ()
@@ -535,11 +535,11 @@ namespace View:
         return (debt=scaled_up_debt)
     end
 
-    func get_collateral_usage{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    func get_user_flags{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         user : felt
-    ) -> (usage : felt):
-        let (map) = collateral_usages.read(user)
-        return (usage=map)
+    ) -> (map : felt):
+        let (map) = user_flags.read(user)
+        return (map=map)
     end
 
     func is_user_undercollateralized{
@@ -903,17 +903,17 @@ namespace Internal:
     }(user : felt, reserve_index : felt, use : felt):
         alloc_locals
 
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (existing_usage) = collateral_usages.read(user)
+        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (existing_map) = user_flags.read(user)
 
         if use == TRUE:
-            let (new_usage) = bitwise_or(existing_usage, reserve_slot)
+            let (new_map) = bitwise_or(existing_map, reserve_slot)
         else:
             let (inverse_slot) = bitwise_not(reserve_slot)
-            let (new_usage) = bitwise_and(existing_usage, inverse_slot)
+            let (new_map) = bitwise_and(existing_map, inverse_slot)
         end
 
-        collateral_usages.write(user, new_usage)
+        user_flags.write(user, new_map)
         return ()
     end
 
@@ -923,10 +923,10 @@ namespace Internal:
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
     }(user : felt, reserve_index : felt) -> (is_used : felt):
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (existing_usage) = collateral_usages.read(user)
+        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (existing_map) = user_flags.read(user)
 
-        let (and_result) = bitwise_and(existing_usage, reserve_slot)
+        let (and_result) = bitwise_and(existing_map, reserve_slot)
         let (is_used) = is_not_zero(and_result)
 
         return (is_used=is_used)
@@ -977,10 +977,10 @@ namespace Internal:
         if reserve_cnt == 0:
             return (collateral_value=0, collateral_required=0)
         else:
-            let (collateral_usage) = collateral_usages.read(user)
+            let (flags) = user_flags.read(user)
 
             let (collateral_value, collateral_required) = calculate_user_collateral_data_loop(
-                user, collateral_usage, reserve_cnt, 0
+                user, flags, reserve_cnt, 0
             )
 
             return (collateral_value=collateral_value, collateral_required=collateral_required)
@@ -993,7 +993,7 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt, collateral_usage : felt, reserve_count : felt, reserve_index : felt) -> (
+    }(user : felt, flags : felt, reserve_count : felt, reserve_index : felt) -> (
         collateral_value : felt, collateral_required : felt
     ):
         alloc_locals
@@ -1004,14 +1004,12 @@ namespace Internal:
 
         let (
             collateral_value_of_rest, collateral_required_of_rest
-        ) = calculate_user_collateral_data_loop(
-            user, collateral_usage, reserve_count, reserve_index + 1
-        )
+        ) = calculate_user_collateral_data_loop(user, flags, reserve_count, reserve_index + 1)
         local collateral_value_of_rest = collateral_value_of_rest
         local collateral_required_of_rest = collateral_required_of_rest
 
-        let (reserve_slot) = Math.shl(1, reserve_index)
-        let (reserve_slot_and) = bitwise_and(collateral_usage, reserve_slot)
+        let (reserve_slot) = Math.shl(1, reserve_index * 2)
+        let (reserve_slot_and) = bitwise_and(flags, reserve_slot)
 
         let (reserve_token) = reserve_tokens.read(reserve_index)
 
