@@ -423,7 +423,7 @@ namespace View:
         alloc_locals
 
         Internal.assert_reserve_enabled(token)
-        let (reserve) = reserves.read(token)
+        let reserve = reserves.read_for_get_lending_accumulator(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -463,7 +463,7 @@ namespace View:
         alloc_locals
 
         Internal.assert_reserve_enabled(token)
-        let (reserve) = reserves.read(token)
+        let reserve = reserves.read_for_get_debt_accumulator(token)
 
         let (block_timestamp) = get_block_timestamp()
         if reserve.last_update_timestamp == block_timestamp:
@@ -490,7 +490,7 @@ namespace View:
         alloc_locals
 
         Internal.assert_reserve_enabled(token)
-        let (reserve) = reserves.read(token)
+        let reserve = reserves.read_for_get_pending_treasury_amount(token)
 
         # Nothing for treasury if address set to zero
         let (treasury_addr) = treasury.read()
@@ -1184,13 +1184,11 @@ namespace Internal:
     }(user : felt, token : felt) -> (value : felt):
         alloc_locals
 
-        let (
-            decimals, z_token_address, collateral_factor
-        ) = reserves.read_decimals_and_z_token_address_and_collateral_factor(token)
+        let reserve = reserves.read_for_get_user_collateral_usd_value_for_token(token)
 
         # This value already reflects interests accured since last update
         let (collateral_balance) = IZToken.felt_balance_of(
-            contract_address=z_token_address, account=user
+            contract_address=reserve.z_token_address, account=user
         )
 
         # Fetches price from oracle
@@ -1199,11 +1197,13 @@ namespace Internal:
 
         # `collateral_value` is represented in 8-decimal USD value
         let (collateral_value) = SafeDecimalMath.mul_decimals(
-            collateral_price, collateral_balance, decimals
+            collateral_price, collateral_balance, reserve.decimals
         )
 
         # Discounts value by collteral factor
-        let (discounted_collteral_value) = SafeDecimalMath.mul(collateral_value, collateral_factor)
+        let (discounted_collteral_value) = SafeDecimalMath.mul(
+            collateral_value, reserve.collateral_factor
+        )
 
         return (value=discounted_collteral_value)
     end
