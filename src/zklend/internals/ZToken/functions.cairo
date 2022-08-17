@@ -458,9 +458,17 @@ namespace Internal:
         RawTransfer.emit(from_account, to_account, raw_amount, accumulator, face_amount)
 
         if check_collateralization == TRUE:
-            # TODO: skip check if token is not used as collateral
-            # TODO: skip check if sender has no debt
             let (market_addr) = market.read()
+
+            # Skips check if token is not used as collateral
+            let (underlying_token) = underlying.read()
+            let (collateral_enabled) = IMarket.is_collateral_enabled(
+                contract_address=market_addr, user=from_account, token=underlying_token
+            )
+            if collateral_enabled == FALSE:
+                return ()
+            end
+
             let (is_undercollateralized) = IMarket.is_user_undercollateralized(
                 contract_address=market_addr, user=from_account
             )

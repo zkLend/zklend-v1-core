@@ -21,6 +21,10 @@ func debt_accumulator(token : felt) -> (res : felt):
 end
 
 @storage_var
+func collateral_enabled(user : felt, token : felt) -> (res : felt):
+end
+
+@storage_var
 func user_undercollateralized(user : felt) -> (res : felt):
 end
 
@@ -54,6 +58,14 @@ func is_user_undercollateralized{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
 ) -> (is_undercollateralized : felt):
     let (res) = user_undercollateralized.read(user)
     return (is_undercollateralized=res)
+end
+
+@view
+func is_collateral_enabled{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    user : felt, token : felt
+) -> (enabled : felt):
+    let (res) = collateral_enabled.read(user, token)
+    return (enabled=res)
 end
 
 @view
