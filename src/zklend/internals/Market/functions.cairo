@@ -366,8 +366,6 @@ namespace External:
         return ()
     end
 
-    # TODO: add setter for flash loan fee
-
     func set_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         token : felt, new_liquidation_bonus : felt
     ):
@@ -686,8 +684,9 @@ namespace Internal:
         let (reserve) = Internal.assert_reserve_enabled(token)
 
         let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
-
-        # TODO: check `scaled_down_amount` is not zero
+        with_attr error_message("Market: invalid amount"):
+            assert_not_zero(scaled_down_amount)
+        end
 
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token)
@@ -1257,7 +1256,6 @@ namespace Internal:
 
         # It's easier to post-check collateralization factor, at the cost of making failed
         # transactions more expensive.
-        # TODO: also don't check when the user has no debt at all
         let (is_asset_used_as_collateral) = is_used_as_collateral(user, reserve_index)
         if is_asset_used_as_collateral == TRUE:
             with_attr error_message("Market: insufficient collateral"):
