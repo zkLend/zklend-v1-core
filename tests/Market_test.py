@@ -1129,8 +1129,27 @@ async def test_liquidation(setup_with_loan: Setup):
     #       = 2500 USD
     #   Collateral required:
     #     22.5 TST_B
-    #       = 22.5 * 100 / 0.9
-    #       = 2500 USD
+    #       = 22.5 * 100
+    #       = 2250 USD
+
+    # TST_A price changes to 45 USD
+    #   Collateral value:
+    #     100 TST_A
+    #       = 100 * 45 * 0.5
+    #       = 2250 USD
+    await setup_with_loan.alice.execute(
+        [
+            Call(
+                setup_with_loan.oracle.contract_address,
+                get_selector_from_name("set_price"),
+                [
+                    setup_with_loan.token_a.contract_address,  # token
+                    45_00000000,  # price
+                    100,  # update_time
+                ],
+            ),
+        ]
+    )
 
     # Cannot liquidate now as Alice is not undercollateralized
     await assert_reverted_with(
@@ -1156,7 +1175,7 @@ async def test_liquidation(setup_with_loan: Setup):
     #     100 TST_A
     #       = 100 * 40 * 0.5
     #       = 2000 USD
-    #   Collateral required: 2500 USD
+    #   Collateral required: 2250 USD
     await setup_with_loan.alice.execute(
         [
             Call(
@@ -1179,12 +1198,12 @@ async def test_liquidation(setup_with_loan: Setup):
     #       = (100 - x * 100 / 40 * 1.2) * 40 * 0.5
     #   Collateral required:
     #     (22.5 - x) TST_B
-    #       = (22.5 - x) * 100 / 0.9
+    #       = (22.5 - x) * 100
     #   Collateral value after = Collateral required
     #     Solve for x
-    #       x = 9.782608695652173913
+    #       x = 6.25
 
-    # Liquidating 9.8 TST_B is not allowed as it exceeds maximum
+    # Liquidating 6.26 TST_B is not allowed as it exceeds maximum
     await assert_reverted_with(
         setup_with_loan.bob.execute(
             [
@@ -1194,7 +1213,7 @@ async def test_liquidation(setup_with_loan: Setup):
                     [
                         setup_with_loan.alice.address,  # user
                         setup_with_loan.token_b.contract_address,  # debt_token
-                        98 * 10**17,  # amount
+                        626 * 10**16,  # amount
                         setup_with_loan.token_a.contract_address,  # collateral_token
                     ],
                 ),
@@ -1203,7 +1222,7 @@ async def test_liquidation(setup_with_loan: Setup):
         "Market: invalid liquidation",
     )
 
-    # Liquidating 9.7 TST_B works
+    # Liquidating 6.25 TST_B works
     await setup_with_loan.bob.execute(
         [
             Call(
@@ -1212,7 +1231,7 @@ async def test_liquidation(setup_with_loan: Setup):
                 [
                     setup_with_loan.alice.address,  # user
                     setup_with_loan.token_b.contract_address,  # debt_token
-                    97 * 10**17,  # amount
+                    625 * 10**16,  # amount
                     setup_with_loan.token_a.contract_address,  # collateral_token
                 ],
             ),
@@ -1221,34 +1240,34 @@ async def test_liquidation(setup_with_loan: Setup):
 
     # Bob balances after:
     #   TST_A (Z):
-    #     9.7 * 100 / 40 * 1.2 = 29.1 TST_A
+    #     6.25 * 100 / 40 * 1.2 = 18.75 TST_A
     #   TST_B:
-    #     1,000,000 - 10,000 - 9.7 = 989,990.3 TST_B
+    #     1,000,000 - 10,000 - 6.25 = 989,993.75 TST_B
     assert (
         await setup_with_loan.z_token_a.balanceOf(setup_with_loan.bob.address).call()
-    ).result.balance == (Uint256.from_int(291 * 10**17))
+    ).result.balance == (Uint256.from_int(1875 * 10**16))
     assert (
         await setup_with_loan.token_b.balanceOf(setup_with_loan.bob.address).call()
-    ).result.balance == (Uint256.from_int(9899903 * 10**17))
+    ).result.balance == (Uint256.from_int(98999375 * 10**16))
 
     # Alice:
     #   Debt:
-    #     22.5 - 9.7 = 12.8 TST_B
+    #     22.5 - 6.25 = 16.25 TST_B
     #   TST_A (Z):
-    #     100 - 29.1 = 70.9 TST_A
+    #     100 - 18.75 = 81.25 TST_A
     assert (
         await setup_with_loan.market.get_user_debt_for_token(
             setup_with_loan.alice.address, setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (128 * 10**17)
+    ).result.debt == (1625 * 10**16)
     assert (
         await setup_with_loan.market.get_total_debt_for_token(
             setup_with_loan.token_b.contract_address
         ).call()
-    ).result.debt == (128 * 10**17)
+    ).result.debt == (1625 * 10**16)
     assert (
         await setup_with_loan.z_token_a.balanceOf(setup_with_loan.alice.address).call()
-    ).result.balance == (Uint256.from_int(709 * 10**17))
+    ).result.balance == (Uint256.from_int(8125 * 10**16))
 
 
 @pytest.mark.asyncio

@@ -560,8 +560,10 @@ namespace View:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt) -> (is_undercollateralized : felt):
-        let (user_not_undercollateralized) = Internal.is_not_undercollateralized(user)
+    }(user : felt, apply_borrow_factor : felt) -> (is_undercollateralized : felt):
+        let (user_not_undercollateralized) = Internal.is_not_undercollateralized(
+            user, apply_borrow_factor
+        )
 
         if user_not_undercollateralized == TRUE:
             return (is_undercollateralized=FALSE)
@@ -710,7 +712,7 @@ namespace Internal:
 
         # It's easier to post-check collateralization factor
         with_attr error_message("Market: insufficient collateral"):
-            assert_not_undercollateralized(caller)
+            assert_not_undercollateralized(caller, TRUE)
         end
 
         #
@@ -799,7 +801,7 @@ namespace Internal:
 
         # It's easier to post-check collateralization factor
         with_attr error_message("Market: insufficient collateral"):
-            assert_not_undercollateralized(caller)
+            assert_not_undercollateralized(caller, TRUE)
         end
 
         CollateralDisabled.emit(caller, token)
@@ -816,6 +818,11 @@ namespace Internal:
         alloc_locals
 
         let (caller) = get_caller_address()
+
+        # Validates input
+        with_attr error_message("Market: zero amount"):
+            assert_not_zero(amount)
+        end
 
         Internal.assert_reserve_enabled(debt_token)
         Internal.assert_reserve_enabled(collateral_token)
@@ -859,7 +866,7 @@ namespace Internal:
 
         # Checks user collateralization factor after liquidation
         with_attr error_message("Market: invalid liquidation"):
-            assert_undercollateralized(user)
+            assert_not_overcollateralized(user, FALSE)
         end
 
         Liquidation.emit(
@@ -1021,14 +1028,14 @@ namespace Internal:
         return (has_debt=has_debt)
     end
 
-    func assert_undercollateralized{
+    func assert_not_overcollateralized{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt):
-        let (user_not_undercollateralized) = is_not_undercollateralized(user)
-        assert user_not_undercollateralized = FALSE
+    }(user : felt, apply_borrow_factor : felt):
+        let (user_overcollateralized) = is_overcollateralized(user, apply_borrow_factor)
+        assert user_overcollateralized = FALSE
         return ()
     end
 
@@ -1037,8 +1044,8 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt):
-        let (user_not_undercollateralized) = is_not_undercollateralized(user)
+    }(user : felt, apply_borrow_factor : felt):
+        let (user_not_undercollateralized) = is_not_undercollateralized(user, apply_borrow_factor)
         assert user_not_undercollateralized = TRUE
         return ()
     end
@@ -1048,7 +1055,7 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt) -> (res : felt):
+    }(user : felt, apply_borrow_factor : felt) -> (res : felt):
         alloc_locals
 
         # Skips expensive collateralization check if user has no debt at all
@@ -1057,9 +1064,36 @@ namespace Internal:
             return (res=TRUE)
         end
 
-        let (collateral_value, collateral_required) = calculate_user_collateral_data(user)
+        let (collateral_value, collateral_required) = calculate_user_collateral_data(
+            user, apply_borrow_factor
+        )
         let (is_not_undercollateralized) = is_le_felt(collateral_required, collateral_value)
         return (res=is_not_undercollateralized)
+    end
+
+    # Same as `is_not_undercollateralized` but returns FALSE if equal. Only used in liquidations.
+    func is_overcollateralized{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr : BitwiseBuiltin*,
+    }(user : felt, apply_borrow_factor : felt) -> (res : felt):
+        alloc_locals
+
+        # Not using the skip-if-no-debt optimization here because in liquidations the user always
+        # has debt left. Checking for debt flags is thus wasteful.
+
+        let (collateral_value, collateral_required) = calculate_user_collateral_data(
+            user, apply_borrow_factor
+        )
+
+        if collateral_value != collateral_required:
+            # Using `le` is fine since we already checked for equalness
+            let (is_overcollateralized) = is_le_felt(collateral_required, collateral_value)
+            return (res=is_overcollateralized)
+        else:
+            return (res=FALSE)
+        end
     end
 
     func calculate_user_collateral_data{
@@ -1067,7 +1101,9 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt) -> (collateral_value : felt, collateral_required : felt):
+    }(user : felt, apply_borrow_factor : felt) -> (
+        collateral_value : felt, collateral_required : felt
+    ):
         let (reserve_cnt) = reserve_count.read()
         if reserve_cnt == 0:
             return (collateral_value=0, collateral_required=0)
@@ -1075,7 +1111,7 @@ namespace Internal:
             let (flags) = user_flags.read(user)
 
             let (collateral_value, collateral_required) = calculate_user_collateral_data_loop(
-                user, flags, reserve_cnt, 0
+                user, apply_borrow_factor, flags, reserve_cnt, 0
             )
 
             return (collateral_value=collateral_value, collateral_required=collateral_required)
@@ -1088,9 +1124,13 @@ namespace Internal:
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr : BitwiseBuiltin*,
-    }(user : felt, flags : felt, reserve_count : felt, reserve_index : felt) -> (
-        collateral_value : felt, collateral_required : felt
-    ):
+    }(
+        user : felt,
+        apply_borrow_factor : felt,
+        flags : felt,
+        reserve_count : felt,
+        reserve_index : felt,
+    ) -> (collateral_value : felt, collateral_required : felt):
         alloc_locals
 
         if reserve_index == reserve_count:
@@ -1099,7 +1139,9 @@ namespace Internal:
 
         let (
             collateral_value_of_rest, collateral_required_of_rest
-        ) = calculate_user_collateral_data_loop(user, flags, reserve_count, reserve_index + 1)
+        ) = calculate_user_collateral_data_loop(
+            user, apply_borrow_factor, flags, reserve_count, reserve_index + 1
+        )
         local collateral_value_of_rest = collateral_value_of_rest
         local collateral_required_of_rest = collateral_required_of_rest
 
@@ -1109,7 +1151,7 @@ namespace Internal:
         let (reserve_token) = reserve_tokens.read(reserve_index)
 
         let (current_collteral_required) = get_collateral_usd_value_required_for_token(
-            user, reserve_token
+            user, reserve_token, apply_borrow_factor
         )
         let (total_collateral_required) = SafeMath.add(
             current_collteral_required, collateral_required_of_rest
@@ -1139,15 +1181,17 @@ namespace Internal:
     # ASSUMPTION: `token` is a valid reserve
     func get_collateral_usd_value_required_for_token{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
-    }(user : felt, token : felt) -> (value : felt):
+    }(user : felt, token : felt, apply_borrow_factor : felt) -> (value : felt):
         alloc_locals
 
-        let (borrow_factor) = reserves.read_borrow_factor(token)
-
         let (debt_value) = get_user_debt_usd_value_for_token(user, token)
-        let (collateral_required) = SafeDecimalMath.div(debt_value, borrow_factor)
-
-        return (value=collateral_required)
+        if apply_borrow_factor == TRUE:
+            let (borrow_factor) = reserves.read_borrow_factor(token)
+            let (collateral_required) = SafeDecimalMath.div(debt_value, borrow_factor)
+            return (value=collateral_required)
+        else:
+            return (value=debt_value)
+        end
     end
 
     # ASSUMPTION: `token` is a valid reserve
@@ -1263,7 +1307,7 @@ namespace Internal:
         let (is_asset_used_as_collateral) = is_used_as_collateral(user, token)
         if is_asset_used_as_collateral == TRUE:
             with_attr error_message("Market: insufficient collateral"):
-                assert_not_undercollateralized(user)
+                assert_not_undercollateralized(user, TRUE)
             end
         else:
             # No need to check if the asset is not used as collateral at all

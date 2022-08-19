@@ -82,8 +82,8 @@ end
 @view
 func is_user_undercollateralized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
-}(user : felt) -> (is_undercollateralized : felt):
-    return View.is_user_undercollateralized(user)
+}(user : felt, apply_borrow_factor : felt) -> (is_undercollateralized : felt):
+    return View.is_user_undercollateralized(user, apply_borrow_factor)
 end
 
 @view

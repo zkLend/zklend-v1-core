@@ -470,7 +470,7 @@ namespace Internal:
             end
 
             let (is_undercollateralized) = IMarket.is_user_undercollateralized(
-                contract_address=market_addr, user=from_account
+                contract_address=market_addr, user=from_account, apply_borrow_factor=TRUE
             )
 
             with_attr error_message("ZToken: invalid collateralization after transfer"):
