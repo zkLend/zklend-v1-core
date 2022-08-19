@@ -1337,6 +1337,10 @@ namespace Internal:
 
         if amount == 0:
             let (user_raw_debt) = raw_user_debts.read(beneficiary, token)
+            with_attr error_message("Market: no debt to repay"):
+                assert_not_zero(user_raw_debt)
+            end
+
             let (repay_amount) = SafeDecimalMath.mul(user_raw_debt, updated_debt_accumulator)
 
             repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt)
@@ -1344,7 +1348,9 @@ namespace Internal:
             return (raw_amount=user_raw_debt, face_amount=repay_amount)
         else:
             let (raw_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator)
-
+            with_attr error_message("Market: invalid amount"):
+                assert_not_zero(raw_amount)
+            end
             repay_debt_internal(repayer, beneficiary, token, amount, raw_amount)
 
             return (raw_amount=raw_amount, face_amount=amount)
@@ -1353,6 +1359,7 @@ namespace Internal:
 
     # ASSUMPTION: `repay_amount` = `raw_amount` * Debt Accumulator
     # ASSUMPTION: it's always called by `repay_debt_route_internal`
+    # ASSUMPTION: raw_amount is non zero
     func repay_debt_internal{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
