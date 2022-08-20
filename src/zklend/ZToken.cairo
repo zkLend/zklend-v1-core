@@ -66,6 +66,13 @@ func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 end
 
 @view
+func felt_total_supply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    total_supply : felt
+):
+    return View.felt_total_supply()
+end
+
+@view
 func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     account : felt
 ) -> (balance : Uint256):

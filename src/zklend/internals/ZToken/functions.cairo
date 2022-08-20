@@ -333,15 +333,23 @@ namespace View:
     func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
         total_supply : Uint256
     ):
+        let (scaled_up_supply) = felt_total_supply()
+        let (scaled_up_supply_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_supply)
+
+        return (total_supply=scaled_up_supply_u256)
+    end
+
+    func felt_total_supply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        total_supply : felt
+    ):
         alloc_locals
 
         let (accumulator) = Internal.get_accumulator()
 
         let (supply) = raw_total_supply.read()
         let (scaled_up_supply) = SafeDecimalMath.mul(supply, accumulator)
-        let (scaled_up_supply_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_supply)
 
-        return (total_supply=scaled_up_supply_u256)
+        return (total_supply=scaled_up_supply)
     end
 
     func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
