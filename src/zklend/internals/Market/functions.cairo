@@ -234,9 +234,6 @@ namespace External:
     ):
         Ownable.assert_only_owner()
 
-        #
-        # Checks
-        #
         with_attr error_message("Market: zero token"):
             assert_not_zero(token)
         end
@@ -281,9 +278,6 @@ namespace External:
             assert z_token_underlying = token
         end
 
-        #
-        # Effects
-        #
         let new_reserve = Structs.ReserveData(
             enabled=TRUE,
             decimals=decimals,
@@ -610,15 +604,8 @@ namespace Internal:
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        #
-        # Checks
-        #
         Internal.assert_reserve_enabled(token)
         let (z_token_address) = reserves.read_z_token_address(token)
-
-        #
-        # Interactions
-        #
 
         # Updates interest rate
         Internal.update_rates_and_raw_total_debt(
@@ -714,10 +701,6 @@ namespace Internal:
         with_attr error_message("Market: insufficient collateral"):
             assert_not_undercollateralized(caller, TRUE)
         end
-
-        #
-        # Interactions
-        #
 
         let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
         let (transfer_success) = IERC20.transfer(
@@ -1263,16 +1246,8 @@ namespace Internal:
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        #
-        # Checks
-        #
-
         Internal.assert_reserve_enabled(token)
         let (z_token_address) = reserves.read_z_token_address(token)
-
-        #
-        # Effects
-        #
 
         # NOTE: it's fine to call out to external contract here before state update since it's trusted
         let (amount_burnt) = burn_z_token_internal(z_token_address, user, amount)
@@ -1288,10 +1263,6 @@ namespace Internal:
         )
 
         Withdrawal.emit(user, token, amount_burnt)
-
-        #
-        # Interactions
-        #
 
         # Gives underlying tokens to user
         let (amount_burnt_u256 : Uint256) = SafeCast.felt_to_uint256(amount_burnt)
@@ -1372,16 +1343,8 @@ namespace Internal:
 
         let (_, updated_debt_accumulator) = update_accumulators(token)
 
-        #
-        # Checks
-        #
-
         # No need to check if user is overpaying, as `SafeMath.sub` below will fail anyways
         # No need to check collateral value. Always allow repaying even if it's undercollateralized
-
-        #
-        # Effects
-        #
 
         # Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token)
@@ -1399,10 +1362,6 @@ namespace Internal:
             is_delta_raw_total_debt_negative=TRUE,
             abs_delta_raw_total_debt=raw_amount,
         )
-
-        #
-        # Interactions
-        #
 
         # Takes token from user
         let (repay_amount_u256 : Uint256) = SafeCast.felt_to_uint256(repay_amount)
