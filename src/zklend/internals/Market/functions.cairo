@@ -7,8 +7,6 @@ from zklend.internals.Market.events import (
     TreasuryUpdate,
     AccumulatorsSync,
     InterestRatesSync,
-    ReserveFactorUpdate,
-    LiquidationBonusUpdate,
     Deposit,
     Withdrawal,
     Borrowing,
@@ -323,57 +321,6 @@ namespace External:
         with_attr error_message("Market: too many reserves"):
             assert_le_felt(new_reserve_count, 125)
         end
-
-        return ()
-    end
-
-    func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, new_reserve_factor : felt
-    ):
-        alloc_locals
-
-        Ownable.assert_only_owner()
-
-        # Checks reserve_factor range
-        with_attr error_message("Market: reserve factor out of range"):
-            assert_le_felt(new_reserve_factor, SCALE)
-        end
-
-        # We must update accumulators first, otherwise bad things might happen (e.g. user collateral
-        # balance decreases)
-        let (_, updated_debt_accumulator) = Internal.update_accumulators(token)
-
-        # Looks like it isn't necessary to also update rates here but still doing it just to be safe
-        Internal.update_rates_and_raw_total_debt(
-            token=token,
-            updated_debt_accumulator=updated_debt_accumulator,
-            is_delta_reserve_balance_negative=FALSE,
-            abs_delta_reserve_balance=0,
-            is_delta_raw_total_debt_negative=FALSE,
-            abs_delta_raw_total_debt=0,
-        )
-
-        reserves.write_reserve_factor(token, new_reserve_factor)
-
-        ReserveFactorUpdate.emit(token, new_reserve_factor)
-
-        return ()
-    end
-
-    func set_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        token : felt, new_liquidation_bonus : felt
-    ):
-        alloc_locals
-
-        Ownable.assert_only_owner()
-
-        # No need to update accumulators or rates
-
-        Internal.assert_reserve_exists(token)
-
-        reserves.write_liquidation_bonus(token, new_liquidation_bonus)
-
-        LiquidationBonusUpdate.emit(token, new_liquidation_bonus)
 
         return ()
     end
