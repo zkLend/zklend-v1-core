@@ -94,12 +94,6 @@ namespace IMarket:
     ):
     end
 
-    func set_reserve_factor(token : felt, new_reserve_factor : felt):
-    end
-
-    func set_liquidation_bonus(token : felt, new_liquidation_bonus : felt):
-    end
-
     func set_treasury(new_treasury : felt):
     end
 

@@ -205,20 +205,6 @@ func add_reserve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 end
 
 @external
-func set_reserve_factor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, new_reserve_factor : felt
-):
-    return External.set_reserve_factor(token, new_reserve_factor)
-end
-
-@external
-func set_liquidation_bonus{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, new_liquidation_bonus : felt
-):
-    return External.set_liquidation_bonus(token, new_liquidation_bonus)
-end
-
-@external
 func set_treasury{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     new_treasury : felt
 ):
