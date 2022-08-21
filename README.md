@@ -61,6 +61,10 @@ Alternatively, run the tests inside a Docker container:
 $ ./scripts/run_tests_with_docker.sh
 ```
 
+## Documentation
+
+A brief overview of the smart contracts are available [here](./src/README.md).
+
 ## License
 
 Licensed under [Business Source License 1.1](./LICENSE).
