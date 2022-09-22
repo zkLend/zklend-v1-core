@@ -7,27 +7,31 @@ from zklend.libraries.SafeMath import SafeMath
 @view
 func add{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("add failed") {
-        return SafeMath.add(a, b);
+        let res = SafeMath.add(a, b);
+        return (res=res);
     }
 }
 
 @view
 func sub{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("sub failed") {
-        return SafeMath.sub(a, b);
+        let res = SafeMath.sub(a, b);
+        return (res=res);
     }
 }
 
 @view
 func mul{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("mul failed") {
-        return SafeMath.mul(a, b);
+        let res = SafeMath.mul(a, b);
+        return (res=res);
     }
 }
 
 @view
 func div{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("div failed") {
-        return SafeMath.div(a, b);
+        let res = SafeMath.div(a, b);
+        return (res=res);
     }
 }

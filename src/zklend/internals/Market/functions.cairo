@@ -372,7 +372,7 @@ namespace View {
             return (res=reserve.lending_accumulator);
         } else {
             // Apply simple interest
-            let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
+            let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
             // Treats reserve factor as zero if treasury address is not set
             let (treasury_addr) = treasury.read();
@@ -383,16 +383,16 @@ namespace View {
                 effective_reserve_factor = reserve.reserve_factor;
             }
 
-            let (one_minus_reserve_factor) = SafeMath.sub(SCALE, effective_reserve_factor);
+            let one_minus_reserve_factor = SafeMath.sub(SCALE, effective_reserve_factor);
 
             // New accumulator
             // (current_lending_rate * (1 - reserve_factor) * time_diff / SECONDS_PER_YEAR + 1) * accumulator
-            let (temp_1) = SafeMath.mul(reserve.current_lending_rate, time_diff);
-            let (temp_2) = SafeMath.mul(temp_1, one_minus_reserve_factor);
-            let (temp_3) = SafeMath.div(temp_2, SECONDS_PER_YEAR);
-            let (temp_4) = SafeMath.div(temp_3, SCALE);
-            let (temp_5) = SafeMath.add(temp_4, SCALE);
-            let (latest_accumulator) = SafeDecimalMath.mul(temp_5, reserve.lending_accumulator);
+            let temp_1 = SafeMath.mul(reserve.current_lending_rate, time_diff);
+            let temp_2 = SafeMath.mul(temp_1, one_minus_reserve_factor);
+            let temp_3 = SafeMath.div(temp_2, SECONDS_PER_YEAR);
+            let temp_4 = SafeMath.div(temp_3, SCALE);
+            let temp_5 = SafeMath.add(temp_4, SCALE);
+            let latest_accumulator = SafeDecimalMath.mul(temp_5, reserve.lending_accumulator);
 
             return (res=latest_accumulator);
         }
@@ -412,13 +412,13 @@ namespace View {
             return (res=reserve.debt_accumulator);
         } else {
             // Apply simple interest
-            let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
+            let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
             // (current_borrowing_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
-            let (temp_1) = SafeMath.mul(reserve.current_borrowing_rate, time_diff);
-            let (temp_2) = SafeMath.div(temp_1, SECONDS_PER_YEAR);
-            let (temp_3) = SafeMath.add(temp_2, SCALE);
-            let (latest_accumulator) = SafeDecimalMath.mul(temp_3, reserve.debt_accumulator);
+            let temp_1 = SafeMath.mul(reserve.current_borrowing_rate, time_diff);
+            let temp_2 = SafeMath.div(temp_1, SECONDS_PER_YEAR);
+            let temp_3 = SafeMath.add(temp_2, SCALE);
+            let latest_accumulator = SafeDecimalMath.mul(temp_3, reserve.debt_accumulator);
 
             return (res=latest_accumulator);
         }
@@ -445,7 +445,7 @@ namespace View {
             return (res=0);
         } else {
             // Apply simple interest
-            let (time_diff) = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
+            let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
             let (raw_supply) = IZToken.get_raw_total_supply(
                 contract_address=reserve.z_token_address
@@ -453,12 +453,12 @@ namespace View {
 
             // Amount to be paid to treasury (based on the adjusted accumulator)
             // (current_lending_rate * reserve_factor * time_diff / SECONDS_PER_YEAR) * accumulator * raw_supply
-            let (temp_1) = SafeMath.mul(reserve.current_lending_rate, time_diff);
-            let (temp_2) = SafeMath.mul(temp_1, reserve.reserve_factor);
-            let (temp_3) = SafeMath.div(temp_2, SECONDS_PER_YEAR);
-            let (temp_4) = SafeMath.div(temp_3, SCALE);
-            let (temp_5) = SafeDecimalMath.mul(temp_4, reserve.lending_accumulator);
-            let (amount_to_treasury) = SafeDecimalMath.mul(raw_supply, temp_5);
+            let temp_1 = SafeMath.mul(reserve.current_lending_rate, time_diff);
+            let temp_2 = SafeMath.mul(temp_1, reserve.reserve_factor);
+            let temp_3 = SafeMath.div(temp_2, SECONDS_PER_YEAR);
+            let temp_4 = SafeMath.div(temp_3, SCALE);
+            let temp_5 = SafeDecimalMath.mul(temp_4, reserve.lending_accumulator);
+            let amount_to_treasury = SafeDecimalMath.mul(raw_supply, temp_5);
 
             return (res=amount_to_treasury);
         }
@@ -473,7 +473,7 @@ namespace View {
         let (raw_total_debt) = reserves.read_raw_total_debt(token);
 
         let (debt_accumulator) = get_debt_accumulator(token);
-        let (scaled_up_debt) = SafeDecimalMath.mul(raw_total_debt, debt_accumulator);
+        let scaled_up_debt = SafeDecimalMath.mul(raw_total_debt, debt_accumulator);
         return (debt=scaled_up_debt);
     }
 
@@ -485,7 +485,7 @@ namespace View {
         let (debt_accumulator) = get_debt_accumulator(token);
         let (raw_debt) = raw_user_debts.read(user, token);
 
-        let (scaled_up_debt) = SafeDecimalMath.mul(raw_debt, debt_accumulator);
+        let scaled_up_debt = SafeDecimalMath.mul(raw_debt, debt_accumulator);
         return (debt=scaled_up_debt);
     }
 
@@ -568,7 +568,7 @@ namespace Internal {
 
         // Takes token from user
 
-        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256: Uint256 = SafeCast.felt_to_uint256(amount);
         let (transfer_success) = IERC20.transferFrom(
             contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
         );
@@ -620,14 +620,14 @@ namespace Internal {
 
         Internal.assert_reserve_enabled(token);
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator);
+        let scaled_down_amount = SafeDecimalMath.div(amount, updated_debt_accumulator);
         with_attr error_message("Market: invalid amount") {
             assert_not_zero(scaled_down_amount);
         }
 
         // Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token);
-        let (raw_user_debt_after) = SafeMath.add(raw_user_debt_before, scaled_down_amount);
+        let raw_user_debt_after = SafeMath.add(raw_user_debt_before, scaled_down_amount);
         raw_user_debts.write(caller, token, raw_user_debt_after);
 
         set_user_has_debt(caller, token, raw_user_debt_before, raw_user_debt_after);
@@ -649,7 +649,7 @@ namespace Internal {
             assert_not_undercollateralized(caller, TRUE);
         }
 
-        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256: Uint256 = SafeCast.felt_to_uint256(amount);
         let (transfer_success) = IERC20.transfer(
             contract_address=token, recipient=caller, amount=amount_u256
         );
@@ -776,16 +776,14 @@ namespace Internal {
         let (collateral_token_price) = IPriceOracle.get_price(
             contract_address=oracle_addr, token=collateral_token
         );
-        let (debt_value_repaid) = SafeDecimalMath.mul_decimals(
+        let debt_value_repaid = SafeDecimalMath.mul_decimals(
             debt_token_price, amount, debt_reserve_decimals
         );
-        let (equivalent_collateral_amount) = SafeDecimalMath.div_decimals(
+        let equivalent_collateral_amount = SafeDecimalMath.div_decimals(
             debt_value_repaid, collateral_token_price, collateral_reserve.decimals
         );
-        let (one_plus_liquidation_bonus) = SafeMath.add(
-            SCALE, collateral_reserve.liquidation_bonus
-        );
-        let (collateral_amount_after_bonus) = SafeDecimalMath.mul(
+        let one_plus_liquidation_bonus = SafeMath.add(SCALE, collateral_reserve.liquidation_bonus);
+        let collateral_amount_after_bonus = SafeDecimalMath.mul(
             equivalent_collateral_amount, one_plus_liquidation_bonus
         );
 
@@ -824,15 +822,15 @@ namespace Internal {
         let (flash_loan_fee) = reserves.read_flash_loan_fee(token);
 
         // Calculates minimum balance after the callback
-        let (loan_fee) = SafeDecimalMath.mul(amount, flash_loan_fee);
+        let loan_fee = SafeDecimalMath.mul(amount, flash_loan_fee);
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         );
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256);
-        let (min_balance) = SafeMath.add(reserve_balance_before, loan_fee);
+        let reserve_balance_before = SafeCast.uint256_to_felt(reserve_balance_before_u256);
+        let min_balance = SafeMath.add(reserve_balance_before, loan_fee);
 
         // Sends funds to receiver
-        let (amount_u256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256 = SafeCast.felt_to_uint256(amount);
         let (transfer_success) = IERC20.transfer(
             contract_address=token, recipient=receiver, amount=amount_u256
         );
@@ -849,7 +847,7 @@ namespace Internal {
         let (reserve_balance_after_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         );
-        let (reserve_balance_after) = SafeCast.uint256_to_felt(reserve_balance_after_u256);
+        let reserve_balance_after = SafeCast.uint256_to_felt(reserve_balance_after_u256);
         with_attr error_message("Market: insufficient amount repaid") {
             assert_le_felt(min_balance, reserve_balance_after);
         }
@@ -867,7 +865,7 @@ namespace Internal {
             abs_delta_raw_total_debt=0,
         );
 
-        let (actual_fee) = SafeMath.sub(reserve_balance_after, reserve_balance_before);
+        let actual_fee = SafeMath.sub(reserve_balance_after, reserve_balance_before);
         FlashLoan.emit(receiver, token, amount, actual_fee);
 
         return ();
@@ -913,7 +911,7 @@ namespace Internal {
     }(user: felt, offset: felt, set: felt) {
         alloc_locals;
 
-        let (reserve_slot) = Math.shl(1, offset);
+        let reserve_slot = Math.shl(1, offset);
         let (existing_map) = user_flags.read(user);
 
         if (set == TRUE) {
@@ -937,7 +935,7 @@ namespace Internal {
         alloc_locals;
 
         let (reserve_index) = reserve_indices.read(token);
-        let (reserve_slot) = Math.shl(1, reserve_index * 2);
+        let reserve_slot = Math.shl(1, reserve_index * 2);
         let (existing_map) = user_flags.read(user);
 
         let (and_result) = bitwise_and(existing_map, reserve_slot);
@@ -1073,7 +1071,7 @@ namespace Internal {
         local collateral_value_of_rest = collateral_value_of_rest;
         local collateral_required_of_rest = collateral_required_of_rest;
 
-        let (reserve_slot) = Math.shl(1, reserve_index * 2);
+        let reserve_slot = Math.shl(1, reserve_index * 2);
         let (reserve_slot_and) = bitwise_and(flags, reserve_slot);
 
         let (reserve_token) = reserve_tokens.read(reserve_index);
@@ -1081,7 +1079,7 @@ namespace Internal {
         let (current_collteral_required) = get_collateral_usd_value_required_for_token(
             user, reserve_token, apply_borrow_factor
         );
-        let (total_collateral_required) = SafeMath.add(
+        let total_collateral_required = SafeMath.add(
             current_collteral_required, collateral_required_of_rest
         );
 
@@ -1095,7 +1093,7 @@ namespace Internal {
             let (discounted_collteral_value) = get_user_collateral_usd_value_for_token(
                 user, reserve_token
             );
-            let (total_collateral_value) = SafeMath.add(
+            let total_collateral_value = SafeMath.add(
                 discounted_collteral_value, collateral_value_of_rest
             );
 
@@ -1115,7 +1113,7 @@ namespace Internal {
         let (debt_value) = get_user_debt_usd_value_for_token(user, token);
         if (apply_borrow_factor == TRUE) {
             let (borrow_factor) = reserves.read_borrow_factor(token);
-            let (collateral_required) = SafeDecimalMath.div(debt_value, borrow_factor);
+            let collateral_required = SafeDecimalMath.div(debt_value, borrow_factor);
             return (value=collateral_required);
         } else {
             return (value=debt_value);
@@ -1134,7 +1132,7 @@ namespace Internal {
         }
 
         let (debt_accumulator) = View.get_debt_accumulator(token);
-        let (scaled_up_debt_balance) = SafeDecimalMath.mul(raw_debt_balance, debt_accumulator);
+        let scaled_up_debt_balance = SafeDecimalMath.mul(raw_debt_balance, debt_accumulator);
 
         // Fetches price from oracle
         let (oracle_addr) = oracle.read();
@@ -1142,9 +1140,7 @@ namespace Internal {
 
         let (decimals) = reserves.read_decimals(token);
 
-        let (debt_value) = SafeDecimalMath.mul_decimals(
-            debt_price, scaled_up_debt_balance, decimals
-        );
+        let debt_value = SafeDecimalMath.mul_decimals(debt_price, scaled_up_debt_balance, decimals);
 
         return (value=debt_value);
     }
@@ -1168,12 +1164,12 @@ namespace Internal {
         let (collateral_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token);
 
         // `collateral_value` is represented in 8-decimal USD value
-        let (collateral_value) = SafeDecimalMath.mul_decimals(
+        let collateral_value = SafeDecimalMath.mul_decimals(
             collateral_price, collateral_balance, reserve.decimals
         );
 
         // Discounts value by collteral factor
-        let (discounted_collteral_value) = SafeDecimalMath.mul(
+        let discounted_collteral_value = SafeDecimalMath.mul(
             collateral_value, reserve.collateral_factor
         );
 
@@ -1210,7 +1206,7 @@ namespace Internal {
         Withdrawal.emit(user, token, amount_burnt);
 
         // Gives underlying tokens to user
-        let (amount_burnt_u256: Uint256) = SafeCast.felt_to_uint256(amount_burnt);
+        let amount_burnt_u256: Uint256 = SafeCast.felt_to_uint256(amount_burnt);
         let (transfer_success) = IERC20.transfer(
             contract_address=token, recipient=user, amount=amount_burnt_u256
         );
@@ -1257,13 +1253,13 @@ namespace Internal {
                 assert_not_zero(user_raw_debt);
             }
 
-            let (repay_amount) = SafeDecimalMath.mul(user_raw_debt, updated_debt_accumulator);
+            let repay_amount = SafeDecimalMath.mul(user_raw_debt, updated_debt_accumulator);
 
             repay_debt_internal(repayer, beneficiary, token, repay_amount, user_raw_debt);
 
             return (raw_amount=user_raw_debt, face_amount=repay_amount);
         } else {
-            let (raw_amount) = SafeDecimalMath.div(amount, updated_debt_accumulator);
+            let raw_amount = SafeDecimalMath.div(amount, updated_debt_accumulator);
             with_attr error_message("Market: invalid amount") {
                 assert_not_zero(raw_amount);
             }
@@ -1293,7 +1289,7 @@ namespace Internal {
 
         // Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token);
-        let (raw_user_debt_after) = SafeMath.sub(raw_user_debt_before, raw_amount);
+        let raw_user_debt_after = SafeMath.sub(raw_user_debt_before, raw_amount);
         raw_user_debts.write(beneficiary, token, raw_user_debt_after);
 
         set_user_has_debt(beneficiary, token, raw_user_debt_before, raw_user_debt_after);
@@ -1309,7 +1305,7 @@ namespace Internal {
         );
 
         // Takes token from user
-        let (repay_amount_u256: Uint256) = SafeCast.felt_to_uint256(repay_amount);
+        let repay_amount_u256: Uint256 = SafeCast.felt_to_uint256(repay_amount);
         let (transfer_success) = IERC20.transferFrom(
             contract_address=token, sender=repayer, recipient=this_address, amount=repay_amount_u256
         );
@@ -1402,27 +1398,27 @@ namespace Internal {
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         );
-        let (reserve_balance_before) = SafeCast.uint256_to_felt(reserve_balance_before_u256);
+        let reserve_balance_before = SafeCast.uint256_to_felt(reserve_balance_before_u256);
 
         local reserve_balance_after: felt;
         if (is_delta_reserve_balance_negative == TRUE) {
-            let (res) = SafeMath.sub(reserve_balance_before, abs_delta_reserve_balance);
+            let res = SafeMath.sub(reserve_balance_before, abs_delta_reserve_balance);
             reserve_balance_after = res;
         } else {
-            let (res) = SafeMath.add(reserve_balance_before, abs_delta_reserve_balance);
+            let res = SafeMath.add(reserve_balance_before, abs_delta_reserve_balance);
             reserve_balance_after = res;
         }
 
         local raw_total_debt_after: felt;
         if (is_delta_raw_total_debt_negative == TRUE) {
-            let (res) = SafeMath.sub(raw_total_debt_before, abs_delta_raw_total_debt);
+            let res = SafeMath.sub(raw_total_debt_before, abs_delta_raw_total_debt);
             raw_total_debt_after = res;
         } else {
-            let (res) = SafeMath.add(raw_total_debt_before, abs_delta_raw_total_debt);
+            let res = SafeMath.add(raw_total_debt_before, abs_delta_raw_total_debt);
             raw_total_debt_after = res;
         }
 
-        let (scaled_up_total_debt_after) = SafeDecimalMath.mul(
+        let scaled_up_total_debt_after = SafeDecimalMath.mul(
             raw_total_debt_after, updated_debt_accumulator
         );
         let (new_lending_rate, new_borrowing_rate) = IInterestRateModel.get_interest_rates(

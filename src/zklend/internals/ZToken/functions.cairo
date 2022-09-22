@@ -81,7 +81,7 @@ namespace External {
     func transfer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         recipient: felt, amount: Uint256
     ) -> (success: felt) {
-        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        let felt_amount = SafeCast.uint256_to_felt(amount);
         return felt_transfer(recipient, felt_amount);
     }
 
@@ -110,7 +110,7 @@ namespace External {
     func transferFrom{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         sender: felt, recipient: felt, amount: Uint256
     ) -> (success: felt) {
-        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        let felt_amount = SafeCast.uint256_to_felt(amount);
         return felt_transfer_from(sender, recipient, felt_amount);
     }
 
@@ -127,10 +127,10 @@ namespace External {
 
         // Allowances are not scaled so we can just subtract directly
         let (existing_allowance) = allowances.read(sender, caller);
-        let (new_allowance) = SafeMath.sub(existing_allowance, amount);
+        let new_allowance = SafeMath.sub(existing_allowance, amount);
         allowances.write(sender, caller, new_allowance);
 
-        let (new_allowance_u256) = SafeCast.felt_to_uint256(new_allowance);
+        let new_allowance_u256 = SafeCast.felt_to_uint256(new_allowance);
         Approval.emit(sender, caller, new_allowance_u256);
 
         Internal.transfer_internal(
@@ -147,7 +147,7 @@ namespace External {
     func approve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         spender: felt, amount: Uint256
     ) -> (success: felt) {
-        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        let felt_amount = SafeCast.uint256_to_felt(amount);
         return felt_approve(spender, felt_amount);
     }
 
@@ -164,7 +164,7 @@ namespace External {
 
         allowances.write(caller, spender, amount);
 
-        let (amount_u256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256 = SafeCast.felt_to_uint256(amount);
 
         Approval.emit(caller, spender, amount_u256);
 
@@ -213,20 +213,20 @@ namespace External {
 
         let (accumulator) = Internal.get_accumulator();
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+        let scaled_down_amount = SafeDecimalMath.div(amount, accumulator);
         with_attr error_message("ZToken: invalid mint amount") {
             assert_not_zero(scaled_down_amount);
         }
 
         let (raw_balance_before) = raw_balances.read(to);
-        let (raw_balance_after) = SafeMath.add(raw_balance_before, scaled_down_amount);
+        let raw_balance_after = SafeMath.add(raw_balance_before, scaled_down_amount);
         raw_balances.write(to, raw_balance_after);
 
         let (raw_supply_before) = raw_total_supply.read();
-        let (raw_supply_after) = SafeMath.add(raw_supply_before, scaled_down_amount);
+        let raw_supply_after = SafeMath.add(raw_supply_before, scaled_down_amount);
         raw_total_supply.write(raw_supply_after);
 
-        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256: Uint256 = SafeCast.felt_to_uint256(amount);
         Transfer.emit(0, to, amount_u256);
 
         if (raw_balance_before == 0) {
@@ -245,20 +245,20 @@ namespace External {
 
         let (accumulator) = Internal.get_accumulator();
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+        let scaled_down_amount = SafeDecimalMath.div(amount, accumulator);
         with_attr error_message("ZToken: invalid burn amount") {
             assert_not_zero(scaled_down_amount);
         }
 
         let (raw_balance_before) = raw_balances.read(user);
-        let (raw_balance_after) = SafeMath.sub(raw_balance_before, scaled_down_amount);
+        let raw_balance_after = SafeMath.sub(raw_balance_before, scaled_down_amount);
         raw_balances.write(user, raw_balance_after);
 
         let (raw_supply_before) = raw_total_supply.read();
-        let (raw_supply_after) = SafeMath.sub(raw_supply_before, scaled_down_amount);
+        let raw_supply_after = SafeMath.sub(raw_supply_before, scaled_down_amount);
         raw_total_supply.write(raw_supply_after);
 
-        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        let amount_u256: Uint256 = SafeCast.felt_to_uint256(amount);
         Transfer.emit(user, 0, amount_u256);
 
         return ();
@@ -279,12 +279,12 @@ namespace External {
         raw_balances.write(user, 0);
 
         let (raw_supply_before) = raw_total_supply.read();
-        let (raw_supply_after) = SafeMath.sub(raw_supply_before, raw_balance);
+        let raw_supply_after = SafeMath.sub(raw_supply_before, raw_balance);
         raw_total_supply.write(raw_supply_after);
 
         let (accumulator) = Internal.get_accumulator();
-        let (scaled_up_amount) = SafeDecimalMath.mul(raw_balance, accumulator);
-        let (scaled_up_amount_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_amount);
+        let scaled_up_amount = SafeDecimalMath.mul(raw_balance, accumulator);
+        let scaled_up_amount_u256: Uint256 = SafeCast.felt_to_uint256(scaled_up_amount);
         Transfer.emit(user, 0, scaled_up_amount_u256);
 
         return (amount_burnt=scaled_up_amount);
@@ -334,7 +334,7 @@ namespace View {
         total_supply: Uint256
     ) {
         let (scaled_up_supply) = felt_total_supply();
-        let (scaled_up_supply_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_supply);
+        let scaled_up_supply_u256: Uint256 = SafeCast.felt_to_uint256(scaled_up_supply);
 
         return (total_supply=scaled_up_supply_u256);
     }
@@ -347,7 +347,7 @@ namespace View {
         let (accumulator) = Internal.get_accumulator();
 
         let (supply) = raw_total_supply.read();
-        let (scaled_up_supply) = SafeDecimalMath.mul(supply, accumulator);
+        let scaled_up_supply = SafeDecimalMath.mul(supply, accumulator);
 
         return (total_supply=scaled_up_supply);
     }
@@ -356,7 +356,7 @@ namespace View {
         account: felt
     ) -> (balance: Uint256) {
         let (scaled_up_balance) = felt_balance_of(account);
-        let (scaled_up_balance_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_balance);
+        let scaled_up_balance_u256: Uint256 = SafeCast.felt_to_uint256(scaled_up_balance);
 
         return (balance=scaled_up_balance_u256);
     }
@@ -369,7 +369,7 @@ namespace View {
         let (accumulator) = Internal.get_accumulator();
 
         let (balance) = raw_balances.read(account);
-        let (scaled_up_balance) = SafeDecimalMath.mul(balance, accumulator);
+        let scaled_up_balance = SafeDecimalMath.mul(balance, accumulator);
 
         return (balance=scaled_up_balance);
     }
@@ -378,7 +378,7 @@ namespace View {
         owner: felt, spender: felt
     ) -> (remaining: Uint256) {
         let (remaining) = felt_allowance(owner, spender);
-        let (remaining_u256: Uint256) = SafeCast.felt_to_uint256(remaining);
+        let remaining_u256: Uint256 = SafeCast.felt_to_uint256(remaining);
 
         return (remaining=remaining_u256);
     }
@@ -439,11 +439,11 @@ namespace Internal {
         local raw_amount: felt;
         local face_amount: felt;
         if (is_amount_raw == TRUE) {
-            let (scaled_up_amount) = SafeDecimalMath.mul(amount, accumulator);
+            let scaled_up_amount = SafeDecimalMath.mul(amount, accumulator);
             raw_amount = amount;
             face_amount = scaled_up_amount;
         } else {
-            let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+            let scaled_down_amount = SafeDecimalMath.div(amount, accumulator);
             raw_amount = scaled_down_amount;
             face_amount = amount;
         }
@@ -454,14 +454,14 @@ namespace Internal {
 
         // No need to check from balance first because SafeMath will fail
         let (raw_from_balance_before) = raw_balances.read(from_account);
-        let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, raw_amount);
+        let raw_from_balance_after = SafeMath.sub(raw_from_balance_before, raw_amount);
         raw_balances.write(from_account, raw_from_balance_after);
 
         let (raw_to_balance_before) = raw_balances.read(to_account);
-        let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, raw_amount);
+        let raw_to_balance_after = SafeMath.add(raw_to_balance_before, raw_amount);
         raw_balances.write(to_account, raw_to_balance_after);
 
-        let (face_amount_u256: Uint256) = SafeCast.felt_to_uint256(face_amount);
+        let face_amount_u256: Uint256 = SafeCast.felt_to_uint256(face_amount);
         Transfer.emit(from_account, to_account, face_amount_u256);
         RawTransfer.emit(from_account, to_account, raw_amount, accumulator, face_amount);
 

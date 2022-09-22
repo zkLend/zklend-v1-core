@@ -9,13 +9,15 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 @view
 func shl{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("shl failed") {
-        return Math.shl(a, b);
+        let res = Math.shl(a, b);
+        return (res=res);
     }
 }
 
 @view
 func shr{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
     with_attr error_message("shr failed") {
-        return Math.shr(a, b);
+        let res = Math.shr(a, b);
+        return (res=res);
     }
 }
