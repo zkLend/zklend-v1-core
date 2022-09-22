@@ -76,7 +76,7 @@ async def setup() -> Setup:
         state=z_token.state,
         abi=z_token_cls.abi,
         contract_address=z_token.contract_address,
-        deploy_execution_info=z_token.deploy_execution_info,
+        deploy_call_info=z_token.deploy_call_info,
     )
 
     await alice.execute(

@@ -6,12 +6,12 @@ from utils.helpers import string_to_felt
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import private_to_stark_key, sign
-from starkware.starknet.public.abi import get_selector_from_name
+from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.testing.contract import (
     StarknetContract,
-    StarknetTransactionExecutionInfo,
 )
-from starkware.starknet.testing.starknet import Starknet
+from starkware.starknet.testing.starknet import Starknet, TransactionExecutionInfo
+from starkware.starknet.testing.state import InternalTransaction
 
 PREFIX_TRANSACTION = string_to_felt("StarkNet Transaction")
 
@@ -48,8 +48,10 @@ class Account:
         self.__account_contract = account_contract
         self.__private_key = private_key
 
-    async def execute(self, calls: List[Call]) -> StarknetTransactionExecutionInfo:
-        nonce = (await self.__account_contract.get_nonce().call()).result[0]
+    async def execute(self, calls: List[Call]) -> TransactionExecutionInfo:
+        nonce = await self.__account_contract.state.state.get_nonce_at(
+            self.__account_contract.contract_address
+        )
 
         raw_call_array: List[Tuple[int, int, int, int]] = []
         concated_calldata: List[int] = []
@@ -69,24 +71,35 @@ class Account:
         execute_calldata.append(len(concated_calldata))
         for item in concated_calldata:
             execute_calldata.append(item)
-        execute_calldata.append(nonce)
 
         transaction_hash = compute_hash_on_elements(
             [
                 string_to_felt("invoke"),
-                0,  # version
+                1,  # version
                 self.address,
-                get_selector_from_name("__execute__"),
+                0,
                 compute_hash_on_elements(execute_calldata),
                 0,  # max_fee
                 string_to_felt("SN_GOERLI"),
+                nonce,
             ]
         )
         sig_r, sig_s = sign(transaction_hash, self.__private_key)
 
-        result = await self.__account_contract.__execute__(
-            raw_call_array, concated_calldata, nonce
-        ).invoke(max_fee=0, signature=[sig_r, sig_s])
+        result = await self.__account_contract.state.execute_tx(
+            InternalTransaction.from_external(
+                external_tx=InvokeFunction(
+                    contract_address=self.address,
+                    calldata=execute_calldata,
+                    entry_point_selector=None,
+                    signature=[sig_r, sig_s],
+                    max_fee=0,
+                    version=1,
+                    nonce=nonce,
+                ),
+                general_config=self.__account_contract.state.general_config,
+            )
+        )
 
         return result
 

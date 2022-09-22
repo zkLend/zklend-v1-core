@@ -98,7 +98,7 @@ async def pre_setup() -> Setup:
         state=market.state,
         abi=market_cls.abi,
         contract_address=market.contract_address,
-        deploy_execution_info=market.deploy_execution_info,
+        deploy_call_info=market.deploy_call_info,
     )
 
     token_a = await starknet.deploy(
@@ -131,7 +131,7 @@ async def pre_setup() -> Setup:
         state=z_token_a.state,
         abi=z_token_cls.abi,
         contract_address=z_token_a.contract_address,
-        deploy_execution_info=z_token_a.deploy_execution_info,
+        deploy_call_info=z_token_a.deploy_call_info,
     )
     irm_a = await starknet.deploy(
         source=PATH_DEFAULT_INTEREST_RATE_MODEL,
@@ -174,7 +174,7 @@ async def pre_setup() -> Setup:
         state=z_token_b.state,
         abi=z_token_cls.abi,
         contract_address=z_token_b.contract_address,
-        deploy_execution_info=z_token_b.deploy_execution_info,
+        deploy_call_info=z_token_b.deploy_call_info,
     )
     irm_b = await starknet.deploy(
         source=PATH_DEFAULT_INTEREST_RATE_MODEL,
@@ -1583,7 +1583,7 @@ async def test_flashloan(setup_with_loan: Setup):
         "Market: insufficient amount repaid",
     )
 
-    setup.alice.execute(
+    await setup.alice.execute(
         [
             Call(
                 callback.contract_address,
@@ -1596,4 +1596,4 @@ async def test_flashloan(setup_with_loan: Setup):
                 ],
             ),
         ]
-    ),
+    )
