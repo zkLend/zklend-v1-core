@@ -1,5 +1,6 @@
 from typing import Coroutine, List
 from starkware.starknet.business_logic.execution.objects import Event
+from starkware.starknet.testing.starknet import TransactionExecutionInfo
 
 from starkware.starkware_utils.error_handling import StarkException
 
@@ -20,8 +21,8 @@ async def assert_reverted_with(func: Coroutine, error_message: str):
 
 
 async def assert_events_emitted(func: Coroutine, expected_events: List[Event]):
-    result = await func
-    actual_events: List[Event] = result.raw_events
+    result: TransactionExecutionInfo = await func
+    actual_events: List[Event] = result.get_sorted_events()
     for ind, expected_event in enumerate(expected_events):
         is_event_present = False
 

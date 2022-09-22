@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 
 %lang starknet
 
@@ -28,73 +28,73 @@ from starkware.starknet.common.syscalls import get_caller_address
 from openzeppelin.upgrades.library import Proxy
 from openzeppelin.token.erc20.library import Approval, Transfer
 
-namespace External:
-    #
-    # Upgradeability
-    #
+namespace External {
+    //
+    // Upgradeability
+    //
 
-    func initializer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        proxy_admin : felt,
-        _market : felt,
-        _underlying : felt,
-        _name : felt,
-        _symbol : felt,
-        _decimals : felt,
-    ):
-        Proxy.initializer(proxy_admin)
+    func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        proxy_admin: felt,
+        _market: felt,
+        _underlying: felt,
+        _name: felt,
+        _symbol: felt,
+        _decimals: felt,
+    ) {
+        Proxy.initializer(proxy_admin);
 
-        with_attr error_message("ZToken: zero address"):
-            assert_not_zero(_market)
-            assert_not_zero(_underlying)
-        end
+        with_attr error_message("ZToken: zero address") {
+            assert_not_zero(_market);
+            assert_not_zero(_underlying);
+        }
 
-        market.write(_market)
-        underlying.write(_underlying)
+        market.write(_market);
+        underlying.write(_underlying);
 
-        # We probably don't need to range check `_decimals` as it's checked against the real token
-        # when adding reserves anyways.
-        token_name.write(_name)
-        token_symbol.write(_symbol)
-        token_decimals.write(_decimals)
+        // We probably don't need to range check `_decimals` as it's checked against the real token
+        // when adding reserves anyways.
+        token_name.write(_name);
+        token_symbol.write(_symbol);
+        token_decimals.write(_decimals);
 
-        return ()
-    end
+        return ();
+    }
 
-    func upgrade{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        new_implementation : felt
-    ):
-        Proxy.assert_only_admin()
-        return Proxy._set_implementation_hash(new_implementation)
-    end
+    func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        new_implementation: felt
+    ) {
+        Proxy.assert_only_admin();
+        return Proxy._set_implementation_hash(new_implementation);
+    }
 
-    func transfer_proxy_admin{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        new_admin : felt
-    ):
-        Proxy.assert_only_admin()
-        return Proxy._set_admin(new_admin)
-    end
+    func transfer_proxy_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        new_admin: felt
+    ) {
+        Proxy.assert_only_admin();
+        return Proxy._set_admin(new_admin);
+    }
 
-    #
-    # Permissionless entrypoints
-    #
+    //
+    // Permissionless entrypoints
+    //
 
-    func transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        recipient : felt, amount : Uint256
-    ) -> (success : felt):
-        let (felt_amount) = SafeCast.uint256_to_felt(amount)
-        return felt_transfer(recipient, felt_amount)
-    end
+    func transfer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        recipient: felt, amount: Uint256
+    ) -> (success: felt) {
+        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        return felt_transfer(recipient, felt_amount);
+    }
 
-    func felt_transfer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        recipient : felt, amount : felt
-    ) -> (success : felt):
-        let (caller) = get_caller_address()
+    func felt_transfer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        recipient: felt, amount: felt
+    ) -> (success: felt) {
+        let (caller) = get_caller_address();
 
-        # NOTE: this exploit should no longer be possible since all transactions need must go through
-        #       the __execute__ method now, but we're still keeping it just in case
-        with_attr error_message("ZToken: zero address"):
-            assert_not_zero(caller)
-        end
+        // NOTE: this exploit should no longer be possible since all transactions need must go through
+        //       the __execute__ method now, but we're still keeping it just in case
+        with_attr error_message("ZToken: zero address") {
+            assert_not_zero(caller);
+        }
 
         Internal.transfer_internal(
             from_account=caller,
@@ -102,36 +102,36 @@ namespace External:
             amount=amount,
             is_amount_raw=FALSE,
             check_collateralization=TRUE,
-        )
+        );
 
-        return (success=TRUE)
-    end
+        return (success=TRUE);
+    }
 
-    func transferFrom{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        sender : felt, recipient : felt, amount : Uint256
-    ) -> (success : felt):
-        let (felt_amount) = SafeCast.uint256_to_felt(amount)
-        return felt_transfer_from(sender, recipient, felt_amount)
-    end
+    func transferFrom{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        sender: felt, recipient: felt, amount: Uint256
+    ) -> (success: felt) {
+        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        return felt_transfer_from(sender, recipient, felt_amount);
+    }
 
-    func felt_transfer_from{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        sender : felt, recipient : felt, amount : felt
-    ) -> (success : felt):
-        let (caller) = get_caller_address()
+    func felt_transfer_from{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        sender: felt, recipient: felt, amount: felt
+    ) -> (success: felt) {
+        let (caller) = get_caller_address();
 
-        # NOTE: this exploit should no longer be possible since all transactions need must go through
-        #       the __execute__ method now, but we're still keeping it just in case
-        with_attr error_message("ZToken: zero address"):
-            assert_not_zero(caller)
-        end
+        // NOTE: this exploit should no longer be possible since all transactions need must go through
+        //       the __execute__ method now, but we're still keeping it just in case
+        with_attr error_message("ZToken: zero address") {
+            assert_not_zero(caller);
+        }
 
-        # Allowances are not scaled so we can just subtract directly
-        let (existing_allowance) = allowances.read(sender, caller)
-        let (new_allowance) = SafeMath.sub(existing_allowance, amount)
-        allowances.write(sender, caller, new_allowance)
+        // Allowances are not scaled so we can just subtract directly
+        let (existing_allowance) = allowances.read(sender, caller);
+        let (new_allowance) = SafeMath.sub(existing_allowance, amount);
+        allowances.write(sender, caller, new_allowance);
 
-        let (new_allowance_u256) = SafeCast.felt_to_uint256(new_allowance)
-        Approval.emit(sender, caller, new_allowance_u256)
+        let (new_allowance_u256) = SafeCast.felt_to_uint256(new_allowance);
+        Approval.emit(sender, caller, new_allowance_u256);
 
         Internal.transfer_internal(
             from_account=sender,
@@ -139,355 +139,355 @@ namespace External:
             amount=amount,
             is_amount_raw=FALSE,
             check_collateralization=TRUE,
-        )
+        );
 
-        return (success=TRUE)
-    end
+        return (success=TRUE);
+    }
 
-    func approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        spender : felt, amount : Uint256
-    ) -> (success : felt):
-        let (felt_amount) = SafeCast.uint256_to_felt(amount)
-        return felt_approve(spender, felt_amount)
-    end
+    func approve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        spender: felt, amount: Uint256
+    ) -> (success: felt) {
+        let (felt_amount) = SafeCast.uint256_to_felt(amount);
+        return felt_approve(spender, felt_amount);
+    }
 
-    func felt_approve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        spender : felt, amount : felt
-    ) -> (success : felt):
-        let (caller) = get_caller_address()
+    func felt_approve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        spender: felt, amount: felt
+    ) -> (success: felt) {
+        let (caller) = get_caller_address();
 
-        # NOTE: this exploit should no longer be possible since all transactions need must go through
-        #       the __execute__ method now, but we're still keeping it just in case
-        with_attr error_message("ZToken: zero address"):
-            assert_not_zero(caller)
-        end
+        // NOTE: this exploit should no longer be possible since all transactions need must go through
+        //       the __execute__ method now, but we're still keeping it just in case
+        with_attr error_message("ZToken: zero address") {
+            assert_not_zero(caller);
+        }
 
-        allowances.write(caller, spender, amount)
+        allowances.write(caller, spender, amount);
 
-        let (amount_u256) = SafeCast.felt_to_uint256(amount)
+        let (amount_u256) = SafeCast.felt_to_uint256(amount);
 
-        Approval.emit(caller, spender, amount_u256)
+        Approval.emit(caller, spender, amount_u256);
 
-        return (success=TRUE)
-    end
+        return (success=TRUE);
+    }
 
-    # This method exists because ZToken balances are always increasing (unless when no interest is
-    # accumulating). so it's hard for off-chain actors to clear balance completely.
-    func transfer_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        recipient : felt
-    ):
-        let (caller) = get_caller_address()
+    // This method exists because ZToken balances are always increasing (unless when no interest is
+    // accumulating). so it's hard for off-chain actors to clear balance completely.
+    func transfer_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        recipient: felt
+    ) {
+        let (caller) = get_caller_address();
 
-        # NOTE: this exploit should no longer be possible since all transactions need must go through
-        #       the __execute__ method now, but we're still keeping it just in case
-        with_attr error_message("ZToken: zero address"):
-            assert_not_zero(caller)
-        end
+        // NOTE: this exploit should no longer be possible since all transactions need must go through
+        //       the __execute__ method now, but we're still keeping it just in case
+        with_attr error_message("ZToken: zero address") {
+            assert_not_zero(caller);
+        }
 
-        let (sender_raw_balance) = raw_balances.read(caller)
+        let (sender_raw_balance) = raw_balances.read(caller);
         Internal.transfer_internal(
             from_account=caller,
             to_account=recipient,
             amount=sender_raw_balance,
             is_amount_raw=TRUE,
             check_collateralization=TRUE,
-        )
+        );
 
-        return ()
-    end
+        return ();
+    }
 
-    #
-    # Permissioned entrypoints
-    #
+    //
+    // Permissioned entrypoints
+    //
 
-    func mint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        to : felt, amount : felt
-    ) -> (zero_balance_before : felt):
-        alloc_locals
+    func mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        to: felt, amount: felt
+    ) -> (zero_balance_before: felt) {
+        alloc_locals;
 
-        Internal.only_market()
+        Internal.only_market();
 
-        with_attr error_message("ZToken: cannot mint to the zero address"):
-            assert_not_zero(to)
-        end
+        with_attr error_message("ZToken: cannot mint to the zero address") {
+            assert_not_zero(to);
+        }
 
-        let (accumulator) = Internal.get_accumulator()
+        let (accumulator) = Internal.get_accumulator();
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
-        with_attr error_message("ZToken: invalid mint amount"):
-            assert_not_zero(scaled_down_amount)
-        end
+        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+        with_attr error_message("ZToken: invalid mint amount") {
+            assert_not_zero(scaled_down_amount);
+        }
 
-        let (raw_balance_before) = raw_balances.read(to)
-        let (raw_balance_after) = SafeMath.add(raw_balance_before, scaled_down_amount)
-        raw_balances.write(to, raw_balance_after)
+        let (raw_balance_before) = raw_balances.read(to);
+        let (raw_balance_after) = SafeMath.add(raw_balance_before, scaled_down_amount);
+        raw_balances.write(to, raw_balance_after);
 
-        let (raw_supply_before) = raw_total_supply.read()
-        let (raw_supply_after) = SafeMath.add(raw_supply_before, scaled_down_amount)
-        raw_total_supply.write(raw_supply_after)
+        let (raw_supply_before) = raw_total_supply.read();
+        let (raw_supply_after) = SafeMath.add(raw_supply_before, scaled_down_amount);
+        raw_total_supply.write(raw_supply_after);
 
-        let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
-        Transfer.emit(0, to, amount_u256)
+        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        Transfer.emit(0, to, amount_u256);
 
-        if raw_balance_before == 0:
-            return (zero_balance_before=TRUE)
-        else:
-            return (zero_balance_before=FALSE)
-        end
-    end
+        if (raw_balance_before == 0) {
+            return (zero_balance_before=TRUE);
+        } else {
+            return (zero_balance_before=FALSE);
+        }
+    }
 
-    func burn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        user : felt, amount : felt
-    ):
-        alloc_locals
+    func burn{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        user: felt, amount: felt
+    ) {
+        alloc_locals;
 
-        Internal.only_market()
+        Internal.only_market();
 
-        let (accumulator) = Internal.get_accumulator()
+        let (accumulator) = Internal.get_accumulator();
 
-        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
-        with_attr error_message("ZToken: invalid burn amount"):
-            assert_not_zero(scaled_down_amount)
-        end
+        let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+        with_attr error_message("ZToken: invalid burn amount") {
+            assert_not_zero(scaled_down_amount);
+        }
 
-        let (raw_balance_before) = raw_balances.read(user)
-        let (raw_balance_after) = SafeMath.sub(raw_balance_before, scaled_down_amount)
-        raw_balances.write(user, raw_balance_after)
+        let (raw_balance_before) = raw_balances.read(user);
+        let (raw_balance_after) = SafeMath.sub(raw_balance_before, scaled_down_amount);
+        raw_balances.write(user, raw_balance_after);
 
-        let (raw_supply_before) = raw_total_supply.read()
-        let (raw_supply_after) = SafeMath.sub(raw_supply_before, scaled_down_amount)
-        raw_total_supply.write(raw_supply_after)
+        let (raw_supply_before) = raw_total_supply.read();
+        let (raw_supply_after) = SafeMath.sub(raw_supply_before, scaled_down_amount);
+        raw_total_supply.write(raw_supply_after);
 
-        let (amount_u256 : Uint256) = SafeCast.felt_to_uint256(amount)
-        Transfer.emit(user, 0, amount_u256)
+        let (amount_u256: Uint256) = SafeCast.felt_to_uint256(amount);
+        Transfer.emit(user, 0, amount_u256);
 
-        return ()
-    end
+        return ();
+    }
 
-    func burn_all{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        user : felt
-    ) -> (amount_burnt : felt):
-        alloc_locals
+    func burn_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(user: felt) -> (
+        amount_burnt: felt
+    ) {
+        alloc_locals;
 
-        Internal.only_market()
+        Internal.only_market();
 
-        let (raw_balance) = raw_balances.read(user)
-        with_attr error_message("ZToken: invalid burn amount"):
-            assert_not_zero(raw_balance)
-        end
+        let (raw_balance) = raw_balances.read(user);
+        with_attr error_message("ZToken: invalid burn amount") {
+            assert_not_zero(raw_balance);
+        }
 
-        raw_balances.write(user, 0)
+        raw_balances.write(user, 0);
 
-        let (raw_supply_before) = raw_total_supply.read()
-        let (raw_supply_after) = SafeMath.sub(raw_supply_before, raw_balance)
-        raw_total_supply.write(raw_supply_after)
+        let (raw_supply_before) = raw_total_supply.read();
+        let (raw_supply_after) = SafeMath.sub(raw_supply_before, raw_balance);
+        raw_total_supply.write(raw_supply_after);
 
-        let (accumulator) = Internal.get_accumulator()
-        let (scaled_up_amount) = SafeDecimalMath.mul(raw_balance, accumulator)
-        let (scaled_up_amount_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_amount)
-        Transfer.emit(user, 0, scaled_up_amount_u256)
+        let (accumulator) = Internal.get_accumulator();
+        let (scaled_up_amount) = SafeDecimalMath.mul(raw_balance, accumulator);
+        let (scaled_up_amount_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_amount);
+        Transfer.emit(user, 0, scaled_up_amount_u256);
 
-        return (amount_burnt=scaled_up_amount)
-    end
+        return (amount_burnt=scaled_up_amount);
+    }
 
-    func move{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        from_account : felt, to_account : felt, amount : felt
-    ):
-        Internal.only_market()
+    func move{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        from_account: felt, to_account: felt, amount: felt
+    ) {
+        Internal.only_market();
 
-        # No need to check collateralization as `Market` only moves for liquidation
+        // No need to check collateralization as `Market` only moves for liquidation
         return Internal.transfer_internal(
             from_account=from_account,
             to_account=to_account,
             amount=amount,
             is_amount_raw=FALSE,
             check_collateralization=FALSE,
-        )
-    end
-end
+        );
+    }
+}
 
-namespace View:
-    #
-    # Getters
-    #
+namespace View {
+    //
+    // Getters
+    //
 
-    func name{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (name : felt):
-        let (res) = token_name.read()
-        return (name=res)
-    end
+    func name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (name: felt) {
+        let (res) = token_name.read();
+        return (name=res);
+    }
 
-    func symbol{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        symbol : felt
-    ):
-        let (res) = token_symbol.read()
-        return (symbol=res)
-    end
+    func symbol{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        symbol: felt
+    ) {
+        let (res) = token_symbol.read();
+        return (symbol=res);
+    }
 
-    func decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        decimals : felt
-    ):
-        let (res) = token_decimals.read()
-        return (decimals=res)
-    end
+    func decimals{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        decimals: felt
+    ) {
+        let (res) = token_decimals.read();
+        return (decimals=res);
+    }
 
-    func totalSupply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        total_supply : Uint256
-    ):
-        let (scaled_up_supply) = felt_total_supply()
-        let (scaled_up_supply_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_supply)
+    func totalSupply{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        total_supply: Uint256
+    ) {
+        let (scaled_up_supply) = felt_total_supply();
+        let (scaled_up_supply_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_supply);
 
-        return (total_supply=scaled_up_supply_u256)
-    end
+        return (total_supply=scaled_up_supply_u256);
+    }
 
-    func felt_total_supply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        total_supply : felt
-    ):
-        alloc_locals
+    func felt_total_supply{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        total_supply: felt
+    ) {
+        alloc_locals;
 
-        let (accumulator) = Internal.get_accumulator()
+        let (accumulator) = Internal.get_accumulator();
 
-        let (supply) = raw_total_supply.read()
-        let (scaled_up_supply) = SafeDecimalMath.mul(supply, accumulator)
+        let (supply) = raw_total_supply.read();
+        let (scaled_up_supply) = SafeDecimalMath.mul(supply, accumulator);
 
-        return (total_supply=scaled_up_supply)
-    end
+        return (total_supply=scaled_up_supply);
+    }
 
-    func balanceOf{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        account : felt
-    ) -> (balance : Uint256):
-        let (scaled_up_balance) = felt_balance_of(account)
-        let (scaled_up_balance_u256 : Uint256) = SafeCast.felt_to_uint256(scaled_up_balance)
+    func balanceOf{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        account: felt
+    ) -> (balance: Uint256) {
+        let (scaled_up_balance) = felt_balance_of(account);
+        let (scaled_up_balance_u256: Uint256) = SafeCast.felt_to_uint256(scaled_up_balance);
 
-        return (balance=scaled_up_balance_u256)
-    end
+        return (balance=scaled_up_balance_u256);
+    }
 
-    func felt_balance_of{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        account : felt
-    ) -> (balance : felt):
-        alloc_locals
+    func felt_balance_of{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        account: felt
+    ) -> (balance: felt) {
+        alloc_locals;
 
-        let (accumulator) = Internal.get_accumulator()
+        let (accumulator) = Internal.get_accumulator();
 
-        let (balance) = raw_balances.read(account)
-        let (scaled_up_balance) = SafeDecimalMath.mul(balance, accumulator)
+        let (balance) = raw_balances.read(account);
+        let (scaled_up_balance) = SafeDecimalMath.mul(balance, accumulator);
 
-        return (balance=scaled_up_balance)
-    end
+        return (balance=scaled_up_balance);
+    }
 
-    func allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        owner : felt, spender : felt
-    ) -> (remaining : Uint256):
-        let (remaining) = felt_allowance(owner, spender)
-        let (remaining_u256 : Uint256) = SafeCast.felt_to_uint256(remaining)
+    func allowance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        owner: felt, spender: felt
+    ) -> (remaining: Uint256) {
+        let (remaining) = felt_allowance(owner, spender);
+        let (remaining_u256: Uint256) = SafeCast.felt_to_uint256(remaining);
 
-        return (remaining=remaining_u256)
-    end
+        return (remaining=remaining_u256);
+    }
 
-    func felt_allowance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        owner : felt, spender : felt
-    ) -> (remaining : felt):
-        let (amount) = allowances.read(owner, spender)
-        return (remaining=amount)
-    end
+    func felt_allowance{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        owner: felt, spender: felt
+    ) -> (remaining: felt) {
+        let (amount) = allowances.read(owner, spender);
+        return (remaining=amount);
+    }
 
-    func underlying_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        token : felt
-    ):
-        let (res) = underlying.read()
-        return (token=res)
-    end
+    func underlying_token{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        token: felt
+    ) {
+        let (res) = underlying.read();
+        return (token=res);
+    }
 
-    func get_raw_total_supply{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        ) -> (raw_supply : felt):
-        let (raw_supply) = raw_total_supply.read()
-        return (raw_supply=raw_supply)
-    end
-end
+    func get_raw_total_supply{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        ) -> (raw_supply: felt) {
+        let (raw_supply) = raw_total_supply.read();
+        return (raw_supply=raw_supply);
+    }
+}
 
-namespace Internal:
-    func only_market{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
-        let (market_addr) = market.read()
-        let (caller) = get_caller_address()
-        with_attr error_message("ZToken: not market"):
-            assert market_addr = caller
-        end
-        return ()
-    end
+namespace Internal {
+    func only_market{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+        let (market_addr) = market.read();
+        let (caller) = get_caller_address();
+        with_attr error_message("ZToken: not market") {
+            assert market_addr = caller;
+        }
+        return ();
+    }
 
-    func get_accumulator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        accumulator : felt
-    ):
-        let (market_addr) = market.read()
-        let (underlying_addr) = underlying.read()
+    func get_accumulator{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+        accumulator: felt
+    ) {
+        let (market_addr) = market.read();
+        let (underlying_addr) = underlying.read();
         let (accumulator) = IMarket.get_lending_accumulator(
             contract_address=market_addr, token=underlying_addr
-        )
-        return (accumulator=accumulator)
-    end
+        );
+        return (accumulator=accumulator);
+    }
 
-    func transfer_internal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        from_account : felt,
-        to_account : felt,
-        amount : felt,
-        is_amount_raw : felt,
-        check_collateralization : felt,
-    ):
-        alloc_locals
+    func transfer_internal{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        from_account: felt,
+        to_account: felt,
+        amount: felt,
+        is_amount_raw: felt,
+        check_collateralization: felt,
+    ) {
+        alloc_locals;
 
-        let (accumulator) = get_accumulator()
+        let (accumulator) = get_accumulator();
 
-        local raw_amount : felt
-        local face_amount : felt
-        if is_amount_raw == TRUE:
-            let (scaled_up_amount) = SafeDecimalMath.mul(amount, accumulator)
-            raw_amount = amount
-            face_amount = scaled_up_amount
-        else:
-            let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator)
-            raw_amount = scaled_down_amount
-            face_amount = amount
-        end
+        local raw_amount: felt;
+        local face_amount: felt;
+        if (is_amount_raw == TRUE) {
+            let (scaled_up_amount) = SafeDecimalMath.mul(amount, accumulator);
+            raw_amount = amount;
+            face_amount = scaled_up_amount;
+        } else {
+            let (scaled_down_amount) = SafeDecimalMath.div(amount, accumulator);
+            raw_amount = scaled_down_amount;
+            face_amount = amount;
+        }
 
-        with_attr error_message("ZToken: invalid transfer amount"):
-            assert_not_zero(raw_amount)
-        end
+        with_attr error_message("ZToken: invalid transfer amount") {
+            assert_not_zero(raw_amount);
+        }
 
-        # No need to check from balance first because SafeMath will fail
-        let (raw_from_balance_before) = raw_balances.read(from_account)
-        let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, raw_amount)
-        raw_balances.write(from_account, raw_from_balance_after)
+        // No need to check from balance first because SafeMath will fail
+        let (raw_from_balance_before) = raw_balances.read(from_account);
+        let (raw_from_balance_after) = SafeMath.sub(raw_from_balance_before, raw_amount);
+        raw_balances.write(from_account, raw_from_balance_after);
 
-        let (raw_to_balance_before) = raw_balances.read(to_account)
-        let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, raw_amount)
-        raw_balances.write(to_account, raw_to_balance_after)
+        let (raw_to_balance_before) = raw_balances.read(to_account);
+        let (raw_to_balance_after) = SafeMath.add(raw_to_balance_before, raw_amount);
+        raw_balances.write(to_account, raw_to_balance_after);
 
-        let (face_amount_u256 : Uint256) = SafeCast.felt_to_uint256(face_amount)
-        Transfer.emit(from_account, to_account, face_amount_u256)
-        RawTransfer.emit(from_account, to_account, raw_amount, accumulator, face_amount)
+        let (face_amount_u256: Uint256) = SafeCast.felt_to_uint256(face_amount);
+        Transfer.emit(from_account, to_account, face_amount_u256);
+        RawTransfer.emit(from_account, to_account, raw_amount, accumulator, face_amount);
 
-        if check_collateralization == TRUE:
-            let (market_addr) = market.read()
+        if (check_collateralization == TRUE) {
+            let (market_addr) = market.read();
 
-            # Skips check if token is not used as collateral
-            let (underlying_token) = underlying.read()
+            // Skips check if token is not used as collateral
+            let (underlying_token) = underlying.read();
             let (collateral_enabled) = IMarket.is_collateral_enabled(
                 contract_address=market_addr, user=from_account, token=underlying_token
-            )
-            if collateral_enabled == FALSE:
-                return ()
-            end
+            );
+            if (collateral_enabled == FALSE) {
+                return ();
+            }
 
             let (is_undercollateralized) = IMarket.is_user_undercollateralized(
                 contract_address=market_addr, user=from_account, apply_borrow_factor=TRUE
-            )
+            );
 
-            with_attr error_message("ZToken: invalid collateralization after transfer"):
-                assert is_undercollateralized = FALSE
-            end
+            with_attr error_message("ZToken: invalid collateralization after transfer") {
+                assert is_undercollateralized = FALSE;
+            }
 
-            return ()
-        else:
-            return ()
-        end
-    end
-end
+            return ();
+        } else {
+            return ();
+        }
+    }
+}

@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 
-# PriceOracle: IPriceOracle
-#
-# A central oracle hub for connecting to different upstream oracles and exposing a single getter
-# to the core protocol.
+// PriceOracle: IPriceOracle
+//
+// A central oracle hub for connecting to different upstream oracles and exposing a single getter
+// to the core protocol.
 
 %lang starknet
 
@@ -13,58 +13,58 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 from openzeppelin.access.ownable.library import Ownable
 
-#
-# Storage
-#
+//
+// Storage
+//
 
 @storage_var
-func sources(token : felt) -> (source : felt):
-end
+func sources(token: felt) -> (source: felt) {
+}
 
-#
-# Constructor
-#
+//
+// Constructor
+//
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(owner : felt):
-    Ownable.initializer(owner)
-    return ()
-end
+func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner: felt) {
+    Ownable.initializer(owner);
+    return ();
+}
 
-#
-# Getters
-#
+//
+// Getters
+//
 
-# Get the price of the token in USD with 8 decimals
+// Get the price of the token in USD with 8 decimals
 @view
-func get_price{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(token : felt) -> (
-    price : felt
-):
-    let (source) = sources.read(token)
-    let (price) = IPriceOracleSource.get_price(contract_address=source)
-    return (price=price)
-end
+func get_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(token: felt) -> (
+    price: felt
+) {
+    let (source) = sources.read(token);
+    let (price) = IPriceOracleSource.get_price(contract_address=source);
+    return (price=price);
+}
 
-# Get the price of the token in USD with 8 decimals and update timestamp
+// Get the price of the token in USD with 8 decimals and update timestamp
 @view
-func get_price_with_time{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt
-) -> (price : felt, update_time : felt):
-    let (source) = sources.read(token)
-    let (price, update_time) = IPriceOracleSource.get_price_with_time(contract_address=source)
-    return (price=price, update_time=update_time)
-end
+func get_price_with_time{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt
+) -> (price: felt, update_time: felt) {
+    let (source) = sources.read(token);
+    let (price, update_time) = IPriceOracleSource.get_price_with_time(contract_address=source);
+    return (price=price, update_time=update_time);
+}
 
-#
-# External
-#
+//
+// External
+//
 
 @external
-func set_token_source{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token : felt, source : felt
-):
-    Ownable.assert_only_owner()
+func set_token_source{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt, source: felt
+) {
+    Ownable.assert_only_owner();
 
-    sources.write(token, source)
-    return ()
-end
+    sources.write(token, source);
+    return ();
+}
