@@ -66,7 +66,7 @@ func get_interest_rates{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_ch
         return (lending_rate=0, borrowing_rate=0);
     } else {
         let (borrowing_rate) = calculate_borrow_rate(utilization_rate);
-        let (lending_rate) = SafeDecimalMath.mul(borrowing_rate, utilization_rate);
+        let lending_rate = SafeDecimalMath.mul(borrowing_rate, utilization_rate);
         return (lending_rate=lending_rate, borrowing_rate=borrowing_rate);
     }
 }
@@ -77,8 +77,8 @@ func calculate_utilization_rate{range_check_ptr}(reserve_balance: felt, total_de
     if (total_debt == 0) {
         return (utilization_rate=0);
     } else {
-        let (total_liquidity) = SafeMath.add(reserve_balance, total_debt);
-        let (utilization_rate) = SafeDecimalMath.div(total_debt, total_liquidity);
+        let total_liquidity = SafeMath.add(reserve_balance, total_debt);
+        let utilization_rate = SafeDecimalMath.div(total_debt, total_liquidity);
         return (utilization_rate=utilization_rate);
     }
 }
@@ -92,10 +92,10 @@ func calculate_borrow_rate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
 
     let below_optimal_rate = is_le_felt(utilization_rate, params.optimal_rate);
     if (below_optimal_rate == TRUE) {
-        let (temp_1) = SafeDecimalMath.div(utilization_rate, params.optimal_rate);
-        let (temp_2) = SafeDecimalMath.mul(params.slope_0, temp_1);
+        let temp_1 = SafeDecimalMath.div(utilization_rate, params.optimal_rate);
+        let temp_2 = SafeDecimalMath.mul(params.slope_0, temp_1);
 
-        let (borrow_rate) = SafeMath.add(params.y_intercept, temp_2);
+        let borrow_rate = SafeMath.add(params.y_intercept, temp_2);
 
         return (borrow_rate=borrow_rate);
     } else {
@@ -103,11 +103,11 @@ func calculate_borrow_rate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
         let excess_utilization_rate = utilization_rate - params.optimal_rate;
         let optimal_to_one = SCALE - params.optimal_rate;
 
-        let (temp_1) = SafeDecimalMath.div(excess_utilization_rate, optimal_to_one);
-        let (temp_2) = SafeDecimalMath.mul(params.slope_1, temp_1);
-        let (temp_3) = SafeMath.add(params.y_intercept, params.slope_0);
+        let temp_1 = SafeDecimalMath.div(excess_utilization_rate, optimal_to_one);
+        let temp_2 = SafeDecimalMath.mul(params.slope_1, temp_1);
+        let temp_3 = SafeMath.add(params.y_intercept, params.slope_0);
 
-        let (borrow_rate) = SafeMath.add(temp_2, temp_3);
+        let borrow_rate = SafeMath.add(temp_2, temp_3);
 
         return (borrow_rate=borrow_rate);
     }

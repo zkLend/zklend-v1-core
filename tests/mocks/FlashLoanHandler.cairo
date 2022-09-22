@@ -47,7 +47,7 @@ func zklend_flash_callback{syscall_ptr: felt*, range_check_ptr}(
     let market_addr = calldata[1];
     let return_amount = calldata[2];
 
-    let (return_amount_u256) = SafeCast.felt_to_uint256(return_amount);
+    let return_amount_u256 = SafeCast.felt_to_uint256(return_amount);
 
     IERC20.transfer(contract_address=token, recipient=market_addr, amount=return_amount_u256);
 

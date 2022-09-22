@@ -11,21 +11,19 @@ const SCALE = 10 ** 27;
 
 namespace SafeDecimalMath {
     // This function assumes `b` is scaled by `SCALE`
-    func mul{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
-        let (scaled_product) = SafeMath.mul(a, b);
-        let (result) = SafeMath.div(scaled_product, SCALE);
-        return (res=result);
+    func mul{range_check_ptr}(a: felt, b: felt) -> felt {
+        let scaled_product = SafeMath.mul(a, b);
+        return SafeMath.div(scaled_product, SCALE);
     }
 
     // This function assumes `b` is scaled by `SCALE`
-    func div{range_check_ptr}(a: felt, b: felt) -> (res: felt) {
-        let (scaled_a) = SafeMath.mul(a, SCALE);
-        let (result) = SafeMath.div(scaled_a, b);
-        return (res=result);
+    func div{range_check_ptr}(a: felt, b: felt) -> felt {
+        let scaled_a = SafeMath.mul(a, SCALE);
+        return SafeMath.div(scaled_a, b);
     }
 
     // This function assumes `b` is scaled by `10 ** b_decimals`
-    func mul_decimals{range_check_ptr}(a: felt, b: felt, b_decimals: felt) -> (res: felt) {
+    func mul_decimals{range_check_ptr}(a: felt, b: felt, b_decimals: felt) -> felt {
         alloc_locals;
 
         // `pow` overflows if `b_decimals` > 75,
@@ -33,21 +31,19 @@ namespace SafeDecimalMath {
             assert_le_felt(b_decimals, 75);
         }
 
-        let (scaled_product) = SafeMath.mul(a, b);
+        let scaled_product = SafeMath.mul(a, b);
         let (scale) = pow(10, b_decimals);
-        let (result) = SafeMath.div(scaled_product, scale);
-        return (res=result);
+        return SafeMath.div(scaled_product, scale);
     }
 
-    func div_decimals{range_check_ptr}(a: felt, b: felt, b_decimals: felt) -> (res: felt) {
+    func div_decimals{range_check_ptr}(a: felt, b: felt, b_decimals: felt) -> felt {
         // `pow` overflows if `b_decimals` > 75,
         with_attr error_message("Market: decimlas out of range") {
             assert_le_felt(b_decimals, 75);
         }
 
         let (scale) = pow(10, b_decimals);
-        let (scaled_a) = SafeMath.mul(a, scale);
-        let (result) = SafeMath.div(scaled_a, b);
-        return (res=result);
+        let scaled_a = SafeMath.mul(a, scale);
+        return SafeMath.div(scaled_a, b);
     }
 }

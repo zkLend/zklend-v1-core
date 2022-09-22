@@ -85,11 +85,11 @@ func scale_price{range_check_ptr}(price: felt, decimals: felt) -> (scaled_price:
         let should_scale_up = is_le_felt(decimals, TARGET_DECIMALS);
         if (should_scale_up == TRUE) {
             let (multiplier) = pow(10, TARGET_DECIMALS - decimals);
-            let (scaled_price) = SafeMath.mul(price, multiplier);
+            let scaled_price = SafeMath.mul(price, multiplier);
             return (scaled_price=scaled_price);
         } else {
             let (multiplier) = pow(10, decimals - TARGET_DECIMALS);
-            let (scaled_price) = SafeMath.div(price, multiplier);
+            let scaled_price = SafeMath.div(price, multiplier);
             return (scaled_price=scaled_price);
         }
     }
