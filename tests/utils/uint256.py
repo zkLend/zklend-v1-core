@@ -26,6 +26,9 @@ class Uint256:
         else:
             return self.low == other.low and self.high == other.high
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def __str__(self) -> str:
         return f"Uint256(low={self.low}, high={self.high})"
 
