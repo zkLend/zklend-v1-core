@@ -2,7 +2,11 @@ import pytest
 import pytest_asyncio
 
 from utils.account import Account, Call, deploy_account
-from utils.assertions import assert_events_emitted, assert_reverted_with
+from utils.assertions import (
+    assert_approximatedly_equals,
+    assert_events_emitted,
+    assert_reverted_with,
+)
 from utils.contracts import (
     CAIRO_PATH,
     PATH_DEFAULT_INTEREST_RATE_MODEL,
@@ -1539,10 +1543,8 @@ async def test_event_emission(setup: Setup):
     )
 
 
-# Flash loan sanity test
-# TODO: add more test cases for flash loans
 @pytest.mark.asyncio
-async def test_flashloan(setup_with_loan: Setup):
+async def test_flashloan_must_return_enough_fees(setup_with_loan: Setup):
     setup = setup_with_loan
     callback = await setup.starknet.deploy(
         source=PATH_FLASH_LOAN_HANDLER,
@@ -1554,7 +1556,7 @@ async def test_flashloan(setup_with_loan: Setup):
     await setup.alice.execute(
         [
             Call(
-                setup_with_loan.token_a.contract_address,
+                setup.token_a.contract_address,
                 get_selector_from_name("transfer"),
                 [
                     callback.contract_address,  # recipient
@@ -1597,3 +1599,78 @@ async def test_flashloan(setup_with_loan: Setup):
             ),
         ]
     )
+
+
+# TODO: test scenario with more than one depositor
+@pytest.mark.asyncio
+async def test_flashloan_fee_distribution(setup_with_loan: Setup):
+    setup = setup_with_loan
+    callback = await setup.starknet.deploy(
+        source=PATH_FLASH_LOAN_HANDLER,
+        constructor_calldata=[],
+        cairo_path=[CAIRO_PATH],
+    )
+
+    # Sends enough token to callback contract so that it can return funds
+    await setup.bob.execute(
+        [
+            Call(
+                setup.token_b.contract_address,
+                get_selector_from_name("transfer"),
+                [
+                    callback.contract_address,  # recipient
+                    *Uint256.from_int(1_100 * 10**18),  # amount
+                ],
+            ),
+        ]
+    )
+
+    # Bob has 10,000 TST_B as collateral now
+    assert (
+        await setup.z_token_b.balanceOf(setup.bob.address).call()
+    ).result.balance == (Uint256.from_int(10_000 * 10**18))
+
+    # Flashloan pays 100 TST_B as fee
+    await setup.alice.execute(
+        [
+            Call(
+                callback.contract_address,
+                get_selector_from_name("take_flash_loan"),
+                [
+                    setup.market.contract_address,  # market_addr
+                    setup.token_b.contract_address,  # token
+                    1_000 * 10**18,  # amount
+                    1_100 * 10**18,  # return_amount
+                ],
+            ),
+        ]
+    )
+
+    # Bob should has 10,080 TST_B now as the only depositor
+    # (reserve takes 20% of the fees)
+    assert_approximatedly_equals(
+        (await setup.z_token_b.balanceOf(setup.bob.address).call()).result.balance,
+        Uint256.from_int(10_080 * 10**18),
+        1,
+    )
+    assert_approximatedly_equals(
+        (await setup.z_token_b.balanceOf(MOCK_TREASURY_ADDRESS).call()).result.balance,
+        Uint256.from_int(20 * 10**18),
+        1,
+    )
+    assert_approximatedly_equals(
+        (await setup.z_token_b.totalSupply().call()).result.total_supply,
+        Uint256.from_int(10_100 * 10**18),
+        1,
+    )
+
+    # Borrowing rate:
+    #   Utilization rate = 22.5 / 10,100 = 0.002227722772277227722772277
+    #   Borrowing rate = 0.05 + 0.2 * 0.002227722772277227722772277 / 0.8 = 0.050556930693069306930693069 => 50556930693069306930693069
+    # Lending rate:
+    #   Lending rate = 0.050556930693069306930693069 * 0.002227722772277227722772277 = 0.000112626825801392020390157 => 112626825801392020390157
+    reserve_data = (
+        await setup.market.get_reserve_data(setup.token_b.contract_address).call()
+    ).result.data
+    assert reserve_data.current_lending_rate == 112626825801392020390157
+    assert reserve_data.current_borrowing_rate == 50556930693069306930693069

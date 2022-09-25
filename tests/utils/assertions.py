@@ -1,7 +1,7 @@
-from typing import Coroutine, List
+from typing import Coroutine, List, Union
+
 from starkware.starknet.business_logic.execution.objects import Event
 from starkware.starknet.testing.starknet import TransactionExecutionInfo
-
 from starkware.starkware_utils.error_handling import StarkException
 
 
@@ -36,3 +36,20 @@ async def assert_events_emitted(func: Coroutine, expected_events: List[Event]):
                 break
 
         assert is_event_present, f"Event at index {ind} is not emitted"
+
+
+def assert_approximatedly_equals(left, right, error: int = 0):
+    left_int = __to_int(left)
+    right_int = __to_int(right)
+
+    assert (
+        abs(left_int - right_int) <= error
+    ), f"Approximate equality assertion failed: left = {left_int}; right = {right_int}"
+
+
+def __to_int(value) -> int:
+    if value is int:
+        return value
+    else:
+        [low, high] = [*value]
+        return high * 2**128 + low

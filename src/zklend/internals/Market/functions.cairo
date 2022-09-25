@@ -852,8 +852,12 @@ namespace Internal {
             assert_le_felt(min_balance, reserve_balance_after);
         }
 
-        // Updates accumulators
+        // Updates accumulators (for interest accumulation only)
         let (_, updated_debt_accumulator) = update_accumulators(token);
+
+        // Distributes excessive funds (flash loan fees)
+        // `updated_debt_accumulator` from above is still valid as this function does not touch debt
+        settle_extra_reserve_balance(token);
 
         // Updates rates
         Internal.update_rates_and_raw_total_debt(
@@ -1461,6 +1465,95 @@ namespace Internal {
         with_attr error_message("Market: reserve not enabled") {
             assert_not_zero(enabled);
         }
+        return ();
+    }
+
+    // This function is called to distribute excessive reserve assets to depositors. Such extra
+    // balance can come from a variety of sources, including direct transfer of tokens into this
+    // contract. However, in practice, this function is only called right after a flash loan,
+    // meaning that these excessive balance would accumulate over time, but only gets settled when
+    // flash loans happen.
+    //
+    // This is a deliberate design decision:
+    //
+    // - doing so avoids expensive settlements for small rounding errors that make little to no
+    //   difference to users; and
+    // - it's deemed unlikely that anyone would send unsolicited funds to this contract on purpose.
+    //
+    // An alternative implementation would be to always derive the lending accumulator from real
+    // balances, and thus unifying accumulator updates. However, that would make ZToken transfers
+    // unnecessarily expensive, with little benefits (same reasoning as above).
+    //
+    // ASSUMPTION: accumulators are otherwise up to date; this function MUST only be called right
+    //             after `update_accumulators()`.
+    func settle_extra_reserve_balance{
+        syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+    }(token: felt) {
+        alloc_locals;
+
+        let (this_address) = get_contract_address();
+
+        // No need to check reserve existence: deduced from assumption.
+        let reserve = reserves.read_for_settle_extra_reserve_balance(token);
+
+        // Accumulators are already update to date from assumption
+        let scaled_up_total_debt = SafeDecimalMath.mul(
+            reserve.raw_total_debt, reserve.debt_accumulator
+        );
+
+        // What we _actually_ have sitting in the contract
+        let (reserve_balance_u256) = IERC20.balanceOf(contract_address=token, account=this_address);
+        let reserve_balance = SafeCast.uint256_to_felt(reserve_balance_u256);
+
+        // The full amount if all debts are repaid
+        let impilcit_total_balance = SafeMath.add(reserve_balance, scaled_up_total_debt);
+
+        // What all users are _entitled_ to right now (again, accumulators are up to date)
+        let (raw_z_supply) = IZToken.get_raw_total_supply(contract_address=reserve.z_token_address);
+        let owned_balance = SafeDecimalMath.mul(raw_z_supply, reserve.lending_accumulator);
+
+        let no_need_to_adjust = is_le_felt(impilcit_total_balance, owned_balance);
+        if (no_need_to_adjust == FALSE) {
+            // `impilcit_total_balance > owned_balance` holds inside this branch
+            let excessive_balance = SafeMath.sub(impilcit_total_balance, owned_balance);
+
+            let (treasury_addr) = treasury.read();
+            local effective_reserve_factor: felt;
+            if (treasury_addr == 0) {
+                effective_reserve_factor = 0;
+            } else {
+                effective_reserve_factor = reserve.reserve_factor;
+            }
+
+            let amount_to_treasury = SafeDecimalMath.mul(
+                excessive_balance, effective_reserve_factor
+            );
+            let amount_to_depositors = SafeMath.sub(excessive_balance, amount_to_treasury);
+
+            let new_depositor_balance = SafeMath.add(owned_balance, amount_to_depositors);
+            let new_accumulator = SafeDecimalMath.div(new_depositor_balance, raw_z_supply);
+
+            AccumulatorsSync.emit(token, new_accumulator, reserve.debt_accumulator);
+            reserves.write_lending_accumulator(token, new_accumulator);
+
+            // Mints fee to treasury
+            if (amount_to_treasury != 0) {
+                IZToken.mint(
+                    contract_address=reserve.z_token_address,
+                    to=treasury_addr,
+                    amount=amount_to_treasury,
+                );
+
+                tempvar syscall_ptr = syscall_ptr;
+                tempvar pedersen_ptr = pedersen_ptr;
+                tempvar range_check_ptr = range_check_ptr;
+            }
+        } else {
+            tempvar syscall_ptr = syscall_ptr;
+            tempvar pedersen_ptr = pedersen_ptr;
+            tempvar range_check_ptr = range_check_ptr;
+        }
+
         return ();
     }
 }
