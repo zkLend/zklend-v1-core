@@ -1494,7 +1494,7 @@ namespace Internal {
         let (this_address) = get_contract_address();
 
         // No need to check reserve existence: deduced from assumption.
-        let (reserve) = reserves.read(token);
+        let reserve = reserves.read_for_settle_extra_reserve_balance(token);
 
         // Accumulators are already update to date from assumption
         let scaled_up_total_debt = SafeDecimalMath.mul(
@@ -1534,9 +1534,7 @@ namespace Internal {
             let new_accumulator = SafeDecimalMath.div(new_depositor_balance, raw_z_supply);
 
             AccumulatorsSync.emit(token, new_accumulator, reserve.debt_accumulator);
-            reserves.write_accumulators(
-                token, reserve.last_update_timestamp, new_accumulator, reserve.debt_accumulator
-            );
+            reserves.write_lending_accumulator(token, new_accumulator);
 
             // Mints fee to treasury
             if (amount_to_treasury != 0) {

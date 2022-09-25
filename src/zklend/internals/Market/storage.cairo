@@ -375,6 +375,53 @@ namespace reserves {
         );
     }
 
+    func read_for_settle_extra_reserve_balance{
+        syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+    }(token: felt) -> (
+        z_token_address: felt,
+        reserve_factor: felt,
+        lending_accumulator: felt,
+        debt_accumulator: felt,
+        raw_total_debt: felt,
+    ) {
+        let (storage_addr) = addr(token);
+
+        // z_token_address
+        let (__storage_var_temp2) = storage_read(address=storage_addr + 2);
+        // reserve_factor
+        let (__storage_var_temp6) = storage_read(address=storage_addr + 6);
+        // lending_accumulator
+        let (__storage_var_temp8) = storage_read(address=storage_addr + 8);
+        // debt_accumulator
+        let (__storage_var_temp9) = storage_read(address=storage_addr + 9);
+        // raw_total_debt
+        let (__storage_var_temp12) = storage_read(address=storage_addr + 12);
+
+        // TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+
+        return (
+            z_token_address=__storage_var_temp2,
+            reserve_factor=__storage_var_temp6,
+            lending_accumulator=__storage_var_temp8,
+            debt_accumulator=__storage_var_temp9,
+            raw_total_debt=__storage_var_temp12,
+        );
+    }
+
+    func write_lending_accumulator{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        token: felt, value: felt
+    ) {
+        let (storage_addr) = addr(token);
+
+        // lending_accumulator
+        storage_write(address=storage_addr + 8, value=value);
+
+        return ();
+    }
+
     func write_raw_total_debt{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt, value: felt
     ) {
