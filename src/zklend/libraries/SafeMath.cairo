@@ -5,7 +5,7 @@
 from zklend.libraries.SafeCast import SafeCast
 
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
-from starkware.cairo.common.uint256 import uint256_mul, uint256_unsigned_div_rem, Uint256
+from starkware.cairo.common.uint256 import uint256_mul, uint256_unsigned_div_rem
 
 namespace SafeMath {
     func add{range_check_ptr}(a: felt, b: felt) -> felt {
