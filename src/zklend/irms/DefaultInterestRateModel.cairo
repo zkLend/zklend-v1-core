@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-// DefaultInterestRateModel: IInterestRateModel
-
 %lang starknet
 
 from zklend.libraries.SafeDecimalMath import SafeDecimalMath, SCALE
@@ -11,10 +9,6 @@ from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math_cmp import is_le_felt
 
-//
-// Structs
-//
-
 struct CurveParams {
     slope_0: felt,
     slope_1: felt,
@@ -22,25 +16,14 @@ struct CurveParams {
     optimal_rate: felt,
 }
 
-//
-// Storage
-//
-
-// TODO: manually create copies of this contract with hard-coded values instead of using storage
-
 @storage_var
 func curve_params() -> (params: CurveParams) {
 }
-
-//
-// Constructor
-//
 
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     slope_0: felt, slope_1: felt, y_intercept: felt, optimal_rate: felt
 ) {
-    // TODO: check `optimal_rate` range
     curve_params.write(
         CurveParams(
         slope_0=slope_0,
@@ -50,10 +33,6 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     );
     return ();
 }
-
-//
-// Getters
-//
 
 @view
 func get_interest_rates{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -99,7 +78,6 @@ func calculate_borrow_rate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range
 
         return (borrow_rate=borrow_rate);
     } else {
-        // No need to use safe math here
         let excess_utilization_rate = utilization_rate - params.optimal_rate;
         let optimal_to_one = SCALE - params.optimal_rate;
 

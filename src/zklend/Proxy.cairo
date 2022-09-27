@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-// Modified from:
-//   https://github.com/OpenZeppelin/cairo-contracts/blob/19d001695fe17f9b776633733a21a060c70bea82/src/openzeppelin/upgrades/Proxy.cairo
-// with optional library call on construction
-
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import library_call, library_call_l1_handler
 from openzeppelin.upgrades.library import Proxy
-
-//
-// Constructor
-//
 
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -32,10 +24,6 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
         return ();
     }
 }
-
-//
-// Fallback functions
-//
 
 @external
 @raw_input

@@ -56,15 +56,9 @@ from openzeppelin.upgrades.library import Proxy, Proxy_initialized
 
 const SECONDS_PER_YEAR = 31536000;
 
-// 0b1010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010
 const DEBT_FLAG_FILTER = 1206167596222043702328864427173832373471562340267089208744349833415761767082;
 
-// This namespace is mostly used for adding reentrancy guard
 namespace External {
-    //
-    // Upgradeability
-    //
-
     func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         owner: felt, _oracle: felt
     ) {
@@ -91,10 +85,6 @@ namespace External {
         Ownable.assert_only_owner();
         return Proxy._set_implementation_hash(new_implementation);
     }
-
-    //
-    // Permissionless entrypoints
-    //
 
     func deposit{
         syscall_ptr: felt*,
@@ -192,9 +182,6 @@ namespace External {
         return ();
     }
 
-    // With the current design, liquidators are responsible for calculating the maximum amount allowed.
-    // We simply check collateralization factor is below one after liquidation.
-    // TODO: calculate max amount on-chain because compute is cheap on StarkNet.
     func liquidate{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -215,10 +202,6 @@ namespace External {
         ReentrancyGuard._end();
         return ();
     }
-
-    //
-    // Permissioned entrypoints
-    //
 
     func add_reserve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt,
@@ -247,22 +230,17 @@ namespace External {
             assert existing_reserve_z_token = 0;
         }
 
-        // Checks collateral_factor range
         with_attr error_message("Market: collateral factor out of range") {
             assert_le_felt(collateral_factor, SCALE);
         }
 
-        // Checks borrow_factor range
         with_attr error_message("Market: borrow factor out of range") {
             assert_le_felt(borrow_factor, SCALE);
         }
 
-        // Checks reserve_factor range
         with_attr error_message("Market: reserve factor out of range") {
             assert_le_felt(reserve_factor, SCALE);
         }
-
-        // There's no need to limit `flash_loan_fee` range as it's charged on top of the loan amount
 
         let (decimals) = IERC20.decimals(contract_address=token);
         let (z_token_decimals) = IERC20.decimals(contract_address=z_token);
@@ -270,7 +248,6 @@ namespace External {
             assert decimals = z_token_decimals;
         }
 
-        // Checks underlying token of the Z token contract
         let (z_token_underlying) = IZToken.underlying_token(contract_address=z_token);
         with_attr error_message("Market: underlying token mismatch") {
             assert z_token_underlying = token;
@@ -316,8 +293,6 @@ namespace External {
         reserve_tokens.write(current_reserve_count, token);
         reserve_indices.write(token, current_reserve_count);
 
-        // We can only have up to 125 reserves due to the use of bitmap for user collateral usage
-        // and debt flags until we will change to use more than 1 felt for that.
         with_attr error_message("Market: too many reserves") {
             assert_le_felt(new_reserve_count, 125);
         }
@@ -347,10 +322,6 @@ namespace External {
 }
 
 namespace View {
-    //
-    // Getters
-    //
-
     func get_reserve_data{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt
     ) -> (data: Structs.ReserveData) {
@@ -368,13 +339,10 @@ namespace View {
 
         let (block_timestamp) = get_block_timestamp();
         if (reserve.last_update_timestamp == block_timestamp) {
-            // Accumulator already updated on the same block
             return (res=reserve.lending_accumulator);
         } else {
-            // Apply simple interest
             let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
-            // Treats reserve factor as zero if treasury address is not set
             let (treasury_addr) = treasury.read();
             local effective_reserve_factor: felt;
             if (treasury_addr == 0) {
@@ -385,8 +353,6 @@ namespace View {
 
             let one_minus_reserve_factor = SafeMath.sub(SCALE, effective_reserve_factor);
 
-            // New accumulator
-            // (current_lending_rate * (1 - reserve_factor) * time_diff / SECONDS_PER_YEAR + 1) * accumulator
             let temp_1 = SafeMath.mul(reserve.current_lending_rate, time_diff);
             let temp_2 = SafeMath.mul(temp_1, one_minus_reserve_factor);
             let temp_3 = SafeMath.div(temp_2, SECONDS_PER_YEAR);
@@ -408,13 +374,10 @@ namespace View {
 
         let (block_timestamp) = get_block_timestamp();
         if (reserve.last_update_timestamp == block_timestamp) {
-            // Accumulator already updated on the same block
             return (res=reserve.debt_accumulator);
         } else {
-            // Apply simple interest
             let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
-            // (current_borrowing_rate * time_diff / SECONDS_PER_YEAR + 1) * accumulator
             let temp_1 = SafeMath.mul(reserve.current_borrowing_rate, time_diff);
             let temp_2 = SafeMath.div(temp_1, SECONDS_PER_YEAR);
             let temp_3 = SafeMath.add(temp_2, SCALE);
@@ -424,7 +387,6 @@ namespace View {
         }
     }
 
-    // WARN: this must be run BEFORE adjusting the accumulators (otherwise always returns 0)
     func get_pending_treasury_amount{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     }(token: felt) -> (res: felt) {
@@ -433,7 +395,6 @@ namespace View {
         Internal.assert_reserve_enabled(token);
         let reserve = reserves.read_for_get_pending_treasury_amount(token);
 
-        // Nothing for treasury if address set to zero
         let (treasury_addr) = treasury.read();
         if (treasury_addr == 0) {
             return (res=0);
@@ -441,18 +402,14 @@ namespace View {
 
         let (block_timestamp) = get_block_timestamp();
         if (reserve.last_update_timestamp == block_timestamp) {
-            // Tresury amount already settled on the same block
             return (res=0);
         } else {
-            // Apply simple interest
             let time_diff = SafeMath.sub(block_timestamp, reserve.last_update_timestamp);
 
             let (raw_supply) = IZToken.get_raw_total_supply(
                 contract_address=reserve.z_token_address
             );
 
-            // Amount to be paid to treasury (based on the adjusted accumulator)
-            // (current_lending_rate * reserve_factor * time_diff / SECONDS_PER_YEAR) * accumulator * raw_supply
             let temp_1 = SafeMath.mul(reserve.current_lending_rate, time_diff);
             let temp_2 = SafeMath.mul(temp_1, reserve.reserve_factor);
             let temp_3 = SafeMath.div(temp_2, SECONDS_PER_YEAR);
@@ -534,10 +491,6 @@ namespace View {
 }
 
 namespace Internal {
-    //
-    // External-to-be-wrapped
-    //
-
     func deposit{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -554,7 +507,6 @@ namespace Internal {
         Internal.assert_reserve_enabled(token);
         let (z_token_address) = reserves.read_z_token_address(token);
 
-        // Updates interest rate
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -566,8 +518,6 @@ namespace Internal {
 
         Deposit.emit(caller, token, amount);
 
-        // Takes token from user
-
         let amount_u256: Uint256 = SafeCast.felt_to_uint256(amount);
         let (transfer_success) = IERC20.transferFrom(
             contract_address=token, sender=caller, recipient=this_address, amount=amount_u256
@@ -576,7 +526,6 @@ namespace Internal {
             assert_not_zero(transfer_success);
         }
 
-        // Mints ZToken to user
         IZToken.mint(contract_address=z_token_address, to=caller, amount=amount);
 
         return ();
@@ -625,14 +574,12 @@ namespace Internal {
             assert_not_zero(scaled_down_amount);
         }
 
-        // Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(caller, token);
         let raw_user_debt_after = SafeMath.add(raw_user_debt_before, scaled_down_amount);
         raw_user_debts.write(caller, token, raw_user_debt_after);
 
         set_user_has_debt(caller, token, raw_user_debt_before, raw_user_debt_after);
 
-        // Updates interest rate
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -644,7 +591,6 @@ namespace Internal {
 
         Borrowing.emit(caller, token, scaled_down_amount, amount);
 
-        // It's easier to post-check collateralization factor
         with_attr error_message("Market: insufficient collateral") {
             assert_not_undercollateralized(caller, TRUE);
         }
@@ -729,7 +675,6 @@ namespace Internal {
 
         set_collateral_usage(caller, token, FALSE);
 
-        // It's easier to post-check collateralization factor
         with_attr error_message("Market: insufficient collateral") {
             assert_not_undercollateralized(caller, TRUE);
         }
@@ -749,7 +694,6 @@ namespace Internal {
 
         let (caller) = get_caller_address();
 
-        // Validates input
         with_attr error_message("Market: zero amount") {
             assert_not_zero(amount);
         }
@@ -759,16 +703,13 @@ namespace Internal {
         let (debt_reserve_decimals) = reserves.read_decimals(debt_token);
         let (collateral_reserve) = reserves.read(collateral_token);
 
-        // Liquidator repays debt for user
         repay_debt_route_internal(caller, user, debt_token, amount);
 
-        // Can only take from assets being used as collateral
         let (is_collateral) = is_used_as_collateral(user, collateral_token);
         with_attr error_message("Market: cannot withdraw non-collateral token") {
             assert is_collateral = TRUE;
         }
 
-        // Liquidator withdraws collateral from user
         let (oracle_addr) = oracle.read();
         let (debt_token_price) = IPriceOracle.get_price(
             contract_address=oracle_addr, token=debt_token
@@ -794,7 +735,6 @@ namespace Internal {
             amount=collateral_amount_after_bonus,
         );
 
-        // Checks user collateralization factor after liquidation
         with_attr error_message("Market: invalid liquidation") {
             assert_not_overcollateralized(user, FALSE);
         }
@@ -813,7 +753,6 @@ namespace Internal {
 
         let (this_address) = get_contract_address();
 
-        // Validates input
         with_attr error_message("Market: zero amount") {
             assert_not_zero(amount);
         }
@@ -821,7 +760,6 @@ namespace Internal {
         Internal.assert_reserve_enabled(token);
         let (flash_loan_fee) = reserves.read_flash_loan_fee(token);
 
-        // Calculates minimum balance after the callback
         let loan_fee = SafeDecimalMath.mul(amount, flash_loan_fee);
         let (reserve_balance_before_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
@@ -829,7 +767,6 @@ namespace Internal {
         let reserve_balance_before = SafeCast.uint256_to_felt(reserve_balance_before_u256);
         let min_balance = SafeMath.add(reserve_balance_before, loan_fee);
 
-        // Sends funds to receiver
         let amount_u256 = SafeCast.felt_to_uint256(amount);
         let (transfer_success) = IERC20.transfer(
             contract_address=token, recipient=receiver, amount=amount_u256
@@ -838,12 +775,10 @@ namespace Internal {
             assert_not_zero(transfer_success);
         }
 
-        // Calls receiver callback (which should return funds to this contract)
         IZklendFlashCallback.zklend_flash_callback(
             contract_address=receiver, calldata_len=calldata_len, calldata=calldata
         );
 
-        // Checks if enough funds have been returned
         let (reserve_balance_after_u256) = IERC20.balanceOf(
             contract_address=token, account=this_address
         );
@@ -852,14 +787,10 @@ namespace Internal {
             assert_le_felt(min_balance, reserve_balance_after);
         }
 
-        // Updates accumulators (for interest accumulation only)
         let (_, updated_debt_accumulator) = update_accumulators(token);
 
-        // Distributes excessive funds (flash loan fees)
-        // `updated_debt_accumulator` from above is still valid as this function does not touch debt
         settle_extra_reserve_balance(token);
 
-        // Updates rates
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -875,11 +806,6 @@ namespace Internal {
         return ();
     }
 
-    //
-    // Internal
-    //
-
-    // ASSUMPTION: `token` maps to a valid reserve
     func set_collateral_usage{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -890,7 +816,6 @@ namespace Internal {
         return set_user_flag(user, reserve_index * 2, use);
     }
 
-    // ASSUMPTION: `token` maps to a valid reserve
     func set_user_has_debt{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -929,7 +854,6 @@ namespace Internal {
         return ();
     }
 
-    // ASSUMPTION: `token` maps to a valid reserve
     func is_used_as_collateral{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -992,7 +916,6 @@ namespace Internal {
     }(user: felt, apply_borrow_factor: felt) -> (res: felt) {
         alloc_locals;
 
-        // Skips expensive collateralization check if user has no debt at all
         let (has_debt) = user_has_debt(user);
         if (has_debt == FALSE) {
             return (res=TRUE);
@@ -1005,7 +928,6 @@ namespace Internal {
         return (res=is_not_undercollateralized);
     }
 
-    // Same as `is_not_undercollateralized` but returns FALSE if equal. Only used in liquidations.
     func is_overcollateralized{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -1014,15 +936,11 @@ namespace Internal {
     }(user: felt, apply_borrow_factor: felt) -> (res: felt) {
         alloc_locals;
 
-        // Not using the skip-if-no-debt optimization here because in liquidations the user always
-        // has debt left. Checking for debt flags is thus wasteful.
-
         let (collateral_value, collateral_required) = calculate_user_collateral_data(
             user, apply_borrow_factor
         );
 
         if (collateral_value != collateral_required) {
-            // Using `le` is fine since we already checked for equalness
             let is_overcollateralized = is_le_felt(collateral_required, collateral_value);
             return (res=is_overcollateralized);
         } else {
@@ -1052,7 +970,6 @@ namespace Internal {
         }
     }
 
-    // ASSUMPTION: `reserve_count` is not zero
     func calculate_user_collateral_data_loop{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -1088,7 +1005,6 @@ namespace Internal {
         );
 
         if (reserve_slot_and == FALSE) {
-            // Reserve not used as collateral
             return (
                 collateral_value=collateral_value_of_rest,
                 collateral_required=total_collateral_required,
@@ -1108,7 +1024,6 @@ namespace Internal {
         }
     }
 
-    // ASSUMPTION: `token` is a valid reserve
     func get_collateral_usd_value_required_for_token{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     }(user: felt, token: felt, apply_borrow_factor: felt) -> (value: felt) {
@@ -1124,7 +1039,6 @@ namespace Internal {
         }
     }
 
-    // ASSUMPTION: `token` is a valid reserve
     func get_user_debt_usd_value_for_token{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     }(user: felt, token: felt) -> (value: felt) {
@@ -1138,7 +1052,6 @@ namespace Internal {
         let (debt_accumulator) = View.get_debt_accumulator(token);
         let scaled_up_debt_balance = SafeDecimalMath.mul(raw_debt_balance, debt_accumulator);
 
-        // Fetches price from oracle
         let (oracle_addr) = oracle.read();
         let (debt_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token);
 
@@ -1149,8 +1062,6 @@ namespace Internal {
         return (value=debt_value);
     }
 
-    // ASSUMPTION: `token` is a valid reserve
-    // ASSUMPTION: `token` is used by `user` as collateral
     func get_user_collateral_usd_value_for_token{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     }(user: felt, token: felt) -> (value: felt) {
@@ -1158,21 +1069,17 @@ namespace Internal {
 
         let reserve = reserves.read_for_get_user_collateral_usd_value_for_token(token);
 
-        // This value already reflects interests accured since last update
         let (collateral_balance) = IZToken.felt_balance_of(
             contract_address=reserve.z_token_address, account=user
         );
 
-        // Fetches price from oracle
         let (oracle_addr) = oracle.read();
         let (collateral_price) = IPriceOracle.get_price(contract_address=oracle_addr, token=token);
 
-        // `collateral_value` is represented in 8-decimal USD value
         let collateral_value = SafeDecimalMath.mul_decimals(
             collateral_price, collateral_balance, reserve.decimals
         );
 
-        // Discounts value by collateral factor
         let discounted_collateral_value = SafeDecimalMath.mul(
             collateral_value, reserve.collateral_factor
         );
@@ -1180,7 +1087,6 @@ namespace Internal {
         return (value=discounted_collateral_value);
     }
 
-    // `amount` with `0` means withdrawing all
     func withdraw_internal{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -1194,10 +1100,8 @@ namespace Internal {
         Internal.assert_reserve_enabled(token);
         let (z_token_address) = reserves.read_z_token_address(token);
 
-        // NOTE: it's fine to call out to external contract here before state update since it's trusted
         let (amount_burnt) = burn_z_token_internal(z_token_address, user, amount);
 
-        // Updates interest rate
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -1209,7 +1113,6 @@ namespace Internal {
 
         Withdrawal.emit(user, token, amount_burnt);
 
-        // Gives underlying tokens to user
         let amount_burnt_u256: Uint256 = SafeCast.felt_to_uint256(amount_burnt);
         let (transfer_success) = IERC20.transfer(
             contract_address=token, recipient=user, amount=amount_burnt_u256
@@ -1218,15 +1121,12 @@ namespace Internal {
             assert_not_zero(transfer_success);
         }
 
-        // It's easier to post-check collateralization factor, at the cost of making failed
-        // transactions more expensive.
         let (is_asset_used_as_collateral) = is_used_as_collateral(user, token);
         if (is_asset_used_as_collateral == TRUE) {
             with_attr error_message("Market: insufficient collateral") {
                 assert_not_undercollateralized(user, TRUE);
             }
         } else {
-            // No need to check if the asset is not used as collateral at all
             tempvar syscall_ptr = syscall_ptr;
             tempvar pedersen_ptr = pedersen_ptr;
             tempvar range_check_ptr = range_check_ptr;
@@ -1236,7 +1136,6 @@ namespace Internal {
         return ();
     }
 
-    // `amount` with `0` means repaying all
     func repay_debt_route_internal{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -1273,9 +1172,6 @@ namespace Internal {
         }
     }
 
-    // ASSUMPTION: `repay_amount` = `raw_amount` * Debt Accumulator
-    // ASSUMPTION: it's always called by `repay_debt_route_internal`
-    // ASSUMPTION: raw_amount is non zero
     func repay_debt_internal{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -1288,17 +1184,12 @@ namespace Internal {
 
         let (_, updated_debt_accumulator) = update_accumulators(token);
 
-        // No need to check if user is overpaying, as `SafeMath.sub` below will fail anyways
-        // No need to check collateral value. Always allow repaying even if it's undercollateralized
-
-        // Updates user debt data
         let (raw_user_debt_before) = raw_user_debts.read(beneficiary, token);
         let raw_user_debt_after = SafeMath.sub(raw_user_debt_before, raw_amount);
         raw_user_debts.write(beneficiary, token, raw_user_debt_after);
 
         set_user_has_debt(beneficiary, token, raw_user_debt_before, raw_user_debt_after);
 
-        // Updates interest rate
         Internal.update_rates_and_raw_total_debt(
             token=token,
             updated_debt_accumulator=updated_debt_accumulator,
@@ -1308,7 +1199,6 @@ namespace Internal {
             abs_delta_raw_total_debt=raw_amount,
         );
 
-        // Takes token from user
         let repay_amount_u256: Uint256 = SafeCast.felt_to_uint256(repay_amount);
         let (transfer_success) = IERC20.transferFrom(
             contract_address=token, sender=repayer, recipient=this_address, amount=repay_amount_u256
@@ -1320,7 +1210,6 @@ namespace Internal {
         return ();
     }
 
-    // `amount` with `0` means burning all
     func burn_z_token_internal{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         z_token: felt, user: felt, amount: felt
     ) -> (amount_burnt: felt) {
@@ -1345,19 +1234,14 @@ namespace Internal {
 
         AccumulatorsSync.emit(token, updated_lending_accumulator, updated_debt_accumulator);
 
-        // It's okay to call this function here as the updated accumulators haven't been written into
-        // storage yet
         let (amount_to_treasury) = View.get_pending_treasury_amount(token);
 
-        // No need to check reserve existence since it's done in `get_lending_accumulator` and
-        // `get_debt_accumulator`
         let (z_token_address) = reserves.read_z_token_address(token);
 
         reserves.write_accumulators(
             token, block_timestamp, updated_lending_accumulator, updated_debt_accumulator
         );
 
-        // No need to check whether treasury address is zero as amount would be zero anyways
         if (amount_to_treasury != 0) {
             let (treasury_addr) = treasury.read();
             IZToken.mint(
@@ -1393,8 +1277,6 @@ namespace Internal {
             interest_rate_model, raw_total_debt_before
         ) = reserves.read_interest_rate_model_and_raw_total_debt(token);
 
-        // Makes sure reserve exists
-        // (the caller must check it's enabled if needed since it's not validated here)
         with_attr error_message("Market: reserve not found") {
             assert_not_zero(interest_rate_model);
         }
@@ -1431,7 +1313,6 @@ namespace Internal {
             total_debt=scaled_up_total_debt_after,
         );
 
-        // Writes to storage
         reserves.write_rates(token, new_lending_rate, new_borrowing_rate);
         if (raw_total_debt_before != raw_total_debt_after) {
             reserves.write_raw_total_debt(token, raw_total_debt_after);
@@ -1446,7 +1327,6 @@ namespace Internal {
         return ();
     }
 
-    // Checks reserve exists and returns full reserve data
     func assert_reserve_exists{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt
     ) {
@@ -1457,7 +1337,6 @@ namespace Internal {
         return ();
     }
 
-    // Checks reserve is enabled and returns full reserve data
     func assert_reserve_enabled{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt
     ) {
@@ -1468,24 +1347,6 @@ namespace Internal {
         return ();
     }
 
-    // This function is called to distribute excessive reserve assets to depositors. Such extra
-    // balance can come from a variety of sources, including direct transfer of tokens into this
-    // contract. However, in practice, this function is only called right after a flash loan,
-    // meaning that these excessive balance would accumulate over time, but only gets settled when
-    // flash loans happen.
-    //
-    // This is a deliberate design decision:
-    //
-    // - doing so avoids expensive settlements for small rounding errors that make little to no
-    //   difference to users; and
-    // - it's deemed unlikely that anyone would send unsolicited funds to this contract on purpose.
-    //
-    // An alternative implementation would be to always derive the lending accumulator from real
-    // balances, and thus unifying accumulator updates. However, that would make ZToken transfers
-    // unnecessarily expensive, with little benefits (same reasoning as above).
-    //
-    // ASSUMPTION: accumulators are otherwise up to date; this function MUST only be called right
-    //             after `update_accumulators()`.
     func settle_extra_reserve_balance{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     }(token: felt) {
@@ -1493,28 +1354,22 @@ namespace Internal {
 
         let (this_address) = get_contract_address();
 
-        // No need to check reserve existence: deduced from assumption.
         let reserve = reserves.read_for_settle_extra_reserve_balance(token);
 
-        // Accumulators are already update to date from assumption
         let scaled_up_total_debt = SafeDecimalMath.mul(
             reserve.raw_total_debt, reserve.debt_accumulator
         );
 
-        // What we _actually_ have sitting in the contract
         let (reserve_balance_u256) = IERC20.balanceOf(contract_address=token, account=this_address);
         let reserve_balance = SafeCast.uint256_to_felt(reserve_balance_u256);
 
-        // The full amount if all debts are repaid
         let impilcit_total_balance = SafeMath.add(reserve_balance, scaled_up_total_debt);
 
-        // What all users are _entitled_ to right now (again, accumulators are up to date)
         let (raw_z_supply) = IZToken.get_raw_total_supply(contract_address=reserve.z_token_address);
         let owned_balance = SafeDecimalMath.mul(raw_z_supply, reserve.lending_accumulator);
 
         let no_need_to_adjust = is_le_felt(impilcit_total_balance, owned_balance);
         if (no_need_to_adjust == FALSE) {
-            // `impilcit_total_balance > owned_balance` holds inside this branch
             let excessive_balance = SafeMath.sub(impilcit_total_balance, owned_balance);
 
             let (treasury_addr) = treasury.read();
@@ -1536,7 +1391,6 @@ namespace Internal {
             AccumulatorsSync.emit(token, new_accumulator, reserve.debt_accumulator);
             reserves.write_lending_accumulator(token, new_accumulator);
 
-            // Mints fee to treasury
             if (amount_to_treasury != 0) {
                 IZToken.mint(
                     contract_address=reserve.z_token_address,

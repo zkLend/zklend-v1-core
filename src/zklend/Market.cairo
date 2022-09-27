@@ -7,10 +7,6 @@ from zklend.internals.Market.structs import Structs
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 
-//
-// Upgradeability
-//
-
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     owner: felt, _oracle: felt
@@ -24,10 +20,6 @@ func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 ) {
     return External.upgrade(new_implementation);
 }
-
-//
-// Getters
-//
 
 @view
 func get_reserve_data{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -50,7 +42,6 @@ func get_debt_accumulator{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     return View.get_debt_accumulator(token);
 }
 
-// WARN: this must be run BEFORE adjusting the accumulators (otherwise always returns 0)
 @view
 func get_pending_treasury_amount{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt
@@ -99,10 +90,6 @@ func user_has_debt{
 }(user: felt) -> (has_debt: felt) {
     return View.user_has_debt(user);
 }
-
-//
-// Permissionless entrypoints
-//
 
 @external
 func deposit{
@@ -160,9 +147,6 @@ func disable_collateral{
     return External.disable_collateral(token);
 }
 
-// With the current design, liquidators are responsible for calculating the maximum amount allowed.
-// We simply check collteralization factor is below one after liquidation.
-// TODO: calculate max amount on-chain because compute is cheap on StarkNet.
 @external
 func liquidate{
     syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
@@ -176,10 +160,6 @@ func flash_loan{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 ) {
     return External.flash_loan(receiver, token, amount, calldata_len, calldata);
 }
-
-//
-// Permissioned entrypoints
-//
 
 @external
 func add_reserve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(

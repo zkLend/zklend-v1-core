@@ -55,7 +55,6 @@ func Liquidation(
 ) {
 }
 
-// NOTE: `fee` indicates the actual fee paid back, which could be higher than the minimum required.
 @event
 func FlashLoan(receiver: felt, token: felt, amount: felt, fee: felt) {
 }

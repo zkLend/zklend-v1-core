@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-// PriceOracle: IPriceOracle
-//
-// A central oracle hub for connecting to different upstream oracles and exposing a single getter
-// to the core protocol.
-
 %lang starknet
 
 from zklend.interfaces.IPriceOracleSource import IPriceOracleSource
@@ -13,17 +8,9 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 from openzeppelin.access.ownable.library import Ownable
 
-//
-// Storage
-//
-
 @storage_var
 func sources(token: felt) -> (source: felt) {
 }
-
-//
-// Constructor
-//
 
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner: felt) {
@@ -31,11 +18,6 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     return ();
 }
 
-//
-// Getters
-//
-
-// Get the price of the token in USD with 8 decimals
 @view
 func get_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(token: felt) -> (
     price: felt
@@ -45,7 +27,6 @@ func get_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return (price=price);
 }
 
-// Get the price of the token in USD with 8 decimals and update timestamp
 @view
 func get_price_with_time{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     token: felt
@@ -54,10 +35,6 @@ func get_price_with_time{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
     let (price, update_time) = IPriceOracleSource.get_price_with_time(contract_address=source);
     return (price=price, update_time=update_time);
 }
-
-//
-// External
-//
 
 @external
 func set_token_source{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(

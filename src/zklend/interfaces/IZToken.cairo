@@ -6,10 +6,6 @@ from starkware.cairo.common.uint256 import Uint256
 
 @contract_interface
 namespace IZToken {
-    //
-    // Getters
-    //
-
     func name() -> (name: felt) {
     }
 
@@ -63,10 +59,6 @@ namespace IZToken {
 
     func transfer_all(recipient: felt) {
     }
-
-    //
-    // Permissioned entrypoints
-    //
 
     func mint(to: felt, amount: felt) -> (zero_balance_before: felt) {
     }

@@ -29,10 +29,6 @@ from openzeppelin.upgrades.library import Proxy
 from openzeppelin.token.erc20.library import Approval, Transfer
 
 namespace External {
-    //
-    // Upgradeability
-    //
-
     func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         proxy_admin: felt,
         _market: felt,
@@ -51,8 +47,6 @@ namespace External {
         market.write(_market);
         underlying.write(_underlying);
 
-        // We probably don't need to range check `_decimals` as it's checked against the real token
-        // when adding reserves anyways.
         token_name.write(_name);
         token_symbol.write(_symbol);
         token_decimals.write(_decimals);
@@ -74,10 +68,6 @@ namespace External {
         return Proxy._set_admin(new_admin);
     }
 
-    //
-    // Permissionless entrypoints
-    //
-
     func transfer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         recipient: felt, amount: Uint256
     ) -> (success: felt) {
@@ -90,8 +80,6 @@ namespace External {
     ) -> (success: felt) {
         let (caller) = get_caller_address();
 
-        // NOTE: this exploit should no longer be possible since all transactions need must go through
-        //       the __execute__ method now, but we're still keeping it just in case
         with_attr error_message("ZToken: zero address") {
             assert_not_zero(caller);
         }
@@ -119,13 +107,10 @@ namespace External {
     ) -> (success: felt) {
         let (caller) = get_caller_address();
 
-        // NOTE: this exploit should no longer be possible since all transactions need must go through
-        //       the __execute__ method now, but we're still keeping it just in case
         with_attr error_message("ZToken: zero address") {
             assert_not_zero(caller);
         }
 
-        // Allowances are not scaled so we can just subtract directly
         let (existing_allowance) = allowances.read(sender, caller);
         let new_allowance = SafeMath.sub(existing_allowance, amount);
         allowances.write(sender, caller, new_allowance);
@@ -156,8 +141,6 @@ namespace External {
     ) -> (success: felt) {
         let (caller) = get_caller_address();
 
-        // NOTE: this exploit should no longer be possible since all transactions need must go through
-        //       the __execute__ method now, but we're still keeping it just in case
         with_attr error_message("ZToken: zero address") {
             assert_not_zero(caller);
         }
@@ -171,15 +154,11 @@ namespace External {
         return (success=TRUE);
     }
 
-    // This method exists because ZToken balances are always increasing (unless when no interest is
-    // accumulating). so it's hard for off-chain actors to clear balance completely.
     func transfer_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         recipient: felt
     ) {
         let (caller) = get_caller_address();
 
-        // NOTE: this exploit should no longer be possible since all transactions need must go through
-        //       the __execute__ method now, but we're still keeping it just in case
         with_attr error_message("ZToken: zero address") {
             assert_not_zero(caller);
         }
@@ -195,10 +174,6 @@ namespace External {
 
         return ();
     }
-
-    //
-    // Permissioned entrypoints
-    //
 
     func mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         to: felt, amount: felt
@@ -295,7 +270,6 @@ namespace External {
     ) {
         Internal.only_market();
 
-        // No need to check collateralization as `Market` only moves for liquidation
         return Internal.transfer_internal(
             from_account=from_account,
             to_account=to_account,
@@ -307,10 +281,6 @@ namespace External {
 }
 
 namespace View {
-    //
-    // Getters
-    //
-
     func name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (name: felt) {
         let (res) = token_name.read();
         return (name=res);
@@ -452,7 +422,6 @@ namespace Internal {
             assert_not_zero(raw_amount);
         }
 
-        // No need to check from balance first because SafeMath will fail
         let (raw_from_balance_before) = raw_balances.read(from_account);
         let raw_from_balance_after = SafeMath.sub(raw_from_balance_before, raw_amount);
         raw_balances.write(from_account, raw_from_balance_after);
@@ -468,7 +437,6 @@ namespace Internal {
         if (check_collateralization == TRUE) {
             let (market_addr) = market.read();
 
-            // Skips check if token is not used as collateral
             let (underlying_token) = underlying.read();
             let (collateral_enabled) = IMarket.is_collateral_enabled(
                 contract_address=market_addr, user=from_account, token=underlying_token

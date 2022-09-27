@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-// EmpiricOracleAdapter : IPriceOracleSource
-
 %lang starknet
 
 from zklend.interfaces.third_parties.IEmpiricOracle import IEmpiricOracle
@@ -14,10 +12,6 @@ from starkware.cairo.common.pow import pow
 
 const TARGET_DECIMALS = 8;
 
-//
-// Storage
-//
-
 @storage_var
 func oracle() -> (oracle: felt) {
 }
@@ -25,10 +19,6 @@ func oracle() -> (oracle: felt) {
 @storage_var
 func pair() -> (oracle: felt) {
 }
-
-//
-// Constructor
-//
 
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -39,18 +29,12 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     return ();
 }
 
-//
-// Getters
-//
-
-// Get the price of the token in USD with 8 decimals
 @view
 func get_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (price: felt) {
     let (price, _) = get_data();
     return (price=price);
 }
 
-// Get the price of the token in USD with 8 decimals and update timestamp
 @view
 func get_price_with_time{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
     price: felt, update_time: felt
@@ -59,9 +43,6 @@ func get_price_with_time{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
     return (price=price, update_time=update_time);
 }
 
-//
-// Internal
-//
 func get_data{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
     price: felt, update_time: felt
 ) {

@@ -1,7 +1,5 @@
 %lang starknet
 
-// IEmpiricOracle
-
 @contract_interface
 namespace IEmpiricOracle {
     func get_value(key: felt, aggregation_mode: felt) -> (

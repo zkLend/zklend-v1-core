@@ -6,10 +6,6 @@ from zklend.internals.Market.structs import Structs
 
 @contract_interface
 namespace IMarket {
-    //
-    // Getters
-    //
-
     func get_reserve_data(token: felt) -> (data: Structs.ReserveData) {
     }
 
@@ -42,10 +38,6 @@ namespace IMarket {
     func user_has_debt(user: felt) -> (has_debt: felt) {
     }
 
-    //
-    // Permissionless entrypoints
-    //
-
     func deposit(token: felt, amount: felt) {
     }
 
@@ -77,10 +69,6 @@ namespace IMarket {
         receiver: felt, token: felt, amount: felt, calldata_len: felt, calldata: felt*
     ) {
     }
-
-    //
-    // Permissioned entrypoints
-    //
 
     func add_reserve(
         token: felt,

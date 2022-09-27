@@ -7,10 +7,6 @@ from zklend.internals.ZToken.functions import External, View
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
 
-//
-// Upgradeability
-//
-
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     proxy_admin: felt, _market: felt, _underlying: felt, _name: felt, _symbol: felt, _decimals: felt
@@ -31,10 +27,6 @@ func transfer_proxy_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
 ) {
     return External.transfer_proxy_admin(new_admin);
 }
-
-//
-// Getters
-//
 
 @view
 func name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (name: felt) {
@@ -109,10 +101,6 @@ func get_raw_total_supply{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
     return View.get_raw_total_supply();
 }
 
-//
-// Permissionless entrypoints
-//
-
 @external
 func transfer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     recipient: felt, amount: Uint256
@@ -155,18 +143,12 @@ func felt_approve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     return External.felt_approve(spender, amount);
 }
 
-// This method exists because ZToken balances are always increasing (unless when no interest is
-// accumulating). so it's hard for off-chain actors to clear balance completely.
 @external
 func transfer_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     recipient: felt
 ) {
     return External.transfer_all(recipient);
 }
-
-//
-// Permissioned entrypoints
-//
 
 @external
 func mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
