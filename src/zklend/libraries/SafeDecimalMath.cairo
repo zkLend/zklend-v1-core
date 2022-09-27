@@ -27,7 +27,7 @@ namespace SafeDecimalMath {
         alloc_locals;
 
         // `pow` overflows if `b_decimals` > 75,
-        with_attr error_message("Market: decimlas out of range") {
+        with_attr error_message("Market: decimals out of range") {
             assert_le_felt(b_decimals, 75);
         }
 
@@ -38,7 +38,7 @@ namespace SafeDecimalMath {
 
     func div_decimals{range_check_ptr}(a: felt, b: felt, b_decimals: felt) -> felt {
         // `pow` overflows if `b_decimals` > 75,
-        with_attr error_message("Market: decimlas out of range") {
+        with_attr error_message("Market: decimals out of range") {
             assert_le_felt(b_decimals, 75);
         }
 

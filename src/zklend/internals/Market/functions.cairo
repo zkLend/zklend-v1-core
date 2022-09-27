@@ -193,7 +193,7 @@ namespace External {
     }
 
     // With the current design, liquidators are responsible for calculating the maximum amount allowed.
-    // We simply check collteralization factor is below one after liquidation.
+    // We simply check collateralization factor is below one after liquidation.
     // TODO: calculate max amount on-chain because compute is cheap on StarkNet.
     func liquidate{
         syscall_ptr: felt*,
@@ -248,7 +248,7 @@ namespace External {
         }
 
         // Checks collateral_factor range
-        with_attr error_message("Market: collteral factor out of range") {
+        with_attr error_message("Market: collateral factor out of range") {
             assert_le_felt(collateral_factor, SCALE);
         }
 
@@ -1080,11 +1080,11 @@ namespace Internal {
 
         let (reserve_token) = reserve_tokens.read(reserve_index);
 
-        let (current_collteral_required) = get_collateral_usd_value_required_for_token(
+        let (current_collateral_required) = get_collateral_usd_value_required_for_token(
             user, reserve_token, apply_borrow_factor
         );
         let total_collateral_required = SafeMath.add(
-            current_collteral_required, collateral_required_of_rest
+            current_collateral_required, collateral_required_of_rest
         );
 
         if (reserve_slot_and == FALSE) {
@@ -1094,11 +1094,11 @@ namespace Internal {
                 collateral_required=total_collateral_required,
             );
         } else {
-            let (discounted_collteral_value) = get_user_collateral_usd_value_for_token(
+            let (discounted_collateral_value) = get_user_collateral_usd_value_for_token(
                 user, reserve_token
             );
             let total_collateral_value = SafeMath.add(
-                discounted_collteral_value, collateral_value_of_rest
+                discounted_collateral_value, collateral_value_of_rest
             );
 
             return (
@@ -1172,12 +1172,12 @@ namespace Internal {
             collateral_price, collateral_balance, reserve.decimals
         );
 
-        // Discounts value by collteral factor
-        let discounted_collteral_value = SafeDecimalMath.mul(
+        // Discounts value by collateral factor
+        let discounted_collateral_value = SafeDecimalMath.mul(
             collateral_value, reserve.collateral_factor
         );
 
-        return (value=discounted_collteral_value);
+        return (value=discounted_collateral_value);
     }
 
     // `amount` with `0` means withdrawing all
@@ -1357,7 +1357,7 @@ namespace Internal {
             token, block_timestamp, updated_lending_accumulator, updated_debt_accumulator
         );
 
-        // No need to check whether tresury address is zero as amount would be zero anyways
+        // No need to check whether treasury address is zero as amount would be zero anyways
         if (amount_to_treasury != 0) {
             let (treasury_addr) = treasury.read();
             IZToken.mint(
