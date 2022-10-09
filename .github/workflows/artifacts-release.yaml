@@ -1,0 +1,32 @@
+on:
+  create:
+
+name: Contract Artifacts (release)
+jobs:
+  build:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+
+    name: Push contract artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Generate artifacts
+        run: |
+          ./scripts/compile_with_docker.sh
+      - name: Push artifacts
+        run: |
+          COMMIT_HASH="$(git log -1 --format="%H")"
+          git clone --depth=1 "${{ secrets.ARTIFACTS_RELEASE_GIT_URL }}" ./artifacts
+          mkdir -p ./artifacts/v1-core
+          cp -r ./build ./artifacts/v1-core/$COMMIT_HASH
+          rm -rf ./artifacts/v1-core/latest
+          (cd ./artifacts/v1-core/ && rm -rf ./latest && ln -s ./$COMMIT_HASH ./latest)
+          cd ./artifacts
+          git config user.name "${{ secrets.ARTIFACTS_RELEASE_GIT_NAME }}"
+          git config user.email "${{ secrets.ARTIFACTS_RELEASE_GIT_EMAIL }}"
+          git add .
+          git commit -m "artifacts: add contract artifacts from CI"
+          git push
