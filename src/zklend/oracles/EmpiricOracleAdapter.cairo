@@ -70,8 +70,8 @@ func get_data{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}()
     let (oracle_addr) = oracle.read();
     let (pair_key) = pair.read();
 
-    let (price, decimals, last_updated_timestamp, _) = IEmpiricOracle.get_value(
-        contract_address=oracle_addr, key=pair_key, aggregation_mode='median'
+    let (price, decimals, last_updated_timestamp, _) = IEmpiricOracle.get_spot_median(
+        contract_address=oracle_addr, pair_id=pair_key
     );
 
     let (scaled_price) = scale_price(price, decimals);
