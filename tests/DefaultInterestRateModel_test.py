@@ -43,7 +43,7 @@ async def setup() -> Setup:
 
 @pytest.mark.asyncio
 async def test_borrow_rates(setup: Setup):
-    for (reserve_balance, total_debt, borrow_rate) in [
+    for reserve_balance, total_debt, borrow_rate in [
         # 0% utilized: 0%
         (100, 0, 0),
         # 10% utilized:

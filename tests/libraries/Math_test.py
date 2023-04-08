@@ -35,7 +35,7 @@ async def setup() -> Setup:
 
 @pytest.mark.asyncio
 async def test_shl(setup: Setup):
-    for (a, b, res) in [
+    for a, b, res in [
         (0, 100, 0),
         (2, 1, 2 << 1),
         (2**50 + 2**40 + 1, 45, (2**50 + 2**40 + 1) << 45),
@@ -47,7 +47,7 @@ async def test_shl(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_shr(setup: Setup):
-    for (a, b, res) in [
+    for a, b, res in [
         (0, 100, 0),
         (2, 1, 1),
         (2**50 + 2**40 + 1, 45, 2**5),

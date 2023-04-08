@@ -36,7 +36,7 @@ async def setup() -> Setup:
 
 @pytest.mark.asyncio
 async def test_add(setup: Setup):
-    for (a, b, sum) in [
+    for a, b, sum in [
         (1, 2, 3),
         (2**251 + 17 * 2**192 - 1, 1, 2**251 + 17 * 2**192),
     ]:
@@ -45,7 +45,7 @@ async def test_add(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_add_overflow(setup: Setup):
-    for (a, b) in [
+    for a, b in [
         (2**251 + 17 * 2**192, 1),
         (2**251 + 17 * 2**192, 2**251 + 17 * 2**192),
     ]:
@@ -56,7 +56,7 @@ async def test_add_overflow(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_sub(setup: Setup):
-    for (a, b, sum) in [
+    for a, b, sum in [
         (1, 2, 3),
         (2**251 + 17 * 2**192 - 1, 1, 2**251 + 17 * 2**192),
     ]:
@@ -65,7 +65,7 @@ async def test_sub(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_sub_underflow(setup: Setup):
-    for (a, b) in [
+    for a, b in [
         (0, 1),
         (2**128, 2**250),
     ]:
@@ -76,7 +76,7 @@ async def test_sub_underflow(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_mul(setup: Setup):
-    for (a, b, product) in [
+    for a, b, product in [
         (2, 3, 6),
         (2**128, 2**10, 2**138),
     ]:
@@ -101,7 +101,7 @@ async def test_mul_uint256_overflow(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_div(setup: Setup):
-    for (a, b, quotient) in [
+    for a, b, quotient in [
         (6, 3, 2),
         (2**138, 2**10, 2**128),
         (100, 3, 33),
