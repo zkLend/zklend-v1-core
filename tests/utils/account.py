@@ -89,7 +89,7 @@ class Account:
         result = await self.__account_contract.state.execute_tx(
             InternalTransaction.from_external(
                 external_tx=InvokeFunction(
-                    contract_address=self.address,
+                    sender_address=self.address,
                     calldata=execute_calldata,
                     entry_point_selector=None,
                     signature=[sig_r, sig_s],

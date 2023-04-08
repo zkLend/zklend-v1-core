@@ -5,6 +5,6 @@ REPO_ROOT=$( cd -- "$( dirname $( dirname "$0" ) )" &> /dev/null && pwd )
 
 docker run --rm \
     -v "${SCRIPT_DIR}/entrypoints/run_tests.sh:/entry.sh:ro" \
-    -v "${REPO_ROOT}/:/src/" \
+    -v "${REPO_ROOT}:/work" \
     --entrypoint "/entry.sh" \
-    shardlabs/cairo-cli:0.10.0
+    starknet/cairo-lang:0.11.0.2

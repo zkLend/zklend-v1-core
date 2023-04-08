@@ -17,7 +17,7 @@ compile () {
   mkdir -p "$OUTPUT_DIR"
 
   # Ignores debug info for smaller artifacts
-  starknet-compile --no_debug_info $SOURCE > $OUTPUT
+  starknet-compile-deprecated --no_debug_info $SOURCE > $OUTPUT
 
   if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
     chown $USER_ID:$GROUP_ID $OUTPUT_DIR

@@ -43,9 +43,7 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     // TODO: check `optimal_rate` range
     curve_params.write(
         CurveParams(
-        slope_0=slope_0,
-        slope_1=slope_1,
-        y_intercept=y_intercept, optimal_rate=optimal_rate
+            slope_0=slope_0, slope_1=slope_1, y_intercept=y_intercept, optimal_rate=optimal_rate
         ),
     );
     return ();
