@@ -175,7 +175,7 @@ namespace External {
     // accumulating). so it's hard for off-chain actors to clear balance completely.
     func transfer_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         recipient: felt
-    ) {
+    ) -> (amount_transferred: felt) {
         let (caller) = get_caller_address();
 
         // NOTE: this exploit should no longer be possible since all transactions need must go through
@@ -185,7 +185,7 @@ namespace External {
         }
 
         let (sender_raw_balance) = raw_balances.read(caller);
-        Internal.transfer_internal(
+        let (transferred_amount) = Internal.transfer_internal(
             from_account=caller,
             to_account=recipient,
             amount=sender_raw_balance,
@@ -193,7 +193,7 @@ namespace External {
             check_collateralization=TRUE,
         );
 
-        return ();
+        return (amount_transferred=transferred_amount);
     }
 
     //
@@ -296,13 +296,15 @@ namespace External {
         Internal.only_market();
 
         // No need to check collateralization as `Market` only moves for liquidation
-        return Internal.transfer_internal(
+        Internal.transfer_internal(
             from_account=from_account,
             to_account=to_account,
             amount=amount,
             is_amount_raw=FALSE,
             check_collateralization=FALSE,
         );
+
+        return ();
     }
 }
 
@@ -431,7 +433,7 @@ namespace Internal {
         amount: felt,
         is_amount_raw: felt,
         check_collateralization: felt,
-    ) {
+    ) -> (amount_transferred: felt) {
         alloc_locals;
 
         let (accumulator) = get_accumulator();
@@ -474,7 +476,7 @@ namespace Internal {
                 contract_address=market_addr, user=from_account, token=underlying_token
             );
             if (collateral_enabled == FALSE) {
-                return ();
+                return (amount_transferred=face_amount);
             }
 
             let (is_undercollateralized) = IMarket.is_user_undercollateralized(
@@ -485,9 +487,9 @@ namespace Internal {
                 assert is_undercollateralized = FALSE;
             }
 
-            return ();
+            return (amount_transferred=face_amount);
         } else {
-            return ();
+            return (amount_transferred=face_amount);
         }
     }
 }
