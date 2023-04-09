@@ -160,7 +160,7 @@ func felt_approve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 @external
 func transfer_all{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     recipient: felt
-) {
+) -> (amount_transferred: felt) {
     return External.transfer_all(recipient);
 }
 
