@@ -36,7 +36,7 @@ async def setup() -> Setup:
 
 @pytest.mark.asyncio
 async def test_mul(setup: Setup):
-    for (a, b, product) in [
+    for a, b, product in [
         (10, 2 * 10**27, 20),
     ]:
         assert (await setup.safe_decimal_math.mul(a, b).call()).result.res == (product)
@@ -59,7 +59,7 @@ async def test_mul_overflow(setup: Setup):
 
 @pytest.mark.asyncio
 async def test_div(setup: Setup):
-    for (a, b, quotient) in [
+    for a, b, quotient in [
         (10, 2 * 10**27, 5),
     ]:
         assert (await setup.safe_decimal_math.div(a, b).call()).result.res == (quotient)
