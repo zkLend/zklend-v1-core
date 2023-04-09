@@ -433,28 +433,6 @@ namespace reserves {
         return ();
     }
 
-    func write_reserve_factor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        token: felt, value: felt
-    ) {
-        let (storage_addr) = addr(token);
-
-        // reserve_factor
-        storage_write(address=storage_addr + 6, value=value);
-
-        return ();
-    }
-
-    func write_liquidation_bonus{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        token: felt, value: felt
-    ) {
-        let (storage_addr) = addr(token);
-
-        // liquidation_bonus
-        storage_write(address=storage_addr + 14, value=value);
-
-        return ();
-    }
-
     func write_accumulators{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         token: felt, timestamp: felt, lending_accumulator, debt_accumulator
     ) {
