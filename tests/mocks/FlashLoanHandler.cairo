@@ -41,8 +41,15 @@ func take_flash_loan{syscall_ptr: felt*, range_check_ptr}(
 // to handle storage in a mock contract).
 @external
 func zklend_flash_callback{syscall_ptr: felt*, range_check_ptr}(
-    calldata_len: felt, calldata: felt*
+    initiator: felt, calldata_len: felt, calldata: felt*
 ) {
+    // **IMPORTANT**: always check the initiator is a contract you trust, similar to how it's done
+    // here.
+    let (this_address) = get_contract_address();
+    with_attr error_message("Flashloan not initiated by a trusted contract") {
+        assert initiator = this_address;
+    }
+
     let token = calldata[0];
     let market_addr = calldata[1];
     let return_amount = calldata[2];
