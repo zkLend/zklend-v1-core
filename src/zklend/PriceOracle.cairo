@@ -22,6 +22,14 @@ func sources(token: felt) -> (source: felt) {
 }
 
 //
+// Events
+//
+
+@event
+func TokenSourceChanged(token: felt, source: felt) {
+}
+
+//
 // Constructor
 //
 
@@ -66,5 +74,8 @@ func set_token_source{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     Ownable.assert_only_owner();
 
     sources.write(token, source);
+
+    TokenSourceChanged.emit(token, source);
+
     return ();
 }
