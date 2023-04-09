@@ -12,6 +12,10 @@ from openzeppelin.access.ownable.library import Ownable
 func sources(token: felt) -> (source: felt) {
 }
 
+@event
+func TokenSourceChanged(token: felt, source: felt) {
+}
+
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner: felt) {
     Ownable.initializer(owner);
@@ -43,5 +47,8 @@ func set_token_source{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     Ownable.assert_only_owner();
 
     sources.write(token, source);
+
+    TokenSourceChanged.emit(token, source);
+
     return ();
 }
