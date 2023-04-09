@@ -125,7 +125,7 @@ namespace External {
             assert_not_zero(caller);
         }
 
-        // Allowances are not scaled so we can just subtract directly
+        // Allowances are scaled so we can just subtract directly
         let (existing_allowance) = allowances.read(sender, caller);
         let new_allowance = SafeMath.sub(existing_allowance, amount);
         allowances.write(sender, caller, new_allowance);
