@@ -57,7 +57,7 @@ namespace IZToken {
     func felt_approve(spender: felt, amount: felt) -> (success: felt) {
     }
 
-    func transfer_all(recipient: felt) {
+    func transfer_all(recipient: felt) -> (amount_transferred: felt) {
     }
 
     func mint(to: felt, amount: felt) -> (zero_balance_before: felt) {
