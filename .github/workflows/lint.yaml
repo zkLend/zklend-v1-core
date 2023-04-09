@@ -13,18 +13,22 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
+      - name: Use Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
       - name: Install prettier
         run: |
-          yarn global add prettier
+          yarn global add prettier@2.8.7
       - name: Install black
         run: |
-          pip install git+https://github.com/psf/black
+          pip install black==23.3.0
       - name: Install pyright
         run: |
           pip install pyright
       - name: Install cairo-lang
         run: |
-          pip install cairo-lang
+          pip install cairo-lang==0.10.0
       - name: Check Python format
         run: |
           black --check "./tests"
