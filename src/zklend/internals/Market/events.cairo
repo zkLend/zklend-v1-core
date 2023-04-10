@@ -56,7 +56,7 @@ func Liquidation(
 }
 
 @event
-func FlashLoan(receiver: felt, token: felt, amount: felt, fee: felt) {
+func FlashLoan(initiator: felt, receiver: felt, token: felt, amount: felt, fee: felt) {
 }
 
 @event

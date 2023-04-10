@@ -775,8 +775,13 @@ namespace Internal {
             assert_not_zero(transfer_success);
         }
 
+        let (caller) = get_caller_address();
+
         IZklendFlashCallback.zklend_flash_callback(
-            contract_address=receiver, calldata_len=calldata_len, calldata=calldata
+            contract_address=receiver,
+            initiator=caller,
+            calldata_len=calldata_len,
+            calldata=calldata,
         );
 
         let (reserve_balance_after_u256) = IERC20.balanceOf(
@@ -801,7 +806,7 @@ namespace Internal {
         );
 
         let actual_fee = SafeMath.sub(reserve_balance_after, reserve_balance_before);
-        FlashLoan.emit(receiver, token, amount, actual_fee);
+        FlashLoan.emit(caller, receiver, token, amount, actual_fee);
 
         return ();
     }
