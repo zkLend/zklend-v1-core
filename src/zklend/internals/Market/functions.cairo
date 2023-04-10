@@ -838,9 +838,14 @@ namespace Internal {
             assert_not_zero(transfer_success);
         }
 
+        let (caller) = get_caller_address();
+
         // Calls receiver callback (which should return funds to this contract)
         IZklendFlashCallback.zklend_flash_callback(
-            contract_address=receiver, calldata_len=calldata_len, calldata=calldata
+            contract_address=receiver,
+            initiator=caller,
+            calldata_len=calldata_len,
+            calldata=calldata,
         );
 
         // Checks if enough funds have been returned
@@ -870,7 +875,7 @@ namespace Internal {
         );
 
         let actual_fee = SafeMath.sub(reserve_balance_after, reserve_balance_before);
-        FlashLoan.emit(receiver, token, amount, actual_fee);
+        FlashLoan.emit(caller, receiver, token, amount, actual_fee);
 
         return ();
     }
