@@ -212,6 +212,13 @@ func set_treasury{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 }
 
 @external
+func set_debt_limit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    token: felt, limit: felt
+) {
+    return External.set_debt_limit(token, limit);
+}
+
+@external
 func transfer_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     new_owner: felt
 ) {

@@ -97,6 +97,9 @@ namespace IMarket {
     func set_treasury(new_treasury: felt) {
     }
 
+    func set_debt_limit(token: felt, limit: felt) {
+    }
+
     func transfer_ownership(new_owner: felt) {
     }
 

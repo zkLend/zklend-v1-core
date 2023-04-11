@@ -65,6 +65,8 @@ namespace reserves {
         let (__storage_var_temp13) = storage_read(address=storage_addr + 13);
         // liquidation_bonus
         let (__storage_var_temp14) = storage_read(address=storage_addr + 14);
+        // debt_limit
+        let (__storage_var_temp15) = storage_read(address=storage_addr + 15);
 
         tempvar syscall_ptr = syscall_ptr;
         tempvar pedersen_ptr = pedersen_ptr;
@@ -100,6 +102,8 @@ namespace reserves {
         tempvar __storage_var_temp13: felt = __storage_var_temp13;
         // liquidation_bonus
         tempvar __storage_var_temp14: felt = __storage_var_temp14;
+        // debt_limit
+        tempvar __storage_var_temp15: felt = __storage_var_temp15;
 
         return ([cast(&__storage_var_temp0, Structs.ReserveData*)],);
     }
@@ -139,6 +143,8 @@ namespace reserves {
         storage_write(address=storage_addr + 13, value=[cast(&value, felt) + 13]);
         // liquidation_bonus
         storage_write(address=storage_addr + 14, value=[cast(&value, felt) + 14]);
+        // debt_limit
+        storage_write(address=storage_addr + 15, value=[cast(&value, felt) + 15]);
 
         return ();
     }
@@ -237,6 +243,22 @@ namespace reserves {
         tempvar range_check_ptr = range_check_ptr;
 
         return (flash_loan_fee=__storage_var_temp13);
+    }
+
+    func read_debt_limit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        token: felt
+    ) -> (debt_limit: felt) {
+        let (storage_addr) = addr(token);
+
+        // debt_limit
+        let (__storage_var_temp15) = storage_read(address=storage_addr + 15);
+
+        // TODO: check if we really need these
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+
+        return (debt_limit=__storage_var_temp15);
     }
 
     func read_interest_rate_model_and_raw_total_debt{
@@ -429,6 +451,17 @@ namespace reserves {
 
         // raw_total_debt
         storage_write(address=storage_addr + 12, value=value);
+
+        return ();
+    }
+
+    func write_debt_limit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        token: felt, value: felt
+    ) {
+        let (storage_addr) = addr(token);
+
+        // debt_limit
+        storage_write(address=storage_addr + 15, value=value);
 
         return ();
     }
