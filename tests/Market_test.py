@@ -808,6 +808,127 @@ async def test_borrow_token(setup: Setup):
 
 
 @pytest.mark.asyncio
+async def test_cannot_exceed_debt_limit(setup: Setup):
+    # Bob deposits enough TST_B for Alice to borrow
+    await setup.bob.execute(
+        [
+            Call(
+                setup.token_b.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(10_000 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_b.contract_address,  # token
+                    10_000 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_b.contract_address,  # token
+                ],
+            ),
+        ]
+    )
+    await setup.alice.execute(
+        [
+            Call(
+                setup.token_a.contract_address,
+                get_selector_from_name("approve"),
+                [
+                    setup.market.contract_address,  # spender
+                    *Uint256.from_int(1_000 * 10**18),  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("deposit"),
+                [
+                    setup.token_a.contract_address,  # token
+                    100 * 10**18,  # amount
+                ],
+            ),
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("enable_collateral"),
+                [
+                    setup.token_a.contract_address,  # token
+                ],
+            ),
+        ]
+    )
+
+    # Debt limit set to 10 TST_B
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("set_debt_limit"),
+                [
+                    setup.token_b.contract_address,  # token
+                    10 * 10**18,  # limit
+                ],
+            ),
+        ]
+    )
+
+    # Alice can't borrow 11 TST_B
+    await assert_reverted_with(
+        setup.alice.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("borrow"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        11 * 10**18,  # amount
+                    ],
+                )
+            ]
+        ),
+        "Market: debt limit exceeded",
+    )
+
+    # Borrowing 10 TST_B is allowed (exactly at limit)
+    await setup.alice.execute(
+        [
+            Call(
+                setup.market.contract_address,
+                get_selector_from_name("borrow"),
+                [
+                    setup.token_b.contract_address,  # token
+                    10 * 10**18,  # amount
+                ],
+            )
+        ]
+    )
+
+    # Borrowing anything more is disallowed
+    await assert_reverted_with(
+        setup.bob.execute(
+            [
+                Call(
+                    setup.market.contract_address,
+                    get_selector_from_name("borrow"),
+                    [
+                        setup.token_b.contract_address,  # token
+                        1 * 10**18,  # amount
+                    ],
+                )
+            ]
+        ),
+        "Market: debt limit exceeded",
+    )
+
+
+@pytest.mark.asyncio
 async def test_rate_changes_on_deposit(setup_with_loan: Setup):
     setup = setup_with_loan
 
