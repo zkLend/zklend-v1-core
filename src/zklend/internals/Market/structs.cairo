@@ -17,5 +17,6 @@ namespace Structs {
         raw_total_debt: felt,
         flash_loan_fee: felt,
         liquidation_bonus: felt,
+        debt_limit: felt,
     }
 }

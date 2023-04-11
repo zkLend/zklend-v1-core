@@ -29,6 +29,10 @@ func InterestRatesSync(token: felt, lending_rate: felt, borrowing_rate: felt) {
 }
 
 @event
+func DebtLimitUpdate(token: felt, limit: felt) {
+}
+
+@event
 func Deposit(user: felt, token: felt, face_amount: felt) {
 }
 

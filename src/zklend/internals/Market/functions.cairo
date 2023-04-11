@@ -7,6 +7,7 @@ from zklend.internals.Market.events import (
     TreasuryUpdate,
     AccumulatorsSync,
     InterestRatesSync,
+    DebtLimitUpdate,
     Deposit,
     Withdrawal,
     Borrowing,
@@ -292,6 +293,7 @@ namespace External {
             raw_total_debt=0,
             flash_loan_fee=flash_loan_fee,
             liquidation_bonus=liquidation_bonus,
+            debt_limit=0,
         );
         reserves.write(token, new_reserve);
 
@@ -332,6 +334,18 @@ namespace External {
 
         treasury.write(new_treasury);
         TreasuryUpdate.emit(new_treasury);
+        return ();
+    }
+
+    func set_debt_limit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        token: felt, limit: felt
+    ) {
+        Ownable.assert_only_owner();
+
+        Internal.assert_reserve_exists(token);
+
+        reserves.write_debt_limit(token, limit);
+        DebtLimitUpdate.emit(token, limit);
         return ();
     }
 
@@ -641,6 +655,9 @@ namespace Internal {
             is_delta_raw_total_debt_negative=FALSE,
             abs_delta_raw_total_debt=scaled_down_amount,
         );
+
+        // Enforces token debt limit
+        Internal.assert_debt_limit_satisfied(token=token);
 
         Borrowing.emit(caller, token, scaled_down_amount, amount);
 
@@ -1471,6 +1488,31 @@ namespace Internal {
             assert_not_zero(enabled);
         }
         return ();
+    }
+
+    // Checks if the debt limit is satisfied
+    func assert_debt_limit_satisfied{
+        syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+    }(token: felt) {
+        alloc_locals;
+
+        let (debt_limit) = reserves.read_debt_limit(token=token);
+        if (debt_limit == 0) {
+            // 0 means no limit
+            return ();
+        } else {
+            let (raw_total_debt) = reserves.read_raw_total_debt(token);
+            local raw_total_debt = raw_total_debt;
+
+            let (debt_accumulator) = View.get_debt_accumulator(token);
+            let scaled_debt = SafeDecimalMath.mul(raw_total_debt, debt_accumulator);
+
+            with_attr error_message("Market: debt limit exceeded") {
+                assert_le_felt(scaled_debt, debt_limit);
+            }
+
+            return ();
+        }
     }
 
     // This function is called to distribute excessive reserve assets to depositors. Such extra
