@@ -48,12 +48,12 @@ from starkware.starknet.common.syscalls import (
     get_block_timestamp,
     get_caller_address,
     get_contract_address,
+    replace_class,
 )
 
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.security.reentrancyguard.library import ReentrancyGuard
 from openzeppelin.token.erc20.IERC20 import IERC20
-from openzeppelin.upgrades.library import Proxy, Proxy_initialized
 
 const SECONDS_PER_YEAR = 31536000;
 
@@ -62,19 +62,9 @@ const DEBT_FLAG_FILTER = 0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 // This namespace is mostly used for adding reentrancy guard
 namespace External {
-    //
-    // Upgradeability
-    //
-
     func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         owner: felt, _oracle: felt
     ) {
-        let (initialized) = Proxy_initialized.read();
-        with_attr error_message("Proxy: contract already initialized") {
-            assert initialized = FALSE;
-        }
-        Proxy_initialized.write(TRUE);
-
         with_attr error_message("Market: zero address") {
             assert_not_zero(owner);
             assert_not_zero(_oracle);
@@ -86,11 +76,17 @@ namespace External {
         return ();
     }
 
+    //
+    // Upgradeability
+    //
+
     func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         new_implementation: felt
     ) {
         Ownable.assert_only_owner();
-        return Proxy._set_implementation_hash(new_implementation);
+        replace_class(new_implementation);
+
+        return ();
     }
 
     //

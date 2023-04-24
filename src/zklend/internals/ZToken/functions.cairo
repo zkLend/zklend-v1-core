@@ -23,30 +23,22 @@ from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
-from starkware.starknet.common.syscalls import get_caller_address
+from starkware.starknet.common.syscalls import get_caller_address, replace_class
 
-from openzeppelin.upgrades.library import Proxy
+from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.token.erc20.library import Approval, Transfer
 
 namespace External {
-    //
-    // Upgradeability
-    //
-
     func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        proxy_admin: felt,
-        _market: felt,
-        _underlying: felt,
-        _name: felt,
-        _symbol: felt,
-        _decimals: felt,
+        _owner: felt, _market: felt, _underlying: felt, _name: felt, _symbol: felt, _decimals: felt
     ) {
-        Proxy.initializer(proxy_admin);
-
         with_attr error_message("ZToken: zero address") {
+            assert_not_zero(_owner);
             assert_not_zero(_market);
             assert_not_zero(_underlying);
         }
+
+        Ownable.initializer(_owner);
 
         market.write(_market);
         underlying.write(_underlying);
@@ -60,18 +52,17 @@ namespace External {
         return ();
     }
 
+    //
+    // Upgradeability
+    //
+
     func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         new_implementation: felt
     ) {
-        Proxy.assert_only_admin();
-        return Proxy._set_implementation_hash(new_implementation);
-    }
+        Ownable.assert_only_owner();
+        replace_class(new_implementation);
 
-    func transfer_proxy_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        new_admin: felt
-    ) {
-        Proxy.assert_only_admin();
-        return Proxy._set_admin(new_admin);
+        return ();
     }
 
     //
@@ -305,6 +296,16 @@ namespace External {
         );
 
         return ();
+    }
+
+    func transfer_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        new_owner: felt
+    ) {
+        return Ownable.transfer_ownership(new_owner);
+    }
+
+    func renounce_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+        return Ownable.renounce_ownership();
     }
 }
 

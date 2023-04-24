@@ -7,29 +7,22 @@ from zklend.internals.ZToken.functions import External, View
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
 
+@constructor
+func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    _owner: felt, _market: felt, _underlying: felt, _name: felt, _symbol: felt, _decimals: felt
+) {
+    return External.initializer(_owner, _market, _underlying, _name, _symbol, _decimals);
+}
+
 //
 // Upgradeability
 //
-
-@external
-func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    proxy_admin: felt, _market: felt, _underlying: felt, _name: felt, _symbol: felt, _decimals: felt
-) {
-    return External.initializer(proxy_admin, _market, _underlying, _name, _symbol, _decimals);
-}
 
 @external
 func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     new_implementation: felt
 ) {
     return External.upgrade(new_implementation);
-}
-
-@external
-func transfer_proxy_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    new_admin: felt
-) {
-    return External.transfer_proxy_admin(new_admin);
 }
 
 //
@@ -194,4 +187,16 @@ func move{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     from_account: felt, to_account: felt, amount: felt
 ) {
     return External.move(from_account, to_account, amount);
+}
+
+@external
+func transfer_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    new_owner: felt
+) {
+    return External.transfer_ownership(new_owner);
+}
+
+@external
+func renounce_ownership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    return External.renounce_ownership();
 }
