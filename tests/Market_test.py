@@ -1571,6 +1571,7 @@ async def test_event_emission(setup: Setup):
                 keys=[get_selector_from_name("Repayment")],
                 data=[
                     setup.alice.address,  # user
+                    setup.alice.address,  # beneficiary
                     setup.token_b.contract_address,  # token
                     999999839667389988,  # raw_amount
                     1 * 10**18,  # face_amount

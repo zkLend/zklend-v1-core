@@ -61,6 +61,9 @@ namespace IMarket {
     func repay(token: felt, amount: felt) {
     }
 
+    func repay_for(token: felt, amount: felt, beneficiary: felt) {
+    }
+
     func repay_all(token: felt) {
     }
 

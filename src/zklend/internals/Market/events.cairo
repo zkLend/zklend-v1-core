@@ -45,7 +45,7 @@ func Borrowing(user: felt, token: felt, raw_amount: felt, face_amount: felt) {
 }
 
 @event
-func Repayment(user: felt, token: felt, raw_amount: felt, face_amount: felt) {
+func Repayment(repayer: felt, beneficiary: felt, token: felt, raw_amount: felt, face_amount: felt) {
 }
 
 @event

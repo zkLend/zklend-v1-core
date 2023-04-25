@@ -140,6 +140,13 @@ func repay{
 }
 
 @external
+func repay_for{
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+}(token: felt, amount: felt, beneficiary: felt) {
+    return External.repay_for(token, amount, beneficiary);
+}
+
+@external
 func repay_all{
     syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
 }(token: felt) {
