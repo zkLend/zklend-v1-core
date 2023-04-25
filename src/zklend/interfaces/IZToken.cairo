@@ -43,6 +43,10 @@ namespace IZToken {
     func get_raw_total_supply() -> (raw_supply: felt) {
     }
 
+    //
+    // Permissionless entrypoints
+    //
+
     func transfer(recipient: felt, amount: Uint256) -> (success: felt) {
     }
 
@@ -78,5 +82,11 @@ namespace IZToken {
     }
 
     func move(from_account: felt, to_account: felt, amount: felt) {
+    }
+
+    func transfer_ownership(new_owner: felt) {
+    }
+
+    func renounce_ownership() {
     }
 }

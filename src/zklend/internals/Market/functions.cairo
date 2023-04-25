@@ -153,6 +153,18 @@ namespace External {
         return ();
     }
 
+    func repay_for{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+    }(token: felt, amount: felt, beneficiary: felt) {
+        ReentrancyGuard.start();
+        Internal.repay_for(token, amount, beneficiary);
+        ReentrancyGuard.end();
+        return ();
+    }
+
     func repay_all{
         syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
@@ -688,7 +700,33 @@ namespace Internal {
         let (caller) = get_caller_address();
 
         let (raw_amount, face_amount) = repay_debt_route_internal(caller, caller, token, amount);
-        Repayment.emit(caller, token, raw_amount, face_amount);
+        Repayment.emit(caller, caller, token, raw_amount, face_amount);
+
+        return ();
+    }
+
+    func repay_for{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+    }(token: felt, amount: felt, beneficiary: felt) {
+        alloc_locals;
+
+        with_attr error_message("Market: zero amount") {
+            assert_not_zero(amount);
+        }
+
+        with_attr error_message("Market: zero address") {
+            assert_not_zero(beneficiary);
+        }
+
+        let (caller) = get_caller_address();
+
+        let (raw_amount, face_amount) = repay_debt_route_internal(
+            caller, beneficiary, token, amount
+        );
+        Repayment.emit(caller, beneficiary, token, raw_amount, face_amount);
 
         return ();
     }
@@ -704,7 +742,7 @@ namespace Internal {
         let (caller) = get_caller_address();
 
         let (raw_amount, face_amount) = repay_debt_route_internal(caller, caller, token, 0);
-        Repayment.emit(caller, token, raw_amount, face_amount);
+        Repayment.emit(caller, caller, token, raw_amount, face_amount);
 
         return ();
     }
