@@ -99,9 +99,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt, amount: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.deposit(token, amount);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -111,9 +111,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt, amount: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.withdraw(token, amount);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -123,9 +123,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.withdraw_all(token);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -135,9 +135,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt, amount: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.borrow(token, amount);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -147,9 +147,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt, amount: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.repay(token, amount);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -159,9 +159,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.repay_all(token);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -171,9 +171,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.enable_collateral(token);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -183,9 +183,9 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(token: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.disable_collateral(token);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
@@ -198,18 +198,18 @@ namespace External {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
     }(user: felt, debt_token: felt, amount: felt, collateral_token: felt) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.liquidate(user, debt_token, amount, collateral_token);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
     func flash_loan{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         receiver: felt, token: felt, amount: felt, calldata_len: felt, calldata: felt*
     ) {
-        ReentrancyGuard._start();
+        ReentrancyGuard.start();
         Internal.flash_loan(receiver, token, amount, calldata_len, calldata);
-        ReentrancyGuard._end();
+        ReentrancyGuard.end();
         return ();
     }
 
