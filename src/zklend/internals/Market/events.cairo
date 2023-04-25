@@ -71,3 +71,7 @@ func CollateralEnabled(user: felt, token: felt) {
 @event
 func CollateralDisabled(user: felt, token: felt) {
 }
+
+@event
+func ContractUpgraded(new_class_hash: felt) {
+}
