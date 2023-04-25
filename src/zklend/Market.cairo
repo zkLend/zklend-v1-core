@@ -7,16 +7,16 @@ from zklend.internals.Market.structs import Structs
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
 
-//
-// Upgradeability
-//
-
-@external
-func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+@constructor
+func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     owner: felt, _oracle: felt
 ) {
     return External.initializer(owner, _oracle);
 }
+
+//
+// Upgradeability
+//
 
 @external
 func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
