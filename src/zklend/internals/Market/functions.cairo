@@ -16,6 +16,7 @@ from zklend.internals.Market.events import (
     FlashLoan,
     CollateralEnabled,
     CollateralDisabled,
+    ContractUpgraded,
 )
 from zklend.internals.Market.storage import (
     oracle,
@@ -85,6 +86,8 @@ namespace External {
     ) {
         Ownable.assert_only_owner();
         replace_class(new_implementation);
+
+        ContractUpgraded.emit(new_implementation);
 
         return ();
     }

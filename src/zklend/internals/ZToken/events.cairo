@@ -5,3 +5,7 @@
 @event
 func RawTransfer(from_: felt, to: felt, raw_value: felt, accumulator: felt, face_value: felt) {
 }
+
+@event
+func ContractUpgraded(new_class_hash: felt) {
+}

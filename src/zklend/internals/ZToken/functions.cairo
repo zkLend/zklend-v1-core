@@ -2,7 +2,7 @@
 
 %lang starknet
 
-from zklend.internals.ZToken.events import RawTransfer
+from zklend.internals.ZToken.events import RawTransfer, ContractUpgraded
 from zklend.internals.ZToken.storage import (
     market,
     underlying,
@@ -61,6 +61,8 @@ namespace External {
     ) {
         Ownable.assert_only_owner();
         replace_class(new_implementation);
+
+        ContractUpgraded.emit(new_implementation);
 
         return ();
     }
