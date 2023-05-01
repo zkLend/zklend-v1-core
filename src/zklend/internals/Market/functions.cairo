@@ -814,7 +814,7 @@ namespace Internal {
         let (collateral_reserve) = reserves.read(collateral_token);
 
         // Liquidator repays debt for user
-        repay_debt_route_internal(caller, user, debt_token, amount);
+        let (raw_amount, _) = repay_debt_route_internal(caller, user, debt_token, amount);
 
         // Can only take from assets being used as collateral
         let (is_collateral) = is_used_as_collateral(user, collateral_token);
@@ -854,7 +854,13 @@ namespace Internal {
         }
 
         Liquidation.emit(
-            caller, user, debt_token, amount, collateral_token, collateral_amount_after_bonus
+            caller,
+            user,
+            debt_token,
+            raw_amount,
+            amount,
+            collateral_token,
+            collateral_amount_after_bonus,
         );
 
         return ();
