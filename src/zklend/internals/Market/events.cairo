@@ -53,7 +53,8 @@ func Liquidation(
     liquidator: felt,
     user: felt,
     debt_token: felt,
-    debt_amount: felt,
+    debt_raw_amount: felt,
+    debt_face_amount: felt,
     collateral_token: felt,
     collateral_amount: felt,
 ) {
