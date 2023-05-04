@@ -203,13 +203,16 @@ namespace External {
         with_attr error_message("ZToken: cannot mint to the zero address") {
             assert_not_zero(to);
         }
+        with_attr error_message("ZToken: invalid mint amount") {
+            assert_not_zero(amount);
+        }
 
         let (accumulator) = Internal.get_accumulator();
 
+        // We're disallowing zero `amount` but allowing zero `scaled_down_amount` here, because it
+        // would be difficult for callers to determine whether the amount would be zero after
+        // scaling down.
         let scaled_down_amount = SafeDecimalMath.div(amount, accumulator);
-        with_attr error_message("ZToken: invalid mint amount") {
-            assert_not_zero(scaled_down_amount);
-        }
 
         let (raw_balance_before) = raw_balances.read(to);
         let raw_balance_after = SafeMath.add(raw_balance_before, scaled_down_amount);

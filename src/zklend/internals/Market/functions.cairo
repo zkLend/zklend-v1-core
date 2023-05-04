@@ -571,6 +571,10 @@ namespace Internal {
     }(token: felt, amount: felt) {
         alloc_locals;
 
+        with_attr error_message("Market: zero amount") {
+            assert_not_zero(amount);
+        }
+
         let (caller) = get_caller_address();
         let (this_address) = get_contract_address();
 
