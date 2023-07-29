@@ -6,31 +6,27 @@ SCRIPT_DIR=$( cd -- "$( dirname "$0" )" &> /dev/null && pwd )
 REPO_ROOT=$( cd -- "$( dirname $( dirname "$0" ) )" &> /dev/null && pwd )
 
 compile () {
-  SOURCE="$1"
-  SOURCE_DIR="$(dirname "$SOURCE")"
-  SOURCE_FILE="$(basename -- "$SOURCE")"
-  OUTPUT_DIR="../build/$SOURCE_DIR"
-  OUTPUT="$OUTPUT_DIR/${SOURCE_FILE%.*}.json"
+  MODULE="$1"
+  NAME="$2"
+  OUTPUT="$REPO_ROOT/build/$NAME.json"
 
-  echo "Compiling $(realpath $SOURCE)"
+  echo "Compiling $MODULE::$NAME"
 
-  mkdir -p "$OUTPUT_DIR"
-
-  # Ignores debug info for smaller artifacts
-  starknet-compile-deprecated --no_debug_info $SOURCE > $OUTPUT
+  # This is better than using the output option, which does not emit EOL at the end.
+  starknet-compile -c "$MODULE::$NAME" $REPO_ROOT > $OUTPUT
 
   if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
-    chown $USER_ID:$GROUP_ID $OUTPUT_DIR
     chown $USER_ID:$GROUP_ID $OUTPUT
   fi
 }
 
-cd "$REPO_ROOT/src"
-mkdir -p "$REPO_ROOT/build/zklend"
+mkdir -p "$REPO_ROOT/build"
 
-find -type f -name '*.cairo' | while read SOURCE; do
-  compile "$SOURCE"
-done
+compile zklend::market Market
+compile zklend::z_token ZToken
+compile zklend::default_price_oracle DefaultPriceOracle
+compile zklend::irms::default_interest_rate_model DefaultInterestRateModel
+compile zklend::oracles::empiric_oracle_adapter EmpiricOracleAdapter
 
 if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
   chown -R $USER_ID:$GROUP_ID "$REPO_ROOT/build"

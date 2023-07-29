@@ -11,13 +11,5 @@ docker run --rm \
     --env "USER_ID=$(id -u)" \
     --env "GROUP_ID=$(id -g)" \
     --entrypoint sh \
-    starknet/cairo-lang:0.11.0.2 \
+    starknet/cairo:2.1.0-rc2 \
     -c "cd /work && ./scripts/compile.sh"
-
-# Using prettier instead of `jq` due to known issue:
-#   https://github.com/xJonathanLEI/starknet-rs/issues/76#issuecomment-1058153538
-docker run --rm \
-    -v "$REPO_ROOT/build:/work" \
-    --user root \
-    tmknom/prettier:2.6.2 \
-    --write .
