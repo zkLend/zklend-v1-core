@@ -62,7 +62,6 @@ fn transfer_ownership<T, impl TOwnable: Ownable<T>, impl TDrop: Drop<T>>(
 fn renounce_ownership<T, impl TOwnable: Ownable<T>, impl TDrop: Drop<T>>(ref self: T) {
     assert_only_owner(@self);
     __private::_transfer_ownership(ref self, contract_address_const::<0>());
-    return ();
 }
 
 // Not public API (Cairo does not support _real_ private modules yet)

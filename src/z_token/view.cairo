@@ -36,10 +36,7 @@ fn decimals(self: @ContractState) -> felt252 {
 }
 
 fn totalSupply(self: @ContractState) -> u256 {
-    let scaled_up_supply = felt_total_supply(self);
-    let scaled_up_supply: u256 = scaled_up_supply.into();
-
-    scaled_up_supply
+    felt_total_supply(self).into()
 }
 
 fn felt_total_supply(self: @ContractState) -> felt252 {
@@ -52,10 +49,7 @@ fn felt_total_supply(self: @ContractState) -> felt252 {
 }
 
 fn balanceOf(self: @ContractState, account: ContractAddress) -> u256 {
-    let scaled_up_balance = felt_balance_of(self, account);
-    let scaled_up_balance: u256 = scaled_up_balance.into();
-
-    scaled_up_balance
+    felt_balance_of(self, account).into()
 }
 
 fn felt_balance_of(self: @ContractState, account: ContractAddress) -> felt252 {
