@@ -101,7 +101,7 @@ fn get_pending_treasury_amount(self: @ContractState, token: ContractAddress) -> 
 
     let block_timestamp: felt252 = get_block_timestamp().into();
     if reserve.last_update_timestamp == block_timestamp {
-        // Tresury amount already settled on the same block
+        // Treasury amount already settled on the same block
         0
     } else {
         // Apply simple interest
