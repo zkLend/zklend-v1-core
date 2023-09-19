@@ -1,3 +1,7 @@
+mod errors {
+    const INVALID_OPTIMAL_RATE: felt252 = 'DIRM_INVALID_OPTIMAL_RATE';
+}
+
 // TODO: manually create copies of this contract with hard-coded values instead of using storage
 #[starknet::contract]
 mod DefaultInterestRateModel {
@@ -8,6 +12,8 @@ mod DefaultInterestRateModel {
 
     use crate::interfaces::{IInterestRateModel, ModelRates};
     use crate::libraries::{safe_decimal_math, safe_math};
+
+    use super::errors;
 
     #[storage]
     struct Storage {
@@ -30,7 +36,11 @@ mod DefaultInterestRateModel {
         y_intercept: felt252,
         optimal_rate: felt252
     ) {
-        // TODO: check `optimal_rate` range
+        assert(
+            Into::<_, u256>::into(optimal_rate) <= Into::<_, u256>::into(safe_decimal_math::SCALE),
+            errors::INVALID_OPTIMAL_RATE
+        );
+
         self.curve_params.write(CurveParams { slope_0, slope_1, y_intercept, optimal_rate });
     }
 
