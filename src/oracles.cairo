@@ -1,1 +1,1 @@
-mod empiric_oracle_adapter;
+mod pragma_oracle_adapter;

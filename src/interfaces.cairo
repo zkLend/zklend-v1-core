@@ -256,8 +256,8 @@ trait IInterestRateModel<TContractState> {
 }
 
 #[starknet::interface]
-trait IEmpiricOracle<TContractState> {
-    fn get_spot_median(self: @TContractState, pair_id: felt252) -> EmpiricOracleSpotMedian;
+trait IPragmaOracle<TContractState> {
+    fn get_spot_median(self: @TContractState, pair_id: felt252) -> PragmaOracleSpotMedian;
 }
 
 #[starknet::interface]
@@ -308,7 +308,7 @@ struct PriceWithUpdateTime {
 }
 
 #[derive(Drop, Serde)]
-struct EmpiricOracleSpotMedian {
+struct PragmaOracleSpotMedian {
     price: felt252,
     decimals: felt252,
     last_updated_timestamp: felt252,
