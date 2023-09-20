@@ -6,6 +6,8 @@ mod mock_market;
 
 mod mock_price_oracle;
 
+mod mock_pragma_oracle;
+
 mod flash_loan_handler;
 
 mod erc20;
@@ -182,6 +184,22 @@ trait IMockPriceOracle<TContractState> {
 
     fn set_price(
         ref self: TContractState, token: ContractAddress, price: felt252, update_time: felt252
+    );
+}
+
+#[starknet::interface]
+trait IMockPragmaOracle<TContractState> {
+    //
+    // External
+    //
+
+    fn set_price(
+        ref self: TContractState,
+        pair_id: felt252,
+        price: felt252,
+        decimals: felt252,
+        last_updated_timestamp: felt252,
+        num_sources_aggregated: felt252
     );
 }
 

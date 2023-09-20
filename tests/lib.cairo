@@ -2,6 +2,9 @@
 mod default_interest_rate_model;
 
 #[cfg(test)]
+mod pragma_oracle_adapter;
+
+#[cfg(test)]
 mod z_token;
 
 #[cfg(test)]

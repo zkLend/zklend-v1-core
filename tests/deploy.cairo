@@ -7,16 +7,18 @@ use starknet::ContractAddress;
 use starknet::syscalls::deploy_syscall;
 
 use zklend::interfaces::{
-    IInterestRateModelDispatcher, IMarketDispatcher, ITestContractDispatcher, IZTokenDispatcher
+    IInterestRateModelDispatcher, IMarketDispatcher, IPriceOracleSourceDispatcher,
+    ITestContractDispatcher, IZTokenDispatcher
 };
 use zklend::irms::default_interest_rate_model::DefaultInterestRateModel;
 use zklend::market::Market;
+use zklend::oracles::pragma_oracle_adapter::PragmaOracleAdapter;
 use zklend::z_token::ZToken;
 
 use tests::mock;
 use tests::mock::{
     IAccountDispatcher, IERC20Dispatcher, IFlashLoanHandlerDispatcher, IMockMarketDispatcher,
-    IMockPriceOracleDispatcher
+    IMockPragmaOracleDispatcher, IMockPriceOracleDispatcher
 };
 
 fn deploy_account() -> IAccountDispatcher {
@@ -65,6 +67,18 @@ fn deploy_mock_price_oracle() -> IMockPriceOracleDispatcher {
     IMockPriceOracleDispatcher { contract_address }
 }
 
+fn deploy_mock_pragma_oracle() -> IMockPragmaOracleDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        mock::mock_pragma_oracle::MockPragmaOracle::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        Default::default().span(),
+        false
+    )
+        .unwrap();
+
+    IMockPragmaOracleDispatcher { contract_address }
+}
+
 fn deploy_mock_market() -> IMockMarketDispatcher {
     let (contract_address, _) = deploy_syscall(
         mock::mock_market::MockMarket::TEST_CLASS_HASH.try_into().unwrap(),
@@ -87,6 +101,20 @@ fn deploy_flash_loan_handler() -> IFlashLoanHandlerDispatcher {
         .unwrap();
 
     IFlashLoanHandlerDispatcher { contract_address }
+}
+
+fn deploy_pragma_oracle_adapter(
+    oracle: ContractAddress, pair: felt252, timeout: felt252
+) -> IPriceOracleSourceDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        PragmaOracleAdapter::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        array![oracle.into(), pair, timeout].span(),
+        false
+    )
+        .unwrap();
+
+    IPriceOracleSourceDispatcher { contract_address }
 }
 
 fn deploy_default_interest_rate_model(
