@@ -961,7 +961,7 @@ fn settle_extra_reserve_balance(ref self: ContractState, token: ContractAddress)
     }.balanceOf(this_address).try_into().expect(errors::BALANCE_OVERFLOW);
 
     // The full amount if all debts are repaid
-    let impilcit_total_balance = safe_math::add(reserve_balance, scaled_up_total_debt);
+    let implicit_total_balance = safe_math::add(reserve_balance, scaled_up_total_debt);
 
     // What all users are _entitled_ to right now (again, accumulators are up to date)
     let raw_z_supply = IZTokenDispatcher {
@@ -970,10 +970,10 @@ fn settle_extra_reserve_balance(ref self: ContractState, token: ContractAddress)
     let owned_balance = safe_decimal_math::mul(raw_z_supply, reserve.lending_accumulator);
 
     let no_need_to_adjust = Into::<_,
-    u256>::into(impilcit_total_balance) <= Into::<_, u256>::into(owned_balance);
+    u256>::into(implicit_total_balance) <= Into::<_, u256>::into(owned_balance);
     if !no_need_to_adjust {
-        // `impilcit_total_balance > owned_balance` holds inside this branch
-        let excessive_balance = safe_math::sub(impilcit_total_balance, owned_balance);
+        // `implicit_total_balance > owned_balance` holds inside this branch
+        let excessive_balance = safe_math::sub(implicit_total_balance, owned_balance);
 
         let treasury_addr = self.treasury.read();
         let effective_reserve_factor = if treasury_addr.is_zero() {
