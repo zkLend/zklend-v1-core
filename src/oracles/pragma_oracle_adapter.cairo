@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod EmpiricOracleAdapter {
+mod PragmaOracleAdapter {
     use traits::Into;
 
     use starknet::ContractAddress;
@@ -8,8 +8,8 @@ mod EmpiricOracleAdapter {
     use super::super::super as crate;
 
     use crate::interfaces::{
-        IEmpiricOracleDispatcher, IEmpiricOracleDispatcherTrait, IPriceOracleSource,
-        EmpiricOracleSpotMedian, PriceWithUpdateTime
+        IPragmaOracleDispatcher, IPragmaOracleDispatcherTrait, IPriceOracleSource,
+        PragmaOracleSpotMedian, PriceWithUpdateTime
     };
     use crate::libraries::{pow, safe_math};
 
@@ -44,7 +44,7 @@ mod EmpiricOracleAdapter {
         let oracle_addr = self.oracle.read();
         let pair_key = self.pair.read();
 
-        let median = IEmpiricOracleDispatcher {
+        let median = IPragmaOracleDispatcher {
             contract_address: oracle_addr
         }.get_spot_median(pair_key);
 
