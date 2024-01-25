@@ -257,7 +257,7 @@ trait IInterestRateModel<TContractState> {
 
 #[starknet::interface]
 trait IPragmaOracle<TContractState> {
-    fn get_spot_median(self: @TContractState, pair_id: felt252) -> PragmaOracleSpotMedian;
+    fn get_data_median(self: @TContractState, data_type: PragmaDataType) -> PragmaPricesResponse;
 }
 
 #[starknet::interface]
@@ -308,9 +308,17 @@ struct PriceWithUpdateTime {
 }
 
 #[derive(Drop, Serde)]
-struct PragmaOracleSpotMedian {
-    price: felt252,
-    decimals: felt252,
-    last_updated_timestamp: felt252,
-    num_sources_aggregated: felt252
+enum PragmaDataType {
+    SpotEntry: felt252,
+    FutureEntry: (felt252, u64),
+    GenericEntry: felt252,
+}
+
+#[derive(Drop, Serde)]
+struct PragmaPricesResponse {
+    price: u128,
+    decimals: u32,
+    last_updated_timestamp: u64,
+    num_sources_aggregated: u32,
+    expiration_timestamp: Option<u64>,
 }

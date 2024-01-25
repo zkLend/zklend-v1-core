@@ -1,5 +1,4 @@
 mod errors {
-    const INVALID_TIMESTAMP: felt252 = 'PRAGMA_INVALID_TIMESTAMP';
     const STALED_PRICE: felt252 = 'PRAGMA_STALED_PRICE';
     const ZERO_PRICE: felt252 = 'PRAGMA_ZERO_PRICE';
 }
@@ -16,8 +15,8 @@ mod PragmaOracleAdapter {
     use super::super::super as crate;
 
     use crate::interfaces::{
-        IPragmaOracleDispatcher, IPragmaOracleDispatcherTrait, IPriceOracleSource,
-        PragmaOracleSpotMedian, PriceWithUpdateTime
+        IPragmaOracleDispatcher, IPragmaOracleDispatcherTrait, IPriceOracleSource, PragmaDataType,
+        PragmaPricesResponse, PriceWithUpdateTime
     };
     use crate::libraries::{pow, safe_math};
 
@@ -58,26 +57,24 @@ mod PragmaOracleAdapter {
 
         let median = IPragmaOracleDispatcher {
             contract_address: oracle_addr
-        }.get_spot_median(pair_key);
+        }.get_data_median(PragmaDataType::SpotEntry(pair_key));
         assert(median.price != 0, errors::ZERO_PRICE);
 
         // Block times are usually behind real world time by a bit. It's possible that the reported
         // last updated timestamp is in the (very near) future.
         let block_time: u64 = get_block_timestamp();
-        let last_updated_timestamp: u64 = median
-            .last_updated_timestamp
-            .try_into()
-            .expect(errors::INVALID_TIMESTAMP);
 
-        let time_elasped: u64 = match u64_checked_sub(block_time, last_updated_timestamp) {
+        let time_elasped: u64 = match u64_checked_sub(block_time, median.last_updated_timestamp) {
             Option::Some(value) => value,
             Option::None => 0,
         };
         let timeout = self.timeout.read();
         assert(time_elasped <= timeout, errors::STALED_PRICE);
 
-        let scaled_price = scale_price(median.price, median.decimals);
-        PriceWithUpdateTime { price: scaled_price, update_time: median.last_updated_timestamp }
+        let scaled_price = scale_price(median.price.into(), median.decimals.into());
+        PriceWithUpdateTime {
+            price: scaled_price, update_time: median.last_updated_timestamp.into()
+        }
     }
 
     fn scale_price(price: felt252, decimals: felt252) -> felt252 {
