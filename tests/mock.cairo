@@ -196,10 +196,10 @@ trait IMockPragmaOracle<TContractState> {
     fn set_price(
         ref self: TContractState,
         pair_id: felt252,
-        price: felt252,
-        decimals: felt252,
-        last_updated_timestamp: felt252,
-        num_sources_aggregated: felt252
+        price: u128,
+        decimals: u32,
+        last_updated_timestamp: u64,
+        num_sources_aggregated: u32
     );
 }
 
