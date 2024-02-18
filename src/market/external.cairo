@@ -253,6 +253,34 @@ fn set_treasury(ref self: ContractState, new_treasury: ContractAddress) {
     self.emit(contract::Event::TreasuryUpdate(contract::TreasuryUpdate { new_treasury }));
 }
 
+fn set_collateral_factor(
+    ref self: ContractState, token: ContractAddress, collateral_factor: felt252
+) {
+    ownable::assert_only_owner(@self);
+
+    internal::assert_reserve_exists(@self, token);
+    self.reserves.write_collateral_factor(token, collateral_factor);
+    self
+        .emit(
+            contract::Event::CollateralFactorUpdate(
+                contract::CollateralFactorUpdate { token, collateral_factor }
+            )
+        );
+}
+
+fn set_borrow_factor(ref self: ContractState, token: ContractAddress, borrow_factor: felt252) {
+    ownable::assert_only_owner(@self);
+
+    internal::assert_reserve_exists(@self, token);
+    self.reserves.write_borrow_factor(token, borrow_factor);
+    self
+        .emit(
+            contract::Event::BorrowFactorUpdate(
+                contract::BorrowFactorUpdate { token, borrow_factor }
+            )
+        );
+}
+
 fn set_debt_limit(ref self: ContractState, token: ContractAddress, limit: felt252) {
     ownable::assert_only_owner(@self);
 

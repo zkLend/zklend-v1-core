@@ -1376,3 +1376,65 @@ fn test_flashloan_fee_distribution() {
     assert_eq(@reserve_data.current_lending_rate, @112626825801392020390157, 'FAILED');
     assert_eq(@reserve_data.current_borrowing_rate, @50556930693069306930693069, 'FAILED');
 }
+
+#[test]
+#[available_gas(90000000)]
+#[should_panic(expected: ('MKT_INSUFFICIENT_COLLATERAL', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+fn test_change_collateral_factor() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    setup
+        .alice
+        .market_set_collateral_factor(
+            setup.market.contract_address,
+            setup.token_a.contract_address, // token
+            400000000000000000000000000 // collateral_factor
+        );
+
+    // With original collateral factor of 0.5:
+    //   TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
+    //   For borrowing TST_B: 2,500 * 0.9 = 2,250 USD
+    //   Maximum borrow: 22.5 TST_B
+    // With updated collateral factor or 0.4:
+    //   TST_A collteral: 100 TST_A * 0.4 = 2,000 USD
+    //   For borrowing TST_B: 2,000 * 0.9 = 1,800 USD
+    //   Maximum borrow: 18 TST_B
+    setup
+        .alice
+        .market_borrow(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            18100000000000000000 // amount
+        );
+}
+
+#[test]
+#[available_gas(90000000)]
+#[should_panic(expected: ('MKT_INSUFFICIENT_COLLATERAL', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+fn test_change_borrow_factor() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    setup
+        .alice
+        .market_set_borrow_factor(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            800000000000000000000000000 // borrow_factor
+        );
+
+    // With original borrow factor of 0.9:
+    //   TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
+    //   For borrowing TST_B: 2,500 * 0.9 = 2,250 USD
+    //   Maximum borrow: 22.5 TST_B
+    // With updated borrow factor of 0.8:
+    //   TST_A collteral: 100 TST_A * 0.5 = 2,500 USD
+    //   For borrowing TST_B: 2,500 * 0.8 = 2,000 USD
+    //   Maximum borrow: 20 TST_B
+    setup
+        .alice
+        .market_borrow(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            20100000000000000000 // amount
+        );
+}
