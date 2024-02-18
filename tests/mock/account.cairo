@@ -56,6 +56,24 @@ mod Account {
             IMarketDispatcher { contract_address }.set_treasury(new_treasury)
         }
 
+        fn market_set_collateral_factor(
+            ref self: ContractState,
+            contract_address: ContractAddress,
+            token: ContractAddress,
+            collateral_factor: felt252
+        ) {
+            IMarketDispatcher { contract_address }.set_collateral_factor(token, collateral_factor)
+        }
+
+        fn market_set_borrow_factor(
+            ref self: ContractState,
+            contract_address: ContractAddress,
+            token: ContractAddress,
+            borrow_factor: felt252
+        ) {
+            IMarketDispatcher { contract_address }.set_borrow_factor(token, borrow_factor)
+        }
+
         fn market_set_debt_limit(
             ref self: ContractState,
             contract_address: ContractAddress,

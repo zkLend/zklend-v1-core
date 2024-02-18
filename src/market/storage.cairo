@@ -102,6 +102,10 @@ trait ReservesStorageShortcuts<T> {
 
     fn write_raw_total_debt(self: @T, token: ContractAddress, raw_total_debt: felt252);
 
+    fn write_collateral_factor(self: @T, token: ContractAddress, collateral_factor: felt252);
+
+    fn write_borrow_factor(self: @T, token: ContractAddress, borrow_factor: felt252);
+
     fn write_debt_limit(self: @T, token: ContractAddress, debt_limit: felt252);
 
     fn write_accumulators(
@@ -271,6 +275,20 @@ impl ReservesStorageShortcutsImpl of ReservesStorageShortcuts<Reserves> {
         let base = self.address(token);
 
         Store::<felt252>::write_at_offset(D, base, 12, raw_total_debt).expect(E);
+    }
+
+    fn write_collateral_factor(
+        self: @Reserves, token: ContractAddress, collateral_factor: felt252
+    ) {
+        let base = self.address(token);
+
+        Store::<felt252>::write_at_offset(D, base, 4, collateral_factor).expect(E);
+    }
+
+    fn write_borrow_factor(self: @Reserves, token: ContractAddress, borrow_factor: felt252) {
+        let base = self.address(token);
+
+        Store::<felt252>::write_at_offset(D, base, 5, borrow_factor).expect(E);
     }
 
     fn write_debt_limit(self: @Reserves, token: ContractAddress, debt_limit: felt252) {

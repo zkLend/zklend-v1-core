@@ -110,6 +110,12 @@ trait IMarket<TContractState> {
 
     fn set_treasury(ref self: TContractState, new_treasury: ContractAddress);
 
+    fn set_collateral_factor(
+        ref self: TContractState, token: ContractAddress, collateral_factor: felt252
+    );
+
+    fn set_borrow_factor(ref self: TContractState, token: ContractAddress, borrow_factor: felt252);
+
     fn set_debt_limit(ref self: TContractState, token: ContractAddress, limit: felt252);
 
     fn transfer_ownership(ref self: TContractState, new_owner: ContractAddress);
