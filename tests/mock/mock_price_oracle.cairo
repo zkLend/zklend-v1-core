@@ -1,6 +1,7 @@
 #[starknet::contract]
 mod MockPriceOracle {
     use starknet::ContractAddress;
+    use zeroable::Zeroable;
 
     use zklend::interfaces::{IPriceOracle, PriceWithUpdateTime};
 
@@ -21,6 +22,7 @@ mod MockPriceOracle {
     impl IPriceOracleImpl of IPriceOracle<ContractState> {
         fn get_price(self: @ContractState, token: ContractAddress) -> felt252 {
             let data = self.prices.read(token);
+            assert(!data.price.is_zero(), 'MOCK_ORACLE_PRICE_NOT_SET');
             data.price
         }
 
@@ -28,6 +30,7 @@ mod MockPriceOracle {
             self: @ContractState, token: ContractAddress
         ) -> PriceWithUpdateTime {
             let data = self.prices.read(token);
+            assert(!data.price.is_zero(), 'MOCK_ORACLE_PRICE_NOT_SET');
             return PriceWithUpdateTime { price: data.price, update_time: data.update_time };
         }
     }
