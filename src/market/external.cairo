@@ -258,6 +258,12 @@ fn set_collateral_factor(
 ) {
     ownable::assert_only_owner(@self);
 
+    // Checks collateral_factor range
+    assert(
+        Into::<_, u256>::into(collateral_factor) <= safe_decimal_math::SCALE_U256,
+        errors::COLLATERAL_FACTOR_RANGE
+    );
+
     internal::assert_reserve_exists(@self, token);
     self.reserves.write_collateral_factor(token, collateral_factor);
     self
@@ -270,6 +276,12 @@ fn set_collateral_factor(
 
 fn set_borrow_factor(ref self: ContractState, token: ContractAddress, borrow_factor: felt252) {
     ownable::assert_only_owner(@self);
+
+    // Checks borrow_factor range
+    assert(
+        Into::<_, u256>::into(borrow_factor) <= safe_decimal_math::SCALE_U256,
+        errors::BORROW_FACTOR_RANGE
+    );
 
     internal::assert_reserve_exists(@self, token);
     self.reserves.write_borrow_factor(token, borrow_factor);
