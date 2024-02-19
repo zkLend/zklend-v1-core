@@ -1438,3 +1438,67 @@ fn test_change_borrow_factor() {
             20100000000000000000 // amount
         );
 }
+
+#[test]
+#[available_gas(90000000)]
+fn test_prelisted_token_may_have_price_source_unset() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    let token_c = deploy::deploy_erc20(
+        'Test Token C', // name
+        'TST_C', // symbol
+        18, // decimals
+        1000000000000000000000000, // initial_supply
+        setup.alice.contract_address // recipient
+    );
+    let z_token_c = deploy::deploy_z_token(
+        contract_address_const::<999999>(), // owner
+        setup.market.contract_address, // market
+        token_c.contract_address, // underlying
+        'zkLend Interest-Bearing TST_C', // name
+        'zTST_C', // symbol
+        18 // decimals
+    );
+
+    // Prelists token C
+    setup
+        .alice
+        .market_add_reserve(
+            setup.market.contract_address,
+            token_c.contract_address, // token
+            z_token_c.contract_address, // z_token
+            setup.irm_a.contract_address, // interest_rate_model
+            0, // collateral_factor
+            1000000000000000000000000000, // borrow_factor
+            0, // reserve_factor
+            0, // flash_loan_fee
+            0, // liquidation_bonus
+        );
+
+    // Alice deposits token C and enables collateral
+    setup
+        .alice
+        .erc20_approve(
+            token_c.contract_address,
+            setup.market.contract_address, // spender
+            100000000000000000000 // amount
+        );
+    setup
+        .alice
+        .market_deposit(
+            setup.market.contract_address,
+            token_c.contract_address, // token
+            100000000000000000000 // amount
+        );
+    setup.alice.market_enable_collateral(setup.market.contract_address, token_c.contract_address);
+
+    // Alice borrows. Despite that token C is enabled, the action is allowed even if the oracle
+    // would revert upon any price request if made.
+    setup
+        .alice
+        .market_borrow(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            22500000000000000000 // amount
+        );
+}

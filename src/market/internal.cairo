@@ -631,6 +631,10 @@ fn get_user_collateral_usd_value_for_token(
 ) -> felt252 {
     let reserve = self.reserves.read_for_get_user_collateral_usd_value_for_token(token);
 
+    if reserve.collateral_factor.is_zero() {
+        return 0;
+    }
+
     // This value already reflects interests accured since last update
     let collateral_balance = IZTokenDispatcher {
         contract_address: reserve.z_token_address
