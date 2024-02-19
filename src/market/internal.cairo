@@ -916,18 +916,15 @@ fn assert_reserve_enabled(self: @ContractState, token: ContractAddress) {
 fn assert_debt_limit_satisfied(self: @ContractState, token: ContractAddress) {
     let debt_limit = self.reserves.read_debt_limit(token);
 
-    // 0 means no limit
-    if debt_limit.is_non_zero() {
-        let raw_total_debt = self.reserves.read_raw_total_debt(token);
+    let raw_total_debt = self.reserves.read_raw_total_debt(token);
 
-        let debt_accumulator = view::get_debt_accumulator(self, token);
-        let scaled_debt = safe_decimal_math::mul(raw_total_debt, debt_accumulator);
+    let debt_accumulator = view::get_debt_accumulator(self, token);
+    let scaled_debt = safe_decimal_math::mul(raw_total_debt, debt_accumulator);
 
-        assert(
-            Into::<_, u256>::into(scaled_debt) <= Into::<_, u256>::into(debt_limit),
-            errors::DEBT_LIMIT_EXCEEDED
-        );
-    }
+    assert(
+        Into::<_, u256>::into(scaled_debt) <= Into::<_, u256>::into(debt_limit),
+        errors::DEBT_LIMIT_EXCEEDED
+    );
 }
 
 /// This function is called to distribute excessive reserve assets to depositors. Such extra balance
