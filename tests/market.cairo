@@ -130,6 +130,21 @@ fn setup() -> Setup {
         );
 
     setup
+        .alice
+        .market_set_debt_limit(
+            setup.market.contract_address,
+            setup.token_a.contract_address, // token
+            999999999999999999999999999999 // limit
+        );
+    setup
+        .alice
+        .market_set_debt_limit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            999999999999999999999999999999 // limit
+        );
+
+    setup
         .oracle
         .set_price(
             setup.token_a.contract_address, // token
