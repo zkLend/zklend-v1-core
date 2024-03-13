@@ -88,6 +88,13 @@ trait IAccount<TContractState> {
         borrow_factor: felt252
     );
 
+    fn market_set_reserve_factor(
+        ref self: TContractState,
+        contract_address: ContractAddress,
+        token: ContractAddress,
+        reserve_factor: felt252
+    );
+
     fn market_set_debt_limit(
         ref self: TContractState,
         contract_address: ContractAddress,
