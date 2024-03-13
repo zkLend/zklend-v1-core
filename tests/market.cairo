@@ -1519,6 +1519,73 @@ fn test_change_borrow_factor() {
 
 #[test]
 #[available_gas(90000000)]
+fn test_change_reserve_factor() {
+    let setup = setup_with_loan();
+
+    // (Copied from `test_rates_changed_on_borrow`)
+    // Borrowing rate:
+    //   Utilization rate = 22.5 / 10,000 = 0.00225
+    //   Borrowing rate = 0.05 + 0.2 * 0.00225 / 0.8 = 0.0505625 => 505625 * 10 ** 20
+
+    starknet::testing::set_block_timestamp(100);
+
+    // Reserve balance is not updated without an actual settlement. We do a noop IRM change here to
+    // just for triggering the settlement.
+    setup
+        .alice
+        .market_set_interest_rate_model(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            setup.irm_b.contract_address // interest_rate_model
+        );
+
+    // Total interest after 100 seconds:
+    //   Interest = 0.0505625 * 22.5 * 100 / (365 * 86400) = 0.000003607484303652
+    // Reserve interest:
+    //   Interest = 0.000003607484303652 * 20% = 0.000000721496860730
+    assert_approximatedly_equals(
+        setup.z_token_b.balanceOf(MOCK_TREASURY_ADDRESS.try_into().unwrap()), 721496860730, 1
+    );
+
+    // Doubles reserve ratio to 40%
+    setup
+        .alice
+        .market_set_reserve_factor(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            400000000000000000000000000, // reserve_factor
+        );
+
+    // Trigger another settlement after 100 seconds
+    starknet::testing::set_block_timestamp(200);
+    setup
+        .alice
+        .market_set_interest_rate_model(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            setup.irm_b.contract_address // interest_rate_model
+        );
+
+    // Borrowing rate:
+    //   Utilization rate = 22.500003607484303652 / 10,000.000003607484303652 = 0.002250000359936746267031683
+    //   Borrowing rate = 0.05 + 0.2 * 0.002250000359936746267031683 / 0.8 = 0.050562500089984186566757920
+    // New lending rate:
+    //   Lending rate = 0.050562500089984186566757920 * 0.002250000359936746267031683 = 0.000113765643401766185290610
+    // Total interest after 100 seconds:
+    //   Interest = 0.050562500089984186566757920 * 22.500003607484303652 * 100 / (365 * 86400) = 0.000003607484888470
+    // Reserve interest:
+    //   Interest = 0.000003607484888470 * 40% = 0.000001442993955388
+    // Interest on previous reserve balance:
+    //   Interest = 0.000113765643401766185290610 * 0.000000721496860730 * 100 / (365 * 86400) * (1 - 40%) = 0.000000000000000156
+    // New balance:
+    //   Balance = 0.000000721496860730 + 0.000000000000000156 + 0.000001442993955388 = 0.000002164490816274
+    assert_approximatedly_equals(
+        setup.z_token_b.balanceOf(MOCK_TREASURY_ADDRESS.try_into().unwrap()), 2164490816274, 1
+    );
+}
+
+#[test]
+#[available_gas(90000000)]
 fn test_prelisted_token_may_have_price_source_unset() {
     let setup = setup_with_alice_and_bob_deposit();
 

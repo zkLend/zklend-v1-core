@@ -327,6 +327,41 @@ fn set_borrow_factor(ref self: ContractState, token: ContractAddress, borrow_fac
         );
 }
 
+fn set_reserve_factor(ref self: ContractState, token: ContractAddress, reserve_factor: felt252) {
+    ownable::assert_only_owner(@self);
+
+    // Checks reserve_factor range
+    assert(
+        Into::<_, u256>::into(reserve_factor) <= safe_decimal_math::SCALE_U256,
+        errors::RESERVE_FACTOR_RANGE
+    );
+
+    internal::assert_reserve_exists(@self, token);
+
+    // Settles interest payments up until this point to prevent retrospective changes.
+    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } =
+        internal::update_accumulators(
+        ref self, token
+    );
+    internal::update_rates_and_raw_total_debt(
+        ref self,
+        token, // token
+        updated_debt_accumulator, // updated_debt_accumulator
+        false, // is_delta_reserve_balance_negative
+        0, // abs_delta_reserve_balance
+        false, // is_delta_raw_total_debt_negative
+        0 // abs_delta_raw_total_debt
+    );
+
+    self.reserves.write_reserve_factor(token, reserve_factor);
+    self
+        .emit(
+            contract::Event::ReserveFactorUpdate(
+                contract::ReserveFactorUpdate { token, reserve_factor }
+            )
+        );
+}
+
 fn set_debt_limit(ref self: ContractState, token: ContractAddress, limit: felt252) {
     ownable::assert_only_owner(@self);
 

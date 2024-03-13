@@ -85,6 +85,15 @@ mod Account {
             IMarketDispatcher { contract_address }.set_borrow_factor(token, borrow_factor)
         }
 
+        fn market_set_reserve_factor(
+            ref self: ContractState,
+            contract_address: ContractAddress,
+            token: ContractAddress,
+            reserve_factor: felt252
+        ) {
+            IMarketDispatcher { contract_address }.set_reserve_factor(token, reserve_factor)
+        }
+
         fn market_set_debt_limit(
             ref self: ContractState,
             contract_address: ContractAddress,
