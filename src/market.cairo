@@ -47,6 +47,7 @@ mod Market {
         TreasuryUpdate: TreasuryUpdate,
         AccumulatorsSync: AccumulatorsSync,
         InterestRatesSync: InterestRatesSync,
+        InterestRateModelUpdate: InterestRateModelUpdate,
         CollateralFactorUpdate: CollateralFactorUpdate,
         BorrowFactorUpdate: BorrowFactorUpdate,
         DebtLimitUpdate: DebtLimitUpdate,
@@ -92,6 +93,12 @@ mod Market {
         token: ContractAddress,
         lending_rate: felt252,
         borrowing_rate: felt252
+    }
+
+    #[derive(Drop, PartialEq, starknet::Event)]
+    struct InterestRateModelUpdate {
+        token: ContractAddress,
+        interest_rate_model: ContractAddress
     }
 
     #[derive(Drop, PartialEq, starknet::Event)]
@@ -335,6 +342,12 @@ mod Market {
 
         fn set_treasury(ref self: ContractState, new_treasury: ContractAddress) {
             external::set_treasury(ref self, new_treasury)
+        }
+
+        fn set_interest_rate_model(
+            ref self: ContractState, token: ContractAddress, interest_rate_model: ContractAddress
+        ) {
+            external::set_interest_rate_model(ref self, token, interest_rate_model)
         }
 
         fn set_collateral_factor(

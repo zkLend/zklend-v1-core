@@ -1394,6 +1394,69 @@ fn test_flashloan_fee_distribution() {
 
 #[test]
 #[available_gas(90000000)]
+fn test_change_interest_rate_model() {
+    let setup = setup_with_loan();
+
+    // (Copied from `test_rates_changed_on_borrow`)
+    // Borrowing rate:
+    //   Utilization rate = 22.5 / 10,000 = 0.00225
+    //   Borrowing rate = 0.05 + 0.2 * 0.00225 / 0.8 = 0.0505625 => 505625 * 10 ** 20
+    // Lending rate:
+    //   Lending rate = 0.0505625 * 0.00225 = 0.000113765625 => 113765625 * 10 ** 15
+    let reserve_data = setup.market.get_reserve_data(setup.token_b.contract_address);
+    assert_eq(@reserve_data.current_lending_rate, @113765625000000000000000, 'FAILED');
+    assert_eq(@reserve_data.current_borrowing_rate, @50562500000000000000000000, 'FAILED');
+
+    starknet::testing::set_block_timestamp(100);
+
+    // (Copied from `test_interest_accumulation`)
+    // Interest after 100 seconds:
+    //   Interest = 0.000113765625 * 10000 * 100 * (1 - 20%) / (365 * 86400) = 0.000002885987442922374429223
+    //                                                         => 2885987442922
+    //   Total balance = 10000 * 10 ** 18 + 2885987442922
+    assert_eq(
+        @setup.z_token_b.balanceOf(setup.bob.contract_address), @10000000002885987442922, 'FAILED'
+    );
+
+    // Change model to have higher interest rate
+    let irm_b = deploy::deploy_default_interest_rate_model(
+        400000000000000000000000000, // slope_0: 0.4
+        300000000000000000000000000, // slope_1: 0.3
+        500000000000000000000000000, // y_intercept: 50%
+        800000000000000000000000000, // optimal_rate: 80%
+    );
+    setup
+        .alice
+        .market_set_interest_rate_model(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            irm_b.contract_address // interest_rate_model
+        );
+
+    // Debt interest during 100 seconds:
+    //   Interest = 0.0505625 * 22.5 * 100 / (365 * 86400) = 0.000003607484303652
+
+    // New borrowing rate:
+    //   Utilization rate = 22.500003607484303652 / 10000.000003607484303652 = 0.002250000359936746267031683
+    //   Borrowing rate = 0.5 + 0.4 * 0.002250000359936746267031683 / 0.8 = 0.501125000179968373133515841
+    // New lending rate:
+    //   Lending rate = 0.501125000179968373133515841 * 0.002250000359936746267031683 = 0.001127531430778230877393893
+    let reserve_data = setup.market.get_reserve_data(setup.token_b.contract_address);
+    assert_eq(@reserve_data.current_lending_rate, @1127531430778230877393893, 'FAILED');
+    assert_eq(@reserve_data.current_borrowing_rate, @501125000179968373133515841, 'FAILED');
+
+    starknet::testing::set_block_timestamp(200);
+
+    // Another 100 seconds (accumulating with the new rate):
+    //   Interest = 0.001127531430778230877393893 * 10000.000002885987442922 * 100 * (1 - 20%) / (365 * 86400) = 0.000028603029708362
+    //   Total balance = 10000.000002885987442922 + 0.000028603029708362 = 10000.000031489017151284
+    assert_eq(
+        @setup.z_token_b.balanceOf(setup.bob.contract_address), @10000000031489017151284, 'FAILED'
+    );
+}
+
+#[test]
+#[available_gas(90000000)]
 #[should_panic(expected: ('MKT_INSUFFICIENT_COLLATERAL', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
 fn test_change_collateral_factor() {
     let setup = setup_with_alice_and_bob_deposit();

@@ -110,6 +110,10 @@ trait IMarket<TContractState> {
 
     fn set_treasury(ref self: TContractState, new_treasury: ContractAddress);
 
+    fn set_interest_rate_model(
+        ref self: TContractState, token: ContractAddress, interest_rate_model: ContractAddress
+    );
+
     fn set_collateral_factor(
         ref self: TContractState, token: ContractAddress, collateral_factor: felt252
     );
