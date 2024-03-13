@@ -2,18 +2,14 @@ mod errors {
     const INVALID_OPTIMAL_RATE: felt252 = 'DIRM_INVALID_OPTIMAL_RATE';
 }
 
-// TODO: manually create copies of this contract with hard-coded values instead of using storage
 #[starknet::contract]
 mod DefaultInterestRateModel {
     use traits::Into;
 
-    // Hack to simulate the `crate` keyword
-    use super::super::super as crate;
+    use super::errors;
 
     use crate::interfaces::{IInterestRateModel, ModelRates};
     use crate::libraries::{safe_decimal_math, safe_math};
-
-    use super::errors;
 
     #[storage]
     struct Storage {
@@ -73,8 +69,7 @@ mod DefaultInterestRateModel {
     fn calculate_borrow_rate(self: @ContractState, utilization_rate: felt252) -> felt252 {
         let params = self.curve_params.read();
 
-        let below_optimal_rate = Into::<_,
-        u256>::into(utilization_rate) <= Into::<_, u256>::into(params.optimal_rate);
+        let below_optimal_rate = Into::<u256>::into(utilization_rate) <= Into::<u256>::into(params.optimal_rate);
 
         if below_optimal_rate {
             let temp_1 = safe_decimal_math::div(utilization_rate, params.optimal_rate);
@@ -98,3 +93,4 @@ mod DefaultInterestRateModel {
         }
     }
 }
+
