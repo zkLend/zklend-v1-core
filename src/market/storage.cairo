@@ -102,6 +102,10 @@ trait ReservesStorageShortcuts<T> {
 
     fn write_raw_total_debt(self: @T, token: ContractAddress, raw_total_debt: felt252);
 
+    fn write_interest_rate_model(
+        self: @T, token: ContractAddress, interest_rate_model: ContractAddress
+    );
+
     fn write_collateral_factor(self: @T, token: ContractAddress, collateral_factor: felt252);
 
     fn write_borrow_factor(self: @T, token: ContractAddress, borrow_factor: felt252);
@@ -276,6 +280,15 @@ impl ReservesStorageShortcutsImpl of ReservesStorageShortcuts<Reserves> {
 
         Store::<felt252>::write_at_offset(D, base, 12, raw_total_debt).expect(E);
     }
+
+    fn write_interest_rate_model(
+        self: @Reserves, token: ContractAddress, interest_rate_model: ContractAddress
+    ) {
+        let base = self.address(token);
+
+        Store::<ContractAddress>::write_at_offset(D, base, 3, interest_rate_model).expect(E);
+    }
+
 
     fn write_collateral_factor(
         self: @Reserves, token: ContractAddress, collateral_factor: felt252

@@ -67,6 +67,13 @@ trait IAccount<TContractState> {
         ref self: TContractState, contract_address: ContractAddress, new_treasury: ContractAddress
     );
 
+    fn market_set_interest_rate_model(
+        ref self: TContractState,
+        contract_address: ContractAddress,
+        token: ContractAddress,
+        interest_rate_model: ContractAddress
+    );
+
     fn market_set_collateral_factor(
         ref self: TContractState,
         contract_address: ContractAddress,

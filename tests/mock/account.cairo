@@ -56,6 +56,17 @@ mod Account {
             IMarketDispatcher { contract_address }.set_treasury(new_treasury)
         }
 
+        fn market_set_interest_rate_model(
+            ref self: ContractState,
+            contract_address: ContractAddress,
+            token: ContractAddress,
+            interest_rate_model: ContractAddress
+        ) {
+            IMarketDispatcher {
+                contract_address
+            }.set_interest_rate_model(token, interest_rate_model)
+        }
+
         fn market_set_collateral_factor(
             ref self: ContractState,
             contract_address: ContractAddress,

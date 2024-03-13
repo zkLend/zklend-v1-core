@@ -253,6 +253,40 @@ fn set_treasury(ref self: ContractState, new_treasury: ContractAddress) {
     self.emit(contract::Event::TreasuryUpdate(contract::TreasuryUpdate { new_treasury }));
 }
 
+fn set_interest_rate_model(
+    ref self: ContractState, token: ContractAddress, interest_rate_model: ContractAddress
+) {
+    ownable::assert_only_owner(@self);
+
+    assert(interest_rate_model.is_non_zero(), errors::ZERO_ADDRESS);
+
+    internal::assert_reserve_exists(@self, token);
+
+    // Settles interest payments up until this point to prevent retrospective changes.
+    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } =
+        internal::update_accumulators(
+        ref self, token
+    );
+
+    self.reserves.write_interest_rate_model(token, interest_rate_model);
+    self
+        .emit(
+            contract::Event::InterestRateModelUpdate(
+                contract::InterestRateModelUpdate { token, interest_rate_model }
+            )
+        );
+
+    internal::update_rates_and_raw_total_debt(
+        ref self,
+        token, // token
+        updated_debt_accumulator, // updated_debt_accumulator
+        false, // is_delta_reserve_balance_negative
+        0, // abs_delta_reserve_balance
+        false, // is_delta_raw_total_debt_negative
+        0 // abs_delta_raw_total_debt
+    );
+}
+
 fn set_collateral_factor(
     ref self: ContractState, token: ContractAddress, collateral_factor: felt252
 ) {
