@@ -206,7 +206,7 @@ mod Market {
         external::initializer(ref self, owner, oracle)
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IMarketImpl of IMarket<ContractState> {
         fn get_reserve_data(self: @ContractState, token: ContractAddress) -> MarketReserveData {
             view::get_reserve_data(self, token)

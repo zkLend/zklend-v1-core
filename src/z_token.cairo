@@ -86,7 +86,7 @@ mod ZToken {
         external::initializer(ref self, owner, market, underlying, name, symbol, decimals)
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IZTokenImpl of IZToken<ContractState> {
         fn name(self: @ContractState) -> felt252 {
             view::name(self)

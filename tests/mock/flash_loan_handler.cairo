@@ -20,7 +20,7 @@ mod FlashLoanHandler {
         return_amount: felt252
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IZklendFlashCallbackImpl of IZklendFlashCallback<ContractState> {
         // IMPORANT: in a real contract, ALWAYS check the callback is being called from the real
         //           market contract! We're encoding the market address into callback data for
@@ -41,7 +41,7 @@ mod FlashLoanHandler {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IFlashLoanHandlerImpl of IFlashLoanHandler<ContractState> {
         fn take_flash_loan(
             ref self: ContractState,

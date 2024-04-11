@@ -40,7 +40,7 @@ mod PragmaOracleAdapter {
         self.timeout.write(timeout);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IPriceOracleSourceImpl of IPriceOracleSource<ContractState> {
         fn get_price(self: @ContractState) -> felt252 {
             get_data(self).price

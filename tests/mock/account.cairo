@@ -12,7 +12,7 @@ mod Account {
     #[storage]
     struct Storage {}
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IAccountImpl of IAccount<ContractState> {
         fn erc20_transfer(
             self: @ContractState,

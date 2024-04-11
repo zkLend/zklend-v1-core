@@ -44,7 +44,7 @@ mod DefaultInterestRateModel {
         self.curve_params.write(CurveParams { slope_0, slope_1, y_intercept, optimal_rate });
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IInterestRateModelImpl of IInterestRateModel<ContractState> {
         fn get_interest_rates(
             self: @ContractState, reserve_balance: felt252, total_debt: felt252

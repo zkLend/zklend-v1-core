@@ -18,7 +18,7 @@ mod MockPriceOracle {
         update_time: felt252
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IPriceOracleImpl of IPriceOracle<ContractState> {
         fn get_price(self: @ContractState, token: ContractAddress) -> felt252 {
             let data = self.prices.read(token);
@@ -35,7 +35,7 @@ mod MockPriceOracle {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IMockPriceOracleImpl of IMockPriceOracle<ContractState> {
         fn set_price(
             ref self: ContractState, token: ContractAddress, price: felt252, update_time: felt252

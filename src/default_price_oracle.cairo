@@ -46,7 +46,7 @@ mod DefaultPriceOracle {
         ownable::initializer(ref self, owner);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IPriceOracleImpl of IPriceOracle<ContractState> {
         fn get_price(self: @ContractState, token: ContractAddress) -> felt252 {
             let source = self.sources.read(token);
@@ -61,7 +61,7 @@ mod DefaultPriceOracle {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IDefaultPriceOracleImpl of IDefaultPriceOracle<ContractState> {
         fn set_token_source(
             ref self: ContractState, token: ContractAddress, source: ContractAddress
