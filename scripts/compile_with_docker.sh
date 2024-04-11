@@ -11,5 +11,5 @@ docker run --rm \
     --env "USER_ID=$(id -u)" \
     --env "GROUP_ID=$(id -g)" \
     --entrypoint sh \
-    starknet/cairo:2.1.0 \
+    starknet/cairo:2.6.3 \
     -c "cd /work && ./scripts/compile.sh"
