@@ -263,7 +263,7 @@ fn set_interest_rate_model(
     internal::assert_reserve_exists(@self, token);
 
     // Settles interest payments up until this point to prevent retrospective changes.
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } =
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
         internal::update_accumulators(
         ref self, token
     );
@@ -339,7 +339,7 @@ fn set_reserve_factor(ref self: ContractState, token: ContractAddress, reserve_f
     internal::assert_reserve_exists(@self, token);
 
     // Settles interest payments up until this point to prevent retrospective changes.
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } =
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
         internal::update_accumulators(
         ref self, token
     );

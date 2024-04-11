@@ -107,9 +107,8 @@ fn get_pending_treasury_amount(self: @ContractState, token: ContractAddress) -> 
         // Apply simple interest
         let time_diff = safe_math::sub(block_timestamp, reserve.last_update_timestamp);
 
-        let raw_supply = IZTokenDispatcher {
-            contract_address: reserve.z_token_address
-        }.get_raw_total_supply();
+        let raw_supply = IZTokenDispatcher { contract_address: reserve.z_token_address }
+            .get_raw_total_supply();
 
         // Amount to be paid to treasury (based on the adjusted accumulator)
         // (current_lending_rate * reserve_factor * time_diff / SECONDS_PER_YEAR) * accumulator * raw_supply

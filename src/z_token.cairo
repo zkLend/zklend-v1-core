@@ -64,7 +64,7 @@ mod ZToken {
 
     #[derive(Drop, PartialEq, starknet::Event)]
     struct ContractUpgraded {
-        new_class_hash: ClassHash, 
+        new_class_hash: ClassHash,
     }
 
     #[derive(Drop, PartialEq, starknet::Event)]

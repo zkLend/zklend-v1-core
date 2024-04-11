@@ -73,8 +73,11 @@ mod DefaultInterestRateModel {
     fn calculate_borrow_rate(self: @ContractState, utilization_rate: felt252) -> felt252 {
         let params = self.curve_params.read();
 
-        let below_optimal_rate = Into::<_,
-        u256>::into(utilization_rate) <= Into::<_, u256>::into(params.optimal_rate);
+        let below_optimal_rate = Into::<
+            _, u256
+            >::into(utilization_rate) <= Into::<
+            _, u256
+        >::into(params.optimal_rate);
 
         if below_optimal_rate {
             let temp_1 = safe_decimal_math::div(utilization_rate, params.optimal_rate);

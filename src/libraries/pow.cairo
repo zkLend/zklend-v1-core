@@ -696,7 +696,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('POW_DEC_TOO_LARGE', ))]
+    #[should_panic(expected: ('POW_DEC_TOO_LARGE',))]
     fn test_two_pow_overflow() {
         super::two_pow(252);
     }
@@ -717,7 +717,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('POW_DEC_TOO_LARGE', ))]
+    #[should_panic(expected: ('POW_DEC_TOO_LARGE',))]
     fn test_ten_pow_overflow() {
         super::ten_pow(76);
     }

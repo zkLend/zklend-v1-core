@@ -36,9 +36,8 @@ mod FlashLoanHandler {
             let params = Serde::<CallbackParams>::deserialize(ref calldata)
                 .expect('CANNOT_DECODE_PARAMS');
 
-            IERC20Dispatcher {
-                contract_address: params.token
-            }.transfer(params.market_addr, params.return_amount.into());
+            IERC20Dispatcher { contract_address: params.token }
+                .transfer(params.market_addr, params.return_amount.into());
         }
     }
 
@@ -54,13 +53,11 @@ mod FlashLoanHandler {
             let this_address = get_contract_address();
 
             let mut calldata = array![];
-            Serde::<CallbackParams>::serialize(
-                @CallbackParams { token, market_addr, return_amount }, ref calldata
-            );
+            Serde::<
+                CallbackParams
+            >::serialize(@CallbackParams { token, market_addr, return_amount }, ref calldata);
 
-            IMarketDispatcher {
-                contract_address: market_addr
-            }
+            IMarketDispatcher { contract_address: market_addr }
                 .flash_loan(
                     this_address, // receiver
                     token, // token
