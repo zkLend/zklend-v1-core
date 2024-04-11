@@ -5,6 +5,11 @@ mod traits;
 mod errors;
 mod storage;
 
+struct UpdatedAccumulators {
+    lending_accumulator: felt252,
+    debt_accumulator: felt252
+}
+
 #[starknet::contract]
 mod Market {
     use starknet::{ClassHash, ContractAddress};

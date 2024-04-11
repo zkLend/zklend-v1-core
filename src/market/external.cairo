@@ -18,17 +18,18 @@ use super::traits::{MarketOwnable, MarketReentrancyGuard};
 use super::{errors, internal};
 
 use super::Market as contract;
+use super::UpdatedAccumulators;
 
 use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::oracleContractStateTrait;
-use contract::reserve_countContractStateTrait;
-use contract::reserve_indicesContractStateTrait;
-use contract::reserve_tokensContractStateTrait;
-use contract::reservesContractStateTrait;
-use contract::treasuryContractStateTrait;
+use contract::oracleContractMemberStateTrait;
+use contract::reserve_countContractMemberStateTrait;
+use contract::reserve_indicesContractMemberStateTrait;
+use contract::reserve_tokensContractMemberStateTrait;
+use contract::reservesContractMemberStateTrait;
+use contract::treasuryContractMemberStateTrait;
 
 fn initializer(ref self: ContractState, owner: ContractAddress, oracle: ContractAddress) {
     assert(owner.is_non_zero(), errors::ZERO_ADDRESS);

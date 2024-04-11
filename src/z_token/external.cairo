@@ -22,14 +22,14 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::allowancesContractStateTrait;
-use contract::marketContractStateTrait;
-use contract::raw_balancesContractStateTrait;
-use contract::raw_total_supplyContractStateTrait;
-use contract::token_decimalsContractStateTrait;
-use contract::token_nameContractStateTrait;
-use contract::token_symbolContractStateTrait;
-use contract::underlyingContractStateTrait;
+use contract::allowancesContractMemberStateTrait;
+use contract::marketContractMemberStateTrait;
+use contract::raw_balancesContractMemberStateTrait;
+use contract::raw_total_supplyContractMemberStateTrait;
+use contract::token_decimalsContractMemberStateTrait;
+use contract::token_nameContractMemberStateTrait;
+use contract::token_symbolContractMemberStateTrait;
+use contract::underlyingContractMemberStateTrait;
 
 fn initializer(
     ref self: ContractState,

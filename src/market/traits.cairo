@@ -12,8 +12,8 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::Ownable_ownerContractStateTrait;
-use contract::enteredContractStateTrait;
+use contract::Ownable_ownerContractMemberStateTrait;
+use contract::enteredContractMemberStateTrait;
 
 impl MarketOwnable of ownable::Ownable<ContractState> {
     fn read_owner(self: @ContractState) -> ContractAddress {

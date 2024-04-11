@@ -18,9 +18,9 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::marketContractStateTrait;
-use contract::raw_balancesContractStateTrait;
-use contract::underlyingContractStateTrait;
+use contract::marketContractMemberStateTrait;
+use contract::raw_balancesContractMemberStateTrait;
+use contract::underlyingContractMemberStateTrait;
 
 fn only_market(self: @ContractState) {
     let market_addr = self.market.read();

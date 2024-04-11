@@ -18,10 +18,10 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::raw_user_debtsContractStateTrait;
-use contract::reservesContractStateTrait;
-use contract::treasuryContractStateTrait;
-use contract::user_flagsContractStateTrait;
+use contract::raw_user_debtsContractMemberStateTrait;
+use contract::reservesContractMemberStateTrait;
+use contract::treasuryContractMemberStateTrait;
+use contract::user_flagsContractMemberStateTrait;
 
 const SECONDS_PER_YEAR: felt252 = 31536000;
 

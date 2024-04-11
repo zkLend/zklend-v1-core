@@ -33,19 +33,20 @@ use super::{errors, view};
 use super::storage::{ReservesStorageShortcuts, ReservesStorageShortcutsImpl, StorageBatch1};
 
 use super::Market as contract;
+use super::UpdatedAccumulators;
 
 use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::oracleContractStateTrait;
-use contract::raw_user_debtsContractStateTrait;
-use contract::reserve_countContractStateTrait;
-use contract::reserve_indicesContractStateTrait;
-use contract::reserve_tokensContractStateTrait;
-use contract::reservesContractStateTrait;
-use contract::treasuryContractStateTrait;
-use contract::user_flagsContractStateTrait;
+use contract::oracleContractMemberStateTrait;
+use contract::raw_user_debtsContractMemberStateTrait;
+use contract::reserve_countContractMemberStateTrait;
+use contract::reserve_indicesContractMemberStateTrait;
+use contract::reserve_tokensContractMemberStateTrait;
+use contract::reservesContractMemberStateTrait;
+use contract::treasuryContractMemberStateTrait;
+use contract::user_flagsContractMemberStateTrait;
 
 const DEBT_FLAG_FILTER: u256 = 0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
@@ -57,11 +58,6 @@ struct UserCollateralData {
 struct DebtRepaid {
     raw_amount: felt252,
     face_amount: felt252
-}
-
-struct UpdatedAccumulators {
-    lending_accumulator: felt252,
-    debt_accumulator: felt252
 }
 
 fn deposit(ref self: ContractState, token: ContractAddress, amount: felt252) {
