@@ -200,11 +200,23 @@ fn mint(ref self: ContractState, to: ContractAddress, amount: felt252) -> bool {
     let raw_supply_after = safe_math::add(raw_supply_before, scaled_down_amount);
     self.raw_total_supply.write(raw_supply_after);
 
-    let amount: u256 = amount.into();
+    let amount_u256: u256 = amount.into();
     self
         .emit(
             contract::Event::Transfer(
-                contract::Transfer { from: contract_address_const::<0>(), to, value: amount }
+                contract::Transfer { from: contract_address_const::<0>(), to, value: amount_u256 }
+            )
+        );
+    self
+        .emit(
+            contract::Event::RawTransfer(
+                contract::RawTransfer {
+                    from: contract_address_const::<0>(),
+                    to,
+                    raw_value: scaled_down_amount,
+                    accumulator: accumulator,
+                    face_value: amount
+                }
             )
         );
 
@@ -227,11 +239,25 @@ fn burn(ref self: ContractState, user: ContractAddress, amount: felt252) {
     let raw_supply_after = safe_math::sub(raw_supply_before, scaled_down_amount);
     self.raw_total_supply.write(raw_supply_after);
 
-    let amount: u256 = amount.into();
+    let amount_256: u256 = amount.into();
     self
         .emit(
             contract::Event::Transfer(
-                contract::Transfer { from: user, to: contract_address_const::<0>(), value: amount }
+                contract::Transfer {
+                    from: user, to: contract_address_const::<0>(), value: amount_256
+                }
+            )
+        );
+    self
+        .emit(
+            contract::Event::RawTransfer(
+                contract::RawTransfer {
+                    from: user,
+                    to: contract_address_const::<0>(),
+                    raw_value: scaled_down_amount,
+                    accumulator: accumulator,
+                    face_value: amount
+                }
             )
         );
 }
@@ -256,6 +282,18 @@ fn burn_all(ref self: ContractState, user: ContractAddress) -> felt252 {
             contract::Event::Transfer(
                 contract::Transfer {
                     from: user, to: contract_address_const::<0>(), value: scaled_up_amount_u256
+                }
+            )
+        );
+    self
+        .emit(
+            contract::Event::RawTransfer(
+                contract::RawTransfer {
+                    from: user,
+                    to: contract_address_const::<0>(),
+                    raw_value: raw_balance,
+                    accumulator: accumulator,
+                    face_value: scaled_up_amount
                 }
             )
         );
