@@ -40,7 +40,7 @@ mod PragmaOracleAdapter {
         self.timeout.write(timeout);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IPriceOracleSourceImpl of IPriceOracleSource<ContractState> {
         fn get_price(self: @ContractState) -> felt252 {
             get_data(self).price
@@ -55,9 +55,8 @@ mod PragmaOracleAdapter {
         let oracle_addr = self.oracle.read();
         let pair_key = self.pair.read();
 
-        let median = IPragmaOracleDispatcher {
-            contract_address: oracle_addr
-        }.get_data_median(PragmaDataType::SpotEntry(pair_key));
+        let median = IPragmaOracleDispatcher { contract_address: oracle_addr }
+            .get_data_median(PragmaDataType::SpotEntry(pair_key));
         assert(median.price != 0, errors::ZERO_PRICE);
 
         // Block times are usually behind real world time by a bit. It's possible that the reported

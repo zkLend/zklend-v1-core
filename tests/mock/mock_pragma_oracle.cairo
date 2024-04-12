@@ -15,7 +15,7 @@ mod MockPragmaOracle {
         num_sources_aggregated: u32
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IPragmaOracleImpl of IPragmaOracle<ContractState> {
         fn get_data_median(
             self: @ContractState, data_type: PragmaDataType
@@ -30,7 +30,7 @@ mod MockPragmaOracle {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IMockPragmaOracleImpl of IMockPragmaOracle<ContractState> {
         fn set_price(
             ref self: ContractState,

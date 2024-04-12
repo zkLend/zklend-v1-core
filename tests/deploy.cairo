@@ -21,10 +21,10 @@ use tests::mock::{
     IMockPragmaOracleDispatcher, IMockPriceOracleDispatcher
 };
 
-fn deploy_account() -> IAccountDispatcher {
+fn deploy_account(salt: felt252) -> IAccountDispatcher {
     let (contract_address, _) = deploy_syscall(
         mock::account::Account::TEST_CLASS_HASH.try_into().unwrap(),
-        0,
+        salt,
         Default::default().span(),
         false
     )

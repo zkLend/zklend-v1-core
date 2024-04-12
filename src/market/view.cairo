@@ -18,10 +18,10 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::raw_user_debtsContractStateTrait;
-use contract::reservesContractStateTrait;
-use contract::treasuryContractStateTrait;
-use contract::user_flagsContractStateTrait;
+use contract::raw_user_debtsContractMemberStateTrait;
+use contract::reservesContractMemberStateTrait;
+use contract::treasuryContractMemberStateTrait;
+use contract::user_flagsContractMemberStateTrait;
 
 const SECONDS_PER_YEAR: felt252 = 31536000;
 
@@ -107,9 +107,8 @@ fn get_pending_treasury_amount(self: @ContractState, token: ContractAddress) -> 
         // Apply simple interest
         let time_diff = safe_math::sub(block_timestamp, reserve.last_update_timestamp);
 
-        let raw_supply = IZTokenDispatcher {
-            contract_address: reserve.z_token_address
-        }.get_raw_total_supply();
+        let raw_supply = IZTokenDispatcher { contract_address: reserve.z_token_address }
+            .get_raw_total_supply();
 
         // Amount to be paid to treasury (based on the adjusted accumulator)
         // (current_lending_rate * reserve_factor * time_diff / SECONDS_PER_YEAR) * accumulator * raw_supply

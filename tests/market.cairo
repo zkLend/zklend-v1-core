@@ -38,8 +38,8 @@ struct Setup {
 }
 
 fn pre_setup() -> Setup {
-    let alice = deploy::deploy_account();
-    let bob = deploy::deploy_account();
+    let alice = deploy::deploy_account(1);
+    let bob = deploy::deploy_account(2);
 
     let oracle = deploy::deploy_mock_price_oracle();
 

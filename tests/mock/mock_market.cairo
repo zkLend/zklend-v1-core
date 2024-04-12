@@ -17,7 +17,7 @@ mod MockMarket {
         last_call_result: felt252
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IMockMarketImpl of IMockMarket<ContractState> {
         fn get_lending_accumulator(self: @ContractState, token: ContractAddress) -> felt252 {
             self.lending_accumulator.read(token)

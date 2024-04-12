@@ -12,7 +12,7 @@ mod Account {
     #[storage]
     struct Storage {}
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IAccountImpl of IAccount<ContractState> {
         fn erc20_transfer(
             self: @ContractState,
@@ -62,9 +62,8 @@ mod Account {
             token: ContractAddress,
             interest_rate_model: ContractAddress
         ) {
-            IMarketDispatcher {
-                contract_address
-            }.set_interest_rate_model(token, interest_rate_model)
+            IMarketDispatcher { contract_address }
+                .set_interest_rate_model(token, interest_rate_model)
         }
 
         fn market_set_collateral_factor(
@@ -115,9 +114,7 @@ mod Account {
             flash_loan_fee: felt252,
             liquidation_bonus: felt252
         ) {
-            IMarketDispatcher {
-                contract_address
-            }
+            IMarketDispatcher { contract_address }
                 .add_reserve(
                     token,
                     z_token,
@@ -198,9 +195,8 @@ mod Account {
             amount: felt252,
             collateral_token: ContractAddress
         ) {
-            IMarketDispatcher {
-                contract_address
-            }.liquidate(user, debt_token, amount, collateral_token)
+            IMarketDispatcher { contract_address }
+                .liquidate(user, debt_token, amount, collateral_token)
         }
     }
 }

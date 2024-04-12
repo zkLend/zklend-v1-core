@@ -18,9 +18,9 @@ use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::marketContractStateTrait;
-use contract::raw_balancesContractStateTrait;
-use contract::underlyingContractStateTrait;
+use contract::marketContractMemberStateTrait;
+use contract::raw_balancesContractMemberStateTrait;
+use contract::underlyingContractMemberStateTrait;
 
 fn only_market(self: @ContractState) {
     let market_addr = self.market.read();
@@ -89,20 +89,18 @@ fn transfer_internal(
 
         // Skips check if token is not used as collateral
         let underlying_token = self.underlying.read();
-        let collateral_enabled = IMarketDispatcher {
-            contract_address: market_addr
-        }.is_collateral_enabled(from_account, // user
-         underlying_token // token
-        );
+        let collateral_enabled = IMarketDispatcher { contract_address: market_addr }
+            .is_collateral_enabled(from_account, // user
+             underlying_token // token
+            );
         if !collateral_enabled {
             return face_amount;
         }
 
-        let is_undercollateralized = IMarketDispatcher {
-            contract_address: market_addr
-        }.is_user_undercollateralized(from_account, // user
-         true // apply_borrow_factor
-        );
+        let is_undercollateralized = IMarketDispatcher { contract_address: market_addr }
+            .is_user_undercollateralized(from_account, // user
+             true // apply_borrow_factor
+            );
 
         assert(!is_undercollateralized, errors::INVALID_COLLATERALIZATION);
 

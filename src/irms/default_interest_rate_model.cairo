@@ -44,7 +44,7 @@ mod DefaultInterestRateModel {
         self.curve_params.write(CurveParams { slope_0, slope_1, y_intercept, optimal_rate });
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IInterestRateModelImpl of IInterestRateModel<ContractState> {
         fn get_interest_rates(
             self: @ContractState, reserve_balance: felt252, total_debt: felt252
@@ -73,8 +73,11 @@ mod DefaultInterestRateModel {
     fn calculate_borrow_rate(self: @ContractState, utilization_rate: felt252) -> felt252 {
         let params = self.curve_params.read();
 
-        let below_optimal_rate = Into::<_,
-        u256>::into(utilization_rate) <= Into::<_, u256>::into(params.optimal_rate);
+        let below_optimal_rate = Into::<
+            _, u256
+            >::into(utilization_rate) <= Into::<
+            _, u256
+        >::into(params.optimal_rate);
 
         if below_optimal_rate {
             let temp_1 = safe_decimal_math::div(utilization_rate, params.optimal_rate);

@@ -5,6 +5,11 @@ mod traits;
 mod errors;
 mod storage;
 
+struct UpdatedAccumulators {
+    lending_accumulator: felt252,
+    debt_accumulator: felt252
+}
+
 #[starknet::contract]
 mod Market {
     use starknet::{ClassHash, ContractAddress};
@@ -206,7 +211,7 @@ mod Market {
         external::initializer(ref self, owner, oracle)
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl IMarketImpl of IMarket<ContractState> {
         fn get_reserve_data(self: @ContractState, token: ContractAddress) -> MarketReserveData {
             view::get_reserve_data(self, token)

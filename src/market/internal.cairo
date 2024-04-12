@@ -33,19 +33,20 @@ use super::{errors, view};
 use super::storage::{ReservesStorageShortcuts, ReservesStorageShortcutsImpl, StorageBatch1};
 
 use super::Market as contract;
+use super::UpdatedAccumulators;
 
 use contract::ContractState;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
-use contract::oracleContractStateTrait;
-use contract::raw_user_debtsContractStateTrait;
-use contract::reserve_countContractStateTrait;
-use contract::reserve_indicesContractStateTrait;
-use contract::reserve_tokensContractStateTrait;
-use contract::reservesContractStateTrait;
-use contract::treasuryContractStateTrait;
-use contract::user_flagsContractStateTrait;
+use contract::oracleContractMemberStateTrait;
+use contract::raw_user_debtsContractMemberStateTrait;
+use contract::reserve_countContractMemberStateTrait;
+use contract::reserve_indicesContractMemberStateTrait;
+use contract::reserve_tokensContractMemberStateTrait;
+use contract::reservesContractMemberStateTrait;
+use contract::treasuryContractMemberStateTrait;
+use contract::user_flagsContractMemberStateTrait;
 
 const DEBT_FLAG_FILTER: u256 = 0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
@@ -59,18 +60,14 @@ struct DebtRepaid {
     face_amount: felt252
 }
 
-struct UpdatedAccumulators {
-    lending_accumulator: felt252,
-    debt_accumulator: felt252
-}
-
 fn deposit(ref self: ContractState, token: ContractAddress, amount: felt252) {
     assert(amount.is_non_zero(), errors::ZERO_AMOUNT);
 
     let caller = get_caller_address();
     let this_address = get_contract_address();
 
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } = update_accumulators(
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
+        update_accumulators(
         ref self, token
     );
 
@@ -98,9 +95,8 @@ fn deposit(ref self: ContractState, token: ContractAddress, amount: felt252) {
     // Takes token from user
 
     let amount_u256: u256 = amount.into();
-    let transfer_success = IERC20Dispatcher {
-        contract_address: token, 
-    }.transferFrom(caller, this_address, amount_u256);
+    let transfer_success = IERC20Dispatcher { contract_address: token, }
+        .transferFrom(caller, this_address, amount_u256);
     assert(transfer_success, errors::TRANSFERFROM_FAILED);
 
     // Mints ZToken to user
@@ -122,7 +118,8 @@ fn withdraw_all(ref self: ContractState, token: ContractAddress) {
 fn borrow(ref self: ContractState, token: ContractAddress, amount: felt252) {
     let caller = get_caller_address();
 
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } = update_accumulators(
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
+        update_accumulators(
         ref self, token
     );
 
@@ -165,9 +162,8 @@ fn borrow(ref self: ContractState, token: ContractAddress, amount: felt252) {
     assert_not_undercollateralized(@self, caller, true);
 
     let amount_u256: u256 = amount.into();
-    let transfer_success = IERC20Dispatcher {
-        contract_address: token
-    }.transfer(caller, amount_u256);
+    let transfer_success = IERC20Dispatcher { contract_address: token }
+        .transfer(caller, amount_u256);
     assert(transfer_success, errors::TRANSFER_FAILED);
 }
 
@@ -176,7 +172,7 @@ fn repay(ref self: ContractState, token: ContractAddress, amount: felt252) {
 
     let caller = get_caller_address();
 
-    let DebtRepaid{raw_amount, face_amount } = repay_debt_route_internal(
+    let DebtRepaid { raw_amount, face_amount } = repay_debt_route_internal(
         ref self, caller, caller, token, amount
     );
     self
@@ -198,7 +194,7 @@ fn repay_for(
 
     let caller = get_caller_address();
 
-    let DebtRepaid{raw_amount, face_amount } = repay_debt_route_internal(
+    let DebtRepaid { raw_amount, face_amount } = repay_debt_route_internal(
         ref self, caller, beneficiary, token, amount
     );
     self
@@ -212,7 +208,7 @@ fn repay_for(
 fn repay_all(ref self: ContractState, token: ContractAddress) {
     let caller = get_caller_address();
 
-    let DebtRepaid{raw_amount, face_amount } = repay_debt_route_internal(
+    let DebtRepaid { raw_amount, face_amount } = repay_debt_route_internal(
         ref self, caller, caller, token, 0
     );
     self
@@ -274,7 +270,7 @@ fn liquidate(
     let collateral_reserve = self.reserves.read(collateral_token);
 
     // Liquidator repays debt for user
-    let DebtRepaid{raw_amount, .. } = repay_debt_route_internal(
+    let DebtRepaid { raw_amount, .. } = repay_debt_route_internal(
         ref self, caller, user, debt_token, amount
     );
 
@@ -284,12 +280,10 @@ fn liquidate(
 
     // Liquidator withdraws collateral from user
     let oracle_addr = self.oracle.read();
-    let debt_token_price = IPriceOracleDispatcher {
-        contract_address: oracle_addr
-    }.get_price(debt_token);
-    let collateral_token_price = IPriceOracleDispatcher {
-        contract_address: oracle_addr
-    }.get_price(collateral_token);
+    let debt_token_price = IPriceOracleDispatcher { contract_address: oracle_addr }
+        .get_price(debt_token);
+    let collateral_token_price = IPriceOracleDispatcher { contract_address: oracle_addr }
+        .get_price(collateral_token);
     let debt_value_repaid = safe_decimal_math::mul_decimals(
         debt_token_price, amount, debt_reserve_decimals
     );
@@ -303,9 +297,8 @@ fn liquidate(
         equivalent_collateral_amount, one_plus_liquidation_bonus
     );
 
-    IZTokenDispatcher {
-        contract_address: collateral_reserve.z_token_address
-    }.move(user, caller, collateral_amount_after_bonus);
+    IZTokenDispatcher { contract_address: collateral_reserve.z_token_address }
+        .move(user, caller, collateral_amount_after_bonus);
 
     // Checks user collateralization factor after liquidation
     assert_not_overcollateralized(@self, user, false);
@@ -343,36 +336,37 @@ fn flash_loan(
 
     // Calculates minimum balance after the callback
     let loan_fee = safe_decimal_math::mul(amount, flash_loan_fee);
-    let reserve_balance_before: felt252 = IERC20Dispatcher {
-        contract_address: token
-    }.balanceOf(this_address).try_into().expect(errors::BALANCE_OVERFLOW);
+    let reserve_balance_before: felt252 = IERC20Dispatcher { contract_address: token }
+        .balanceOf(this_address)
+        .try_into()
+        .expect(errors::BALANCE_OVERFLOW);
     let min_balance = safe_math::add(reserve_balance_before, loan_fee);
 
     // Sends funds to receiver
     let amount_u256: u256 = amount.into();
-    let transfer_success = IERC20Dispatcher {
-        contract_address: token
-    }.transfer(receiver, amount_u256);
+    let transfer_success = IERC20Dispatcher { contract_address: token }
+        .transfer(receiver, amount_u256);
     assert(transfer_success, errors::TRANSFER_FAILED);
 
     let caller = get_caller_address();
 
     // Calls receiver callback (which should return funds to this contract)
-    IZklendFlashCallbackDispatcher {
-        contract_address: receiver
-    }.zklend_flash_callback(caller, calldata);
+    IZklendFlashCallbackDispatcher { contract_address: receiver }
+        .zklend_flash_callback(caller, calldata);
 
     // Checks if enough funds have been returned
-    let reserve_balance_after: felt252 = IERC20Dispatcher {
-        contract_address: token
-    }.balanceOf(this_address).try_into().expect(errors::BALANCE_OVERFLOW);
+    let reserve_balance_after: felt252 = IERC20Dispatcher { contract_address: token }
+        .balanceOf(this_address)
+        .try_into()
+        .expect(errors::BALANCE_OVERFLOW);
     assert(
         Into::<_, u256>::into(min_balance) <= Into::<_, u256>::into(reserve_balance_after),
         errors::INSUFFICIENT_AMOUNT_REPAID
     );
 
     // Updates accumulators (for interest accumulation only)
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } = update_accumulators(
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
+        update_accumulators(
         ref self, token
     );
 
@@ -493,7 +487,8 @@ fn is_not_undercollateralized(
         return true;
     }
 
-    let UserCollateralData{collateral_value, collateral_required } = calculate_user_collateral_data(
+    let UserCollateralData { collateral_value, collateral_required } =
+        calculate_user_collateral_data(
         self, user, apply_borrow_factor
     );
     Into::<_, u256>::into(collateral_required) <= Into::<_, u256>::into(collateral_value)
@@ -507,7 +502,8 @@ fn is_overcollateralized(
     // Not using the skip-if-no-debt optimization here because in liquidations the user always
     // has debt left. Checking for debt flags is thus wasteful.
 
-    let UserCollateralData{collateral_value, collateral_required } = calculate_user_collateral_data(
+    let UserCollateralData { collateral_value, collateral_required } =
+        calculate_user_collateral_data(
         self, user, apply_borrow_factor
     );
     Into::<_, u256>::into(collateral_required) < Into::<_, u256>::into(collateral_value)
@@ -523,7 +519,7 @@ fn calculate_user_collateral_data(
     } else {
         let flags: u256 = self.user_flags.read(user).into();
 
-        let UserCollateralData{collateral_value, collateral_required } =
+        let UserCollateralData { collateral_value, collateral_required } =
             calculate_user_collateral_data_loop(
             self, user, apply_borrow_factor, flags, reserve_cnt, 0
         );
@@ -546,7 +542,7 @@ fn calculate_user_collateral_data_loop(
         return UserCollateralData { collateral_value: 0, collateral_required: 0 };
     }
 
-    let UserCollateralData{collateral_value: collateral_value_of_rest,
+    let UserCollateralData { collateral_value: collateral_value_of_rest,
     collateral_required: collateral_required_of_rest } =
         calculate_user_collateral_data_loop(
         self, user, apply_borrow_factor, flags, reserve_count, reserve_index + 1
@@ -636,15 +632,13 @@ fn get_user_collateral_usd_value_for_token(
     }
 
     // This value already reflects interests accured since last update
-    let collateral_balance = IZTokenDispatcher {
-        contract_address: reserve.z_token_address
-    }.felt_balance_of(user);
+    let collateral_balance = IZTokenDispatcher { contract_address: reserve.z_token_address }
+        .felt_balance_of(user);
 
     // Fetches price from oracle
     let oracle_addr = self.oracle.read();
-    let collateral_price = IPriceOracleDispatcher {
-        contract_address: oracle_addr
-    }.get_price(token);
+    let collateral_price = IPriceOracleDispatcher { contract_address: oracle_addr }
+        .get_price(token);
 
     // `collateral_value` is represented in 8-decimal USD value
     let collateral_value = safe_decimal_math::mul_decimals(
@@ -663,7 +657,8 @@ fn get_user_collateral_usd_value_for_token(
 fn withdraw_internal(
     ref self: ContractState, user: ContractAddress, token: ContractAddress, amount: felt252
 ) {
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } = update_accumulators(
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
+        update_accumulators(
         ref self, token
     );
 
@@ -693,9 +688,8 @@ fn withdraw_internal(
 
     // Gives underlying tokens to user
     let amount_burnt: u256 = amount_burnt.into();
-    let transfer_success = IERC20Dispatcher {
-        contract_address: token
-    }.transfer(user, amount_burnt);
+    let transfer_success = IERC20Dispatcher { contract_address: token }
+        .transfer(user, amount_burnt);
     assert(transfer_success, errors::TRANSFER_FAILED);
 
     // It's easier to post-check collateralization factor, at the cost of making failed
@@ -751,7 +745,8 @@ fn repay_debt_internal(
 ) {
     let this_address = get_contract_address();
 
-    let UpdatedAccumulators{debt_accumulator: updated_debt_accumulator, .. } = update_accumulators(
+    let UpdatedAccumulators { debt_accumulator: updated_debt_accumulator, .. } =
+        update_accumulators(
         ref self, token
     );
 
@@ -778,9 +773,8 @@ fn repay_debt_internal(
 
     // Takes token from user
     let repay_amount: u256 = repay_amount.into();
-    let transfer_success = IERC20Dispatcher {
-        contract_address: token
-    }.transferFrom(repayer, this_address, repay_amount);
+    let transfer_success = IERC20Dispatcher { contract_address: token }
+        .transferFrom(repayer, this_address, repay_amount);
     assert(transfer_success, errors::TRANSFER_FAILED);
 }
 
@@ -831,9 +825,8 @@ fn update_accumulators(ref self: ContractState, token: ContractAddress) -> Updat
     // No need to check whether treasury address is zero as amount would be zero anyways
     if amount_to_treasury.is_non_zero() {
         let treasury_addr = self.treasury.read();
-        IZTokenDispatcher {
-            contract_address: z_token_address
-        }.mint(treasury_addr, amount_to_treasury);
+        IZTokenDispatcher { contract_address: z_token_address }
+            .mint(treasury_addr, amount_to_treasury);
     }
 
     UpdatedAccumulators {
@@ -852,7 +845,7 @@ fn update_rates_and_raw_total_debt(
 ) {
     let this_address = get_contract_address();
 
-    let StorageBatch1{interest_rate_model, raw_total_debt: raw_total_debt_before } = self
+    let StorageBatch1 { interest_rate_model, raw_total_debt: raw_total_debt_before } = self
         .reserves
         .read_interest_rate_model_and_raw_total_debt(token);
 
@@ -860,9 +853,10 @@ fn update_rates_and_raw_total_debt(
     // (the caller must check it's enabled if needed since it's not validated here)
     assert(interest_rate_model.is_non_zero(), errors::RESERVE_NOT_FOUND);
 
-    let reserve_balance_before: felt252 = IERC20Dispatcher {
-        contract_address: token
-    }.balanceOf(this_address).try_into().expect(errors::BALANCE_OVERFLOW);
+    let reserve_balance_before: felt252 = IERC20Dispatcher { contract_address: token }
+        .balanceOf(this_address)
+        .try_into()
+        .expect(errors::BALANCE_OVERFLOW);
 
     let reserve_balance_after = if is_delta_reserve_balance_negative {
         safe_math::sub(reserve_balance_before, abs_delta_reserve_balance)
@@ -879,10 +873,11 @@ fn update_rates_and_raw_total_debt(
     let scaled_up_total_debt_after = safe_decimal_math::mul(
         raw_total_debt_after, updated_debt_accumulator
     );
-    let ModelRates{lending_rate: new_lending_rate, borrowing_rate: new_borrowing_rate } =
+    let ModelRates { lending_rate: new_lending_rate, borrowing_rate: new_borrowing_rate } =
         IInterestRateModelDispatcher {
         contract_address: interest_rate_model
-    }.get_interest_rates(reserve_balance_after, scaled_up_total_debt_after);
+    }
+        .get_interest_rates(reserve_balance_after, scaled_up_total_debt_after);
 
     // Writes to storage
     self.reserves.write_rates(token, new_lending_rate, new_borrowing_rate);
@@ -957,21 +952,24 @@ fn settle_extra_reserve_balance(ref self: ContractState, token: ContractAddress)
     );
 
     // What we _actually_ have sitting in the contract
-    let reserve_balance: felt252 = IERC20Dispatcher {
-        contract_address: token
-    }.balanceOf(this_address).try_into().expect(errors::BALANCE_OVERFLOW);
+    let reserve_balance: felt252 = IERC20Dispatcher { contract_address: token }
+        .balanceOf(this_address)
+        .try_into()
+        .expect(errors::BALANCE_OVERFLOW);
 
     // The full amount if all debts are repaid
     let implicit_total_balance = safe_math::add(reserve_balance, scaled_up_total_debt);
 
     // What all users are _entitled_ to right now (again, accumulators are up to date)
-    let raw_z_supply = IZTokenDispatcher {
-        contract_address: reserve.z_token_address
-    }.get_raw_total_supply();
+    let raw_z_supply = IZTokenDispatcher { contract_address: reserve.z_token_address }
+        .get_raw_total_supply();
     let owned_balance = safe_decimal_math::mul(raw_z_supply, reserve.lending_accumulator);
 
-    let no_need_to_adjust = Into::<_,
-    u256>::into(implicit_total_balance) <= Into::<_, u256>::into(owned_balance);
+    let no_need_to_adjust = Into::<
+        _, u256
+        >::into(implicit_total_balance) <= Into::<
+        _, u256
+    >::into(owned_balance);
     if !no_need_to_adjust {
         // `implicit_total_balance > owned_balance` holds inside this branch
         let excessive_balance = safe_math::sub(implicit_total_balance, owned_balance);
@@ -1005,9 +1003,8 @@ fn settle_extra_reserve_balance(ref self: ContractState, token: ContractAddress)
 
         // Mints fee to treasury
         if amount_to_treasury.is_non_zero() {
-            IZTokenDispatcher {
-                contract_address: reserve.z_token_address
-            }.mint(treasury_addr, amount_to_treasury);
+            IZTokenDispatcher { contract_address: reserve.z_token_address }
+                .mint(treasury_addr, amount_to_treasury);
         }
     }
 }

@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_MUL_OF', ))]
+    #[should_panic(expected: ('SM_MUL_OF',))]
     fn test_mul_overflow() {
         super::mul(
             0x400000000000000000000000000000000000000000000000000000000000000,
@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_MUL_OF', ))]
+    #[should_panic(expected: ('SM_MUL_OF',))]
     fn test_mul_decimals_overflow() {
         super::mul_decimals(
             0x400000000000000000000000000000000000000000000000000000000000000,

@@ -58,13 +58,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_ADD_OF', ))]
+    #[should_panic(expected: ('SM_ADD_OF',))]
     fn test_add_overflow_1() {
         super::add(0x800000000000011000000000000000000000000000000000000000000000000, 1);
     }
 
     #[test]
-    #[should_panic(expected: ('SM_ADD_OF', ))]
+    #[should_panic(expected: ('SM_ADD_OF',))]
     fn test_add_overflow_2() {
         super::add(
             0x800000000000011000000000000000000000000000000000000000000000000,
@@ -87,13 +87,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_SUB_UF', ))]
+    #[should_panic(expected: ('SM_SUB_UF',))]
     fn test_sub_underflow_1() {
         super::sub(0, 1);
     }
 
     #[test]
-    #[should_panic(expected: ('SM_SUB_UF', ))]
+    #[should_panic(expected: ('SM_SUB_UF',))]
     fn test_sub_underflow_2() {
         super::sub(
             0x100000000000000000000000000000000,
@@ -116,13 +116,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_MUL_OF', ))]
+    #[should_panic(expected: ('SM_MUL_OF',))]
     fn test_mul_felt_overflow() {
         super::mul(0x400000000000008800000000000000000000000000000000000000000000000, 3);
     }
 
     #[test]
-    #[should_panic(expected: ('SM_MUL_OF', ))]
+    #[should_panic(expected: ('SM_MUL_OF',))]
     fn test_mul_uint256_overflow() {
         super::mul(0x400000000000000000000000000000000000000000000000000000000000000, 0x20);
     }
@@ -147,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected: ('SM_DIV_ZERO', ))]
+    #[should_panic(expected: ('SM_DIV_ZERO',))]
     fn test_div_division_by_zero() {
         super::div(999, 0);
     }

@@ -12,8 +12,8 @@ use super::errors::INVALID_STORAGE as E;
 
 use super::Market as contract;
 
-use contract::reserves::ContractState as Reserves;
-use contract::reservesContractStateTrait;
+use contract::__member_module_reserves::ContractMemberState as Reserves;
+use contract::reservesContractMemberStateTrait;
 
 // These are hacks that depend on compiler implementation details :(
 // But they're needed for refactoring the contract code into modules like this one.
