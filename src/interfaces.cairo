@@ -190,6 +190,16 @@ trait IZToken<TContractState> {
     /// Returns the actual amount transferred.
     fn transfer_all(ref self: TContractState, recipient: ContractAddress) -> felt252;
 
+    /// Emits raw balances of a list of users via the `EchoRawBalance` event.
+    ///
+    /// This function (and the event) exists as there used to be a bug in this contract where the
+    /// `RawTransfer` event was missing in some cases, making it impossible to track accurate raw
+    /// balances using `RawTransfer`. The bug itself has been fixed but the `RawTransfer` history of
+    /// users before the fix is broken. This event enables indexers to calibrate raw balances. Once
+    /// deployed, this event must be emitted for any user who has ever placed a deposit before the
+    /// contract upgrade.
+    fn echo_raw_balances(ref self: TContractState, users: Span<ContractAddress>);
+
     //
     // Permissioned entrypoints
     //

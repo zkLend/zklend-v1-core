@@ -6,6 +6,7 @@ mod errors;
 
 #[starknet::contract]
 mod ZToken {
+    use core::array::SpanTrait;
     use starknet::{ClassHash, ContractAddress};
 
     // Hack to simulate the `crate` keyword
@@ -35,6 +36,7 @@ mod ZToken {
         Transfer: Transfer,
         Approval: Approval,
         RawTransfer: RawTransfer,
+        EchoRawBalance: EchoRawBalance,
         ContractUpgraded: ContractUpgraded,
         OwnershipTransferred: OwnershipTransferred,
     }
@@ -60,6 +62,12 @@ mod ZToken {
         raw_value: felt252,
         accumulator: felt252,
         face_value: felt252,
+    }
+
+    #[derive(Drop, PartialEq, starknet::Event)]
+    struct EchoRawBalance {
+        user: ContractAddress,
+        raw_balance: felt252,
     }
 
     #[derive(Drop, PartialEq, starknet::Event)]
@@ -176,6 +184,10 @@ mod ZToken {
 
         fn transfer_all(ref self: ContractState, recipient: ContractAddress) -> felt252 {
             external::transfer_all(ref self, recipient)
+        }
+
+        fn echo_raw_balances(ref self: ContractState, mut users: Span<ContractAddress>) {
+            external::echo_raw_balances(ref self, users)
         }
 
         fn upgrade(ref self: ContractState, new_implementation: ClassHash) {
