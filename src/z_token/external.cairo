@@ -167,6 +167,20 @@ fn transfer_all(ref self: ContractState, recipient: ContractAddress) -> felt252 
     transferred_amount
 }
 
+fn echo_raw_balances(ref self: ContractState, mut users: Span<ContractAddress>) {
+    while let Option::Some(user) = users
+        .pop_front() {
+            self
+                .emit(
+                    contract::Event::EchoRawBalance(
+                        contract::EchoRawBalance {
+                            user: *user, raw_balance: self.raw_balances.read(*user)
+                        }
+                    )
+                );
+        };
+}
+
 fn upgrade(ref self: ContractState, new_implementation: ClassHash) {
     ownable::assert_only_owner(@self);
     replace_class_syscall(new_implementation).unwrap_syscall();
