@@ -3,4 +3,4 @@ version = 1
 
 [[package]]
 name = "zklend"
-version = "0.1.0"
+version = "0.3.4"

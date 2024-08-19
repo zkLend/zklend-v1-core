@@ -1,6 +1,6 @@
 [package]
 name = "zklend"
-version = "0.1.0"
+version = "0.3.4"
 edition = "2023_01"
 license = "BUSL"
 repository = "https://github.com/zkLend/zklend-v1-core/"
