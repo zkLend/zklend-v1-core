@@ -102,6 +102,15 @@ mod Account {
             IMarketDispatcher { contract_address }.set_debt_limit(token, limit)
         }
 
+        fn market_set_deposit_limit(
+            ref self: ContractState,
+            contract_address: ContractAddress,
+            token: ContractAddress,
+            limit: felt252
+        ) {
+            IMarketDispatcher { contract_address }.set_deposit_limit(token, limit)
+        }
+
         fn market_add_reserve(
             ref self: ContractState,
             contract_address: ContractAddress,

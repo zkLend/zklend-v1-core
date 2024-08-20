@@ -57,6 +57,7 @@ mod Market {
         BorrowFactorUpdate: BorrowFactorUpdate,
         ReserveFactorUpdate: ReserveFactorUpdate,
         DebtLimitUpdate: DebtLimitUpdate,
+        DepositLimitUpdate: DepositLimitUpdate,
         Deposit: Deposit,
         Withdrawal: Withdrawal,
         Borrowing: Borrowing,
@@ -127,6 +128,12 @@ mod Market {
 
     #[derive(Drop, PartialEq, starknet::Event)]
     struct DebtLimitUpdate {
+        token: ContractAddress,
+        limit: felt252
+    }
+
+    #[derive(Drop, PartialEq, starknet::Event)]
+    struct DepositLimitUpdate {
         token: ContractAddress,
         limit: felt252
     }
@@ -382,6 +389,10 @@ mod Market {
 
         fn set_debt_limit(ref self: ContractState, token: ContractAddress, limit: felt252) {
             external::set_debt_limit(ref self, token, limit)
+        }
+
+        fn set_deposit_limit(ref self: ContractState, token: ContractAddress, limit: felt252) {
+            external::set_deposit_limit(ref self, token, limit)
         }
 
         fn transfer_ownership(ref self: ContractState, new_owner: ContractAddress) {

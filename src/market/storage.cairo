@@ -82,6 +82,8 @@ trait ReservesStorageShortcuts<T> {
 
     fn read_debt_limit(self: @T, token: ContractAddress) -> felt252;
 
+    fn read_deposit_limit(self: @T, token: ContractAddress) -> felt252;
+
     fn read_interest_rate_model_and_raw_total_debt(
         self: @T, token: ContractAddress
     ) -> StorageBatch1;
@@ -113,6 +115,8 @@ trait ReservesStorageShortcuts<T> {
     fn write_reserve_factor(self: @T, token: ContractAddress, reserve_factor: felt252);
 
     fn write_debt_limit(self: @T, token: ContractAddress, debt_limit: felt252);
+
+    fn write_deposit_limit(self: @T, token: ContractAddress, deposit_limit: felt252);
 
     fn write_accumulators(
         self: @T,
@@ -185,6 +189,14 @@ impl ReservesStorageShortcutsImpl of ReservesStorageShortcuts<Reserves> {
         let debt_limit = Store::<felt252>::read_at_offset(D, base, 15).expect(E);
 
         debt_limit
+    }
+
+    fn read_deposit_limit(self: @Reserves, token: ContractAddress) -> felt252 {
+        let base = self.address(token);
+
+        let deposit_limit = Store::<felt252>::read_at_offset(D, base, 16).expect(E);
+
+        deposit_limit
     }
 
     fn read_interest_rate_model_and_raw_total_debt(
@@ -316,6 +328,12 @@ impl ReservesStorageShortcutsImpl of ReservesStorageShortcuts<Reserves> {
         let base = self.address(token);
 
         Store::<felt252>::write_at_offset(D, base, 15, debt_limit).expect(E);
+    }
+
+    fn write_deposit_limit(self: @Reserves, token: ContractAddress, deposit_limit: felt252) {
+        let base = self.address(token);
+
+        Store::<felt252>::write_at_offset(D, base, 16, deposit_limit).expect(E);
     }
 
     fn write_accumulators(
