@@ -199,6 +199,7 @@ fn add_reserve(
         flash_loan_fee,
         liquidation_bonus,
         debt_limit: 0,
+        deposit_limit: 0,
     };
     self.reserves.write(token, new_reserve);
 
@@ -369,6 +370,14 @@ fn set_debt_limit(ref self: ContractState, token: ContractAddress, limit: felt25
     internal::assert_reserve_exists(@self, token);
     self.reserves.write_debt_limit(token, limit);
     self.emit(contract::Event::DebtLimitUpdate(contract::DebtLimitUpdate { token, limit }));
+}
+
+fn set_deposit_limit(ref self: ContractState, token: ContractAddress, limit: felt252) {
+    ownable::assert_only_owner(@self);
+
+    internal::assert_reserve_exists(@self, token);
+    self.reserves.write_deposit_limit(token, limit);
+    self.emit(contract::Event::DepositLimitUpdate(contract::DepositLimitUpdate { token, limit }));
 }
 
 fn transfer_ownership(ref self: ContractState, new_owner: ContractAddress) {

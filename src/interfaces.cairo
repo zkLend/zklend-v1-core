@@ -126,6 +126,8 @@ trait IMarket<TContractState> {
 
     fn set_debt_limit(ref self: TContractState, token: ContractAddress, limit: felt252);
 
+    fn set_deposit_limit(ref self: TContractState, token: ContractAddress, limit: felt252);
+
     fn transfer_ownership(ref self: TContractState, new_owner: ContractAddress);
 
     fn renounce_ownership(ref self: TContractState);
@@ -316,7 +318,8 @@ struct MarketReserveData {
     raw_total_debt: felt252,
     flash_loan_fee: felt252,
     liquidation_bonus: felt252,
-    debt_limit: felt252
+    debt_limit: felt252,
+    deposit_limit: felt252,
 }
 
 #[derive(Drop, Serde)]

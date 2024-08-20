@@ -85,6 +85,9 @@ fn deposit(ref self: ContractState, token: ContractAddress, amount: felt252) {
         0 // abs_delta_raw_total_debt
     );
 
+    // Enforces token deposit limit
+    assert_deposit_limit_satisfied(@self, token, amount);
+
     self
         .emit(
             contract::Event::Deposit(
@@ -919,6 +922,29 @@ fn assert_debt_limit_satisfied(self: @ContractState, token: ContractAddress) {
     assert(
         Into::<_, u256>::into(scaled_debt) <= Into::<_, u256>::into(debt_limit),
         errors::DEBT_LIMIT_EXCEEDED
+    );
+}
+
+/// Checks if the deposit limit is satisfied.
+fn assert_deposit_limit_satisfied(
+    self: @ContractState, token: ContractAddress, extra_amount: felt252
+) {
+    let deposit_limit = self.reserves.read_deposit_limit(token);
+
+    // Unlike debt limit, a zero deposit limit indicates no limit is in place.
+    if deposit_limit.is_zero() {
+        return;
+    }
+
+    let z_token_address = self.reserves.read_z_token_address(token);
+
+    // Adding extra amount as checks are performed before external interactions.
+    let scaled_deposit = IZTokenDispatcher { contract_address: z_token_address }.felt_total_supply()
+        + extra_amount;
+
+    assert(
+        Into::<_, u256>::into(scaled_deposit) <= Into::<_, u256>::into(deposit_limit),
+        errors::DEPOSIT_LIMIT_EXCEEDED
     );
 }
 

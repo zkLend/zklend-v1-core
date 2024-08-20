@@ -648,6 +648,89 @@ fn test_debt_limit_is_global() {
 
 #[test]
 #[available_gas(90000000)]
+#[should_panic(expected: ('MKT_DEPOSIT_LIMIT_EXCEEDED', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+fn test_deposit_cannot_exceed_deposit_limit() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    // Deposit limit set to 20,000 TST_B (Bob already deposited 10,000)
+    setup
+        .alice
+        .market_set_deposit_limit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            20000000000000000000000 // limit
+        );
+
+    // Bob can't borrow 11,000 TST_B
+    setup
+        .bob
+        .market_deposit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            11000000000000000000000 // amount
+        );
+}
+
+#[test]
+#[available_gas(90000000)]
+fn test_can_deposit_till_deposit_limit() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    // Deposit limit set to 20,000 TST_B (Bob already deposited 10,000)
+    setup
+        .alice
+        .market_set_deposit_limit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            20000000000000000000000 // limit
+        );
+
+    // Depositing 10,000 TST_B is allowed (exactly at limit)
+    setup
+        .bob
+        .market_deposit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            10000000000000000000000 // amount
+        );
+}
+
+#[test]
+#[available_gas(90000000)]
+#[should_panic(expected: ('MKT_DEPOSIT_LIMIT_EXCEEDED', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+fn test_deposit_limit_is_global() {
+    let setup = setup_with_alice_and_bob_deposit();
+
+    // Deposit limit set to 20,000 TST_B (Bob already deposited 10,000)
+    setup
+        .alice
+        .market_set_deposit_limit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            20000000000000000000000 // limit
+        );
+
+    // The full limit is used by Bob
+    setup
+        .bob
+        .market_deposit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            10000000000000000000000 // amount
+        );
+
+    // Alice cannot deposit anymore as the limit is global
+    setup
+        .alice
+        .market_deposit(
+            setup.market.contract_address,
+            setup.token_b.contract_address, // token
+            1000000000000000000 // amount
+        );
+}
+
+#[test]
+#[available_gas(90000000)]
 fn test_rate_changes_on_deposit() {
     let setup = setup_with_loan();
 

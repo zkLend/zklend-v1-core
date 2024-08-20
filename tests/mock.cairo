@@ -102,6 +102,13 @@ trait IAccount<TContractState> {
         limit: felt252
     );
 
+    fn market_set_deposit_limit(
+        ref self: TContractState,
+        contract_address: ContractAddress,
+        token: ContractAddress,
+        limit: felt252
+    );
+
     fn market_add_reserve(
         ref self: TContractState,
         contract_address: ContractAddress,
