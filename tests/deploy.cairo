@@ -12,13 +12,16 @@ use zklend::interfaces::{
 };
 use zklend::irms::default_interest_rate_model::DefaultInterestRateModel;
 use zklend::market::Market;
+use zklend::oracles::chainlink_oracle_adapter::ChainlinkOracleAdapter;
+use zklend::oracles::dual_oracle_adapter::DualOracleAdapter;
 use zklend::oracles::pragma_oracle_adapter::PragmaOracleAdapter;
 use zklend::z_token::ZToken;
 
 use tests::mock;
 use tests::mock::{
-    IAccountDispatcher, IERC20Dispatcher, IFlashLoanHandlerDispatcher, IMockMarketDispatcher,
-    IMockPragmaOracleDispatcher, IMockPriceOracleDispatcher
+    IAccountDispatcher, IERC20Dispatcher, IFlashLoanHandlerDispatcher,
+    IMockChainlinkOracleDispatcher, IMockMarketDispatcher, IMockPragmaOracleDispatcher,
+    IMockPriceOracleDispatcher
 };
 
 fn deploy_account(salt: felt252) -> IAccountDispatcher {
@@ -67,6 +70,18 @@ fn deploy_mock_price_oracle() -> IMockPriceOracleDispatcher {
     IMockPriceOracleDispatcher { contract_address }
 }
 
+fn deploy_mock_chainlink_oracle() -> IMockChainlinkOracleDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        mock::mock_chainlink_oracle::MockChainlinkOracle::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        Default::default().span(),
+        false
+    )
+        .unwrap();
+
+    IMockChainlinkOracleDispatcher { contract_address }
+}
+
 fn deploy_mock_pragma_oracle() -> IMockPragmaOracleDispatcher {
     let (contract_address, _) = deploy_syscall(
         mock::mock_pragma_oracle::MockPragmaOracle::TEST_CLASS_HASH.try_into().unwrap(),
@@ -101,6 +116,34 @@ fn deploy_flash_loan_handler() -> IFlashLoanHandlerDispatcher {
         .unwrap();
 
     IFlashLoanHandlerDispatcher { contract_address }
+}
+
+fn deploy_dual_oracle_adapter(
+    upstream_0: ContractAddress, upstream_1: ContractAddress, threshold: felt252
+) -> IPriceOracleSourceDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        DualOracleAdapter::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        array![upstream_0.into(), upstream_1.into(), threshold].span(),
+        false
+    )
+        .unwrap();
+
+    IPriceOracleSourceDispatcher { contract_address }
+}
+
+fn deploy_chainlink_oracle_adapter(
+    oracle: ContractAddress, timeout: felt252
+) -> IPriceOracleSourceDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        ChainlinkOracleAdapter::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        array![oracle.into(), timeout].span(),
+        false
+    )
+        .unwrap();
+
+    IPriceOracleSourceDispatcher { contract_address }
 }
 
 fn deploy_pragma_oracle_adapter(

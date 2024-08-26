@@ -2,6 +2,12 @@
 mod default_interest_rate_model;
 
 #[cfg(test)]
+mod dual_oracle_adapter;
+
+#[cfg(test)]
+mod chainlink_oracle_adapter;
+
+#[cfg(test)]
 mod pragma_oracle_adapter;
 
 #[cfg(test)]

@@ -26,6 +26,8 @@ compile zklend::market Market
 compile zklend::z_token ZToken
 compile zklend::default_price_oracle DefaultPriceOracle
 compile zklend::irms::default_interest_rate_model DefaultInterestRateModel
+compile zklend::oracles::dual_oracle_adapter DualOracleAdapter
+compile zklend::oracles::chainlink_oracle_adapter ChainlinkOracleAdapter
 compile zklend::oracles::pragma_oracle_adapter PragmaOracleAdapter
 
 if [ -n "$USER_ID" ] && [ -n "$GROUP_ID" ]; then
