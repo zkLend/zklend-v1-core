@@ -287,6 +287,13 @@ trait IPragmaOracle<TContractState> {
 }
 
 #[starknet::interface]
+trait IChainlinkOracle<TContractState> {
+    fn latest_round_data(self: @TContractState) -> ChainlinkPricesResponse;
+
+    fn decimals(self: @TContractState) -> u8;
+}
+
+#[starknet::interface]
 trait IERC20<TContractState> {
     fn decimals(self: @TContractState) -> felt252;
 
@@ -348,4 +355,19 @@ struct PragmaPricesResponse {
     last_updated_timestamp: u64,
     num_sources_aggregated: u32,
     expiration_timestamp: Option<u64>,
+}
+
+#[derive(Drop, Serde)]
+struct ChainlinkPricesResponse {
+    /// The unique identifier of the data round.
+    round_id: felt252,
+    /// The actual data provided by the data feed, representing the latest price of an asset in the
+    /// case of a price feed.
+    answer: u128,
+    /// The block number at which the data was recorded on the blockchain.
+    block_num: u64,
+    /// The Unix timestamp indicating when the data round started.
+    started_at: u64,
+    /// The Unix timestamp indicating when the data was last updated.
+    updated_at: u64,
 }

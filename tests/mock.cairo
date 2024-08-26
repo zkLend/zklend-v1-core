@@ -6,6 +6,8 @@ mod mock_market;
 
 mod mock_price_oracle;
 
+mod mock_chainlink_oracle;
+
 mod mock_pragma_oracle;
 
 mod flash_loan_handler;
@@ -219,6 +221,22 @@ trait IMockPriceOracle<TContractState> {
 
     fn set_price(
         ref self: TContractState, token: ContractAddress, price: felt252, update_time: felt252
+    );
+}
+
+#[starknet::interface]
+trait IMockChainlinkOracle<TContractState> {
+    //
+    // External
+    //
+
+    fn set_price(
+        ref self: TContractState,
+        round_id: felt252,
+        answer: u128,
+        block_num: u64,
+        started_at: u64,
+        updated_at: u64
     );
 }
 
