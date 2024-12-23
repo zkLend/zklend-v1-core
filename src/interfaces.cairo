@@ -294,7 +294,16 @@ trait IChainlinkOracle<TContractState> {
 }
 
 #[starknet::interface]
+trait IKstrkPool<TContractState> {
+    fn get_staked_token(self: @TContractState) -> ContractAddress;
+
+    fn get_total_stake(self: @TContractState) -> u128;
+}
+
+#[starknet::interface]
 trait IERC20<TContractState> {
+    fn totalSupply(self: @TContractState) -> u256;
+
     fn decimals(self: @TContractState) -> felt252;
 
     fn balanceOf(self: @TContractState, user: ContractAddress) -> u256;

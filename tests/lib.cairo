@@ -11,6 +11,9 @@ mod chainlink_oracle_adapter;
 mod pragma_oracle_adapter;
 
 #[cfg(test)]
+mod kstrk_oracle_adapter;
+
+#[cfg(test)]
 mod z_token;
 
 #[cfg(test)]

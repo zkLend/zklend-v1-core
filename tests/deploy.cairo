@@ -14,14 +14,15 @@ use zklend::irms::default_interest_rate_model::DefaultInterestRateModel;
 use zklend::market::Market;
 use zklend::oracles::chainlink_oracle_adapter::ChainlinkOracleAdapter;
 use zklend::oracles::dual_oracle_adapter::DualOracleAdapter;
+use zklend::oracles::kstrk_oracle_adapter::KstrkOracleAdapter;
 use zklend::oracles::pragma_oracle_adapter::PragmaOracleAdapter;
 use zklend::z_token::ZToken;
 
 use tests::mock;
 use tests::mock::{
     IAccountDispatcher, IERC20Dispatcher, IFlashLoanHandlerDispatcher,
-    IMockChainlinkOracleDispatcher, IMockMarketDispatcher, IMockPragmaOracleDispatcher,
-    IMockPriceOracleDispatcher
+    IMockChainlinkOracleDispatcher, IMockKstrkPoolDispatcher, IMockMarketDispatcher,
+    IMockPragmaOracleDispatcher, IMockPriceOracleDispatcher
 };
 
 fn deploy_account(salt: felt252) -> IAccountDispatcher {
@@ -106,6 +107,18 @@ fn deploy_mock_market() -> IMockMarketDispatcher {
     IMockMarketDispatcher { contract_address }
 }
 
+fn deploy_mock_kstrk_pool() -> IMockKstrkPoolDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        mock::mock_kstrk_pool::MockKstrkPool::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        Default::default().span(),
+        false
+    )
+        .unwrap();
+
+    IMockKstrkPoolDispatcher { contract_address }
+}
+
 fn deploy_flash_loan_handler() -> IFlashLoanHandlerDispatcher {
     let (contract_address, _) = deploy_syscall(
         mock::flash_loan_handler::FlashLoanHandler::TEST_CLASS_HASH.try_into().unwrap(),
@@ -125,6 +138,20 @@ fn deploy_dual_oracle_adapter(
         DualOracleAdapter::TEST_CLASS_HASH.try_into().unwrap(),
         0,
         array![upstream_0.into(), upstream_1.into(), threshold].span(),
+        false
+    )
+        .unwrap();
+
+    IPriceOracleSourceDispatcher { contract_address }
+}
+
+fn deploy_kstrk_oracle_adapter(
+    strk_upstream: ContractAddress, kstrk_pool: ContractAddress
+) -> IPriceOracleSourceDispatcher {
+    let (contract_address, _) = deploy_syscall(
+        KstrkOracleAdapter::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        array![strk_upstream.into(), kstrk_pool.into()].span(),
         false
     )
         .unwrap();

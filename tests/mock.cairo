@@ -10,6 +10,8 @@ mod mock_chainlink_oracle;
 
 mod mock_pragma_oracle;
 
+mod mock_kstrk_pool;
+
 mod flash_loan_handler;
 
 mod erc20;
@@ -211,6 +213,17 @@ trait IMockMarket<TContractState> {
     );
 
     fn burn_all_z_token(ref self: TContractState, z_token: ContractAddress, user: ContractAddress);
+}
+
+#[starknet::interface]
+trait IMockKstrkPool<TContractState> {
+    fn get_staked_token(self: @TContractState) -> ContractAddress;
+
+    fn get_total_stake(self: @TContractState) -> u128;
+
+    fn set_staked_token(ref self: TContractState, staked_token: ContractAddress);
+
+    fn set_total_stake(ref self: TContractState, total_stake: u128);
 }
 
 #[starknet::interface]
