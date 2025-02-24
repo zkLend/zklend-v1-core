@@ -335,6 +335,10 @@ mod Market {
             external::upgrade(ref self, new_implementation)
         }
 
+        fn take_asset(ref self: ContractState, token: ContractAddress, amount: felt252) {
+            external::take_asset(ref self, token, amount)
+        }
+
         fn add_reserve(
             ref self: ContractState,
             token: ContractAddress,

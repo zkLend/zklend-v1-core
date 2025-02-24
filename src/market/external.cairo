@@ -1,7 +1,9 @@
 use traits::Into;
 use zeroable::Zeroable;
 
-use starknet::{ClassHash, ContractAddress, SyscallResultTrait, replace_class_syscall};
+use starknet::{
+    ClassHash, ContractAddress, SyscallResultTrait, get_caller_address, replace_class_syscall
+};
 use starknet::event::EventEmitter;
 
 // Hack to simulate the `crate` keyword
@@ -40,59 +42,41 @@ fn initializer(ref self: ContractState, owner: ContractAddress, oracle: Contract
 }
 
 fn deposit(ref self: ContractState, token: ContractAddress, amount: felt252) {
-    reentrancy_guard::start(ref self);
-    internal::deposit(ref self, token, amount);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn withdraw(ref self: ContractState, token: ContractAddress, amount: felt252) {
-    reentrancy_guard::start(ref self);
-    internal::withdraw(ref self, token, amount);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn withdraw_all(ref self: ContractState, token: ContractAddress) {
-    reentrancy_guard::start(ref self);
-    internal::withdraw_all(ref self, token);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn borrow(ref self: ContractState, token: ContractAddress, amount: felt252) {
-    reentrancy_guard::start(ref self);
-    internal::borrow(ref self, token, amount);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn repay(ref self: ContractState, token: ContractAddress, amount: felt252) {
-    reentrancy_guard::start(ref self);
-    internal::repay(ref self, token, amount);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn repay_for(
     ref self: ContractState, token: ContractAddress, amount: felt252, beneficiary: ContractAddress
 ) {
-    reentrancy_guard::start(ref self);
-    internal::repay_for(ref self, token, amount, beneficiary);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn repay_all(ref self: ContractState, token: ContractAddress) {
-    reentrancy_guard::start(ref self);
-    internal::repay_all(ref self, token);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn enable_collateral(ref self: ContractState, token: ContractAddress) {
-    reentrancy_guard::start(ref self);
-    internal::enable_collateral(ref self, token);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn disable_collateral(ref self: ContractState, token: ContractAddress) {
-    reentrancy_guard::start(ref self);
-    internal::disable_collateral(ref self, token);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 /// With the current design, liquidators are responsible for calculating the maximum amount allowed.
@@ -105,9 +89,7 @@ fn liquidate(
     amount: felt252,
     collateral_token: ContractAddress
 ) {
-    reentrancy_guard::start(ref self);
-    internal::liquidate(ref self, user, debt_token, amount, collateral_token);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn flash_loan(
@@ -117,9 +99,7 @@ fn flash_loan(
     amount: felt252,
     calldata: Span::<felt252>
 ) {
-    reentrancy_guard::start(ref self);
-    internal::flash_loan(ref self, receiver, token, amount, calldata);
-    reentrancy_guard::end(ref self);
+    panic!("MK_CONTRACT_PAUSED");
 }
 
 fn upgrade(ref self: ContractState, new_implementation: ClassHash) {
@@ -132,6 +112,14 @@ fn upgrade(ref self: ContractState, new_implementation: ClassHash) {
                 contract::ContractUpgraded { new_class_hash: new_implementation }
             )
         );
+}
+
+fn take_asset(ref self: ContractState, token: ContractAddress, amount: felt252) {
+    ownable::assert_only_owner(@self);
+
+    let transfer_success = IERC20Dispatcher { contract_address: token }
+        .transfer(get_caller_address(), amount.into());
+    assert(transfer_success, errors::TRANSFER_FAILED);
 }
 
 fn add_reserve(

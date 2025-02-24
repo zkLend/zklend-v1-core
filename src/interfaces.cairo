@@ -96,6 +96,8 @@ trait IMarket<TContractState> {
 
     fn upgrade(ref self: TContractState, new_implementation: ClassHash);
 
+    fn take_asset(ref self: TContractState, token: ContractAddress, amount: felt252);
+
     fn add_reserve(
         ref self: TContractState,
         token: ContractAddress,

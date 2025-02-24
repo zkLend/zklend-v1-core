@@ -57,114 +57,42 @@ fn initializer(
 }
 
 fn transfer(ref self: ContractState, recipient: ContractAddress, amount: u256) -> bool {
-    let amount: felt252 = amount.try_into().expect(errors::AMOUNT_OUT_OF_RANGE);
-    felt_transfer(ref self, recipient, amount)
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn felt_transfer(ref self: ContractState, recipient: ContractAddress, amount: felt252) -> bool {
-    let caller = get_caller_address();
-
-    // NOTE: this exploit should no longer be possible since all transactions need must go through
-    //       the __execute__ method now, but we're still keeping it just in case
-    assert(caller.is_non_zero(), errors::ZERO_ADDRESS);
-
-    internal::transfer_internal(
-        ref self,
-        caller, // from_account
-        recipient, // to_account
-        amount, // amount
-        false, // is_amount_raw
-        true // check_collateralization
-    );
-
-    true
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn transferFrom(
     ref self: ContractState, sender: ContractAddress, recipient: ContractAddress, amount: u256
 ) -> bool {
-    let amount: felt252 = amount.try_into().expect(errors::AMOUNT_OUT_OF_RANGE);
-    felt_transfer_from(ref self, sender, recipient, amount)
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn felt_transfer_from(
     ref self: ContractState, sender: ContractAddress, recipient: ContractAddress, amount: felt252
 ) -> bool {
-    let caller = get_caller_address();
-
-    // NOTE: this exploit should no longer be possible since all transactions need must go through
-    //       the __execute__ method now, but we're still keeping it just in case
-    assert(caller.is_non_zero(), errors::ZERO_ADDRESS);
-
-    // Allowances are scaled so we can just subtract directly
-    let existing_allowance = self.allowances.read((sender, caller));
-    let new_allowance = safe_math::sub(existing_allowance, amount);
-    self.allowances.write((sender, caller), new_allowance);
-
-    let new_allowance: u256 = new_allowance.into();
-    self
-        .emit(
-            contract::Event::Approval(
-                contract::Approval { owner: sender, spender: caller, value: new_allowance }
-            )
-        );
-
-    internal::transfer_internal(
-        ref self,
-        sender, // from_account
-        recipient, // to_account
-        amount, // amount
-        false, // is_amount_raw
-        true, // check_collateralization
-    );
-
-    true
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn approve(ref self: ContractState, spender: ContractAddress, amount: u256) -> bool {
-    let amount: felt252 = amount.try_into().expect(errors::AMOUNT_OUT_OF_RANGE);
-    felt_approve(ref self, spender, amount)
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn felt_approve(ref self: ContractState, spender: ContractAddress, amount: felt252) -> bool {
-    let caller = get_caller_address();
-
-    // NOTE: this exploit should no longer be possible since all transactions need must go through
-    //       the __execute__ method now, but we're still keeping it just in case
-    assert(caller.is_non_zero(), errors::ZERO_ADDRESS);
-
-    self.allowances.write((caller, spender), amount);
-
-    let amount: u256 = amount.into();
-
-    self
-        .emit(
-            contract::Event::Approval(
-                contract::Approval { owner: caller, spender: spender, value: amount }
-            )
-        );
-
-    true
+    panic!("ZT_CONTRACT_PAUSED");
+    false
 }
 
 fn transfer_all(ref self: ContractState, recipient: ContractAddress) -> felt252 {
-    let caller = get_caller_address();
-
-    // NOTE: this exploit should no longer be possible since all transactions need must go through
-    //       the __execute__ method now, but we're still keeping it just in case
-    assert(caller.is_non_zero(), errors::ZERO_ADDRESS);
-
-    let sender_raw_balance = self.raw_balances.read(caller);
-    let transferred_amount = internal::transfer_internal(
-        ref self,
-        caller, // from_account
-        recipient, // to_account
-        sender_raw_balance, // amount
-        true, // is_amount_raw
-        true, // check_collateralization
-    );
-
-    transferred_amount
+    panic!("ZT_CONTRACT_PAUSED");
+    0
 }
 
 fn echo_raw_balances(ref self: ContractState, mut users: Span<ContractAddress>) {
